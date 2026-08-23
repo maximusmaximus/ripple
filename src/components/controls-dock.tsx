@@ -11,6 +11,12 @@ export function ControlsDock() {
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const setViscosity = useRippleStore((s) => s.setViscosity);
   const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
+  const cameraInteract = useRippleStore((s) => s.cameraInteract);
+  const micSensitivity = useRippleStore((s) => s.micSensitivity);
+  const gyroSensitivity = useRippleStore((s) => s.gyroSensitivity);
+  const setCameraInteract = useRippleStore((s) => s.setCameraInteract);
+  const setMicSensitivity = useRippleStore((s) => s.setMicSensitivity);
+  const setGyroSensitivity = useRippleStore((s) => s.setGyroSensitivity);
   const clearSurface = useRippleStore((s) => s.clearSurface);
   const worldId = useRippleStore((s) => s.worldId);
   const nextWorld = useRippleStore((s) => s.nextWorld);
@@ -88,6 +94,51 @@ export function ControlsDock() {
             step={0.01}
             value={waveStrength}
             onChange={(e) => setWaveStrength(parseFloat(e.target.value))}
+            className="w-full"
+          />
+        </label>
+        <label className="flex flex-col gap-2">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>Camera interact</span>
+            <span className="font-mono tabular-nums text-fg">{cameraInteract.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={cameraInteract}
+            onChange={(e) => setCameraInteract(parseFloat(e.target.value))}
+            className="w-full"
+          />
+        </label>
+        <label className="flex flex-col gap-2">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>Mic sensitivity</span>
+            <span className="font-mono tabular-nums text-fg">{micSensitivity.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.01}
+            value={micSensitivity}
+            onChange={(e) => setMicSensitivity(parseFloat(e.target.value))}
+            className="w-full"
+          />
+        </label>
+        <label className="flex flex-col gap-2">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>Gyro sensitivity</span>
+            <span className="font-mono tabular-nums text-fg">{gyroSensitivity.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.01}
+            value={gyroSensitivity}
+            onChange={(e) => setGyroSensitivity(parseFloat(e.target.value))}
             className="w-full"
           />
         </label>
