@@ -35,6 +35,7 @@ npm run build
 - **Second display** — open `/?wall=1`, scan the QR on a phone to stream the live surface
 - Landscape mode hides all UI chrome for immersive drawing
 - Tap outside the Feel menu to close it
+- Camera feed rotates with device orientation (same direction as tilt)
 
 ## URL modes
 
