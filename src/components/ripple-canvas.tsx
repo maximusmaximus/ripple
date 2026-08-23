@@ -161,6 +161,42 @@ export function RippleCanvas({
     engineRef.current?.setCameraOrientation(orientationAngle)
   }, [orientationAngle])
 
+  // Gyroscope → gentle continuous force field (tilt the surface)
+  useEffect(() => {
+    if (!sensors.gyroOn) return
+
+    let lastT = 0
+    const onOrient = (e: DeviceOrientationEvent) => {
+      const engine = engineRef.current
+      if (!engine) return
+      const now = performance.now()
+      // ~20 Hz so we don't spam the sim
+      if (now - lastT < 50) return
+      lastT = now
+
+      // beta: front/back tilt (−180…180), gamma: left/right (−90…90)
+      const beta = e.beta ?? 0
+      const gamma = e.gamma ?? 0
+      // Map tilt to a point near center; stronger tilt = larger offset + force
+      const nx = 0.5 + Math.max(-0.35, Math.min(0.35, gamma / 45))
+      const ny = 0.5 + Math.max(-0.35, Math.min(0.35, beta / 60))
+      const mag = Math.min(1, Math.hypot(gamma / 45, beta / 60))
+      if (mag < 0.06) return // deadzone when nearly flat
+
+      engine.applySplats([
+        {
+          x: nx,
+          y: ny,
+          radius: 0.12 + mag * 0.1,
+          force: 0.012 + mag * 0.035,
+        },
+      ])
+    }
+
+    window.addEventListener('deviceorientation', onOrient)
+    return () => window.removeEventListener('deviceorientation', onOrient)
+  }, [sensors.gyroOn])
+
   // Cleanup hidden video on unmount
   useEffect(() => {
     return () => {
