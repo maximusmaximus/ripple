@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { PALETTES, PALETTE_ORDER, type PaletteId } from "@/lib/ripple/palettes";
+import {
+  PALETTES,
+  PALETTE_ORDER,
+  type PaletteId,
+  type ColorStop,
+  stopsFromColors,
+  addStop as addStopHelper,
+  removeStop as removeStopHelper,
+  updateStop as updateStopHelper,
+  resampleStops,
+  MAX_COLOR_STOPS,
+} from "@/lib/ripple/palettes";
 import { DEFAULT_BRUSH_ID, getBrush, type BrushId } from "@/lib/ripple/brushes";
 
 export type WorldId = PaletteId;
@@ -13,6 +24,8 @@ export interface ColorRange {
 interface RippleState {
   worldId: WorldId;
   colorRanges: Partial<Record<WorldId, ColorRange>>;
+  /** Per-world editable gradient stops (defaults to palette colors). */
+  colorStops: Partial<Record<WorldId, ColorStop[]>>;
 
   viscosity: number;
   waveStrength: number;
@@ -35,6 +48,13 @@ interface RippleState {
   prevWorld: () => void;
   setColorRange: (range: ColorRange) => void;
   resetColorRange: () => void;
+  getActiveStops: () => ColorStop[];
+  setColorStops: (stops: ColorStop[]) => void;
+  addColorStop: () => void;
+  removeColorStop: (id: string) => void;
+  updateColorStop: (id: string, patch: Partial<Pick<ColorStop, "t" | "color">>) => void;
+  resetColorStops: () => void;
+  getActiveColors: () => string[];
   setViscosity: (v: number) => void;
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
@@ -81,6 +101,7 @@ export const useRippleStore = create<RippleState>()(
     (set, get) => ({
       worldId: "abyss",
       colorRanges: {},
+      colorStops: {},
       viscosity: PALETTES.abyss.viscosity,
       waveStrength: PALETTES.abyss.waveStrength,
       brushDiameter: getBrush(DEFAULT_BRUSH_ID).radius * 2,
@@ -127,6 +148,72 @@ export const useRippleStore = create<RippleState>()(
         set({ colorRanges: next });
       },
 
+      getActiveStops: () => {
+        const { worldId, colorStops } = get();
+        const saved = colorStops[worldId];
+        if (saved && saved.length >= 2) return saved;
+        const p = PALETTES[worldId] ?? PALETTES.abyss;
+        return stopsFromColors(p.colors, worldId);
+      },
+
+      setColorStops: (stops) => {
+        const { worldId, colorStops } = get();
+        set({
+          colorStops: {
+            ...colorStops,
+            [worldId]: stops.slice(0, MAX_COLOR_STOPS),
+          },
+        });
+      },
+
+      addColorStop: () => {
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        if (current.length >= MAX_COLOR_STOPS) return;
+        const next = addStopHelper(current);
+        set({
+          colorStops: {
+            ...colorStops,
+            [worldId]: next,
+          },
+        });
+      },
+
+      removeColorStop: (id) => {
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        const next = removeStopHelper(current, id);
+        set({
+          colorStops: {
+            ...colorStops,
+            [worldId]: next,
+          },
+        });
+      },
+
+      updateColorStop: (id, patch) => {
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        const next = updateStopHelper(current, id, patch);
+        set({
+          colorStops: {
+            ...colorStops,
+            [worldId]: next,
+          },
+        });
+      },
+
+      resetColorStops: () => {
+        const { worldId, colorStops } = get();
+        const next = { ...colorStops };
+        delete next[worldId];
+        set({ colorStops: next });
+      },
+
+      getActiveColors: () => {
+        return resampleStops(get().getActiveStops(), 6);
+      },
+
       setViscosity: (v) => set({ viscosity: Math.max(0.85, Math.min(0.999, v)) }),
       setWaveStrength: (v) => set({ waveStrength: Math.max(0.1, Math.min(1.5, v)) }),
       setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
@@ -162,6 +249,7 @@ export const useRippleStore = create<RippleState>()(
       partialize: (s) => ({
         worldId: s.worldId,
         colorRanges: s.colorRanges,
+        colorStops: s.colorStops,
         viscosity: s.viscosity,
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
