@@ -13,25 +13,42 @@ export function ControlsDock() {
   const worldId = useRippleStore((s) => s.worldId)
   const nextWorld = useRippleStore((s) => s.nextWorld)
   const prevWorld = useRippleStore((s) => s.prevWorld)
+  const setDockOpen = useRippleStore((s) => s.setDockOpen)
   const palette = useRippleStore((s) => s.getActivePalette())
   const worldIndex = PALETTE_ORDER.indexOf(worldId) + 1
   const diameterLabel = Math.round(brushDiameter * 200)
 
   return (
     <div
-      className="controls-dock flex w-full max-w-sm flex-col gap-4 rounded-2xl border border-white/15 p-4 shadow-2xl"
+      className="controls-dock flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-white/15 p-3 shadow-2xl"
       style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(16px)' }}
     >
       <div className="flex items-center justify-between text-xs text-white/70">
-        <button type="button" onClick={prevWorld} className="rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/20">←</button>
+        <button type="button" onClick={prevWorld} className="rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/20">
+          ←
+        </button>
         <span className="font-medium tracking-wide text-white/90">
-          {palette.name}{' '}
-          <span className="text-white/40">{worldIndex} / {PALETTE_ORDER.length}</span>
+          {palette.name} <span className="text-white/40">{worldIndex} / {PALETTE_ORDER.length}</span>
         </span>
-        <button type="button" onClick={nextWorld} className="rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/20">→</button>
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={nextWorld} className="rounded-full bg-white/10 px-3 py-1.5 hover:bg-white/20">
+            →
+          </button>
+          <button
+            type="button"
+            onClick={() => setDockOpen(false)}
+            className="rounded-full bg-white/10 px-2.5 py-1.5 text-white/60 hover:bg-white/20 hover:text-white"
+            aria-label="Hide menu"
+            title="Hide"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <section className="flex flex-col gap-4">
+      <section className="flex flex-col gap-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">Feel</h3>
         <ColorRangeSlider />
         <label className="flex flex-col gap-2">
@@ -56,7 +73,10 @@ export function ControlsDock() {
             <span className="font-mono tabular-nums text-white/90">{viscosity.toFixed(2)}</span>
           </div>
           <input
-            type="range" min={0.85} max={0.999} step={0.001}
+            type="range"
+            min={0.85}
+            max={0.999}
+            step={0.001}
             value={viscosity}
             onChange={(e) => setViscosity(parseFloat(e.target.value))}
             className="w-full"
@@ -69,7 +89,10 @@ export function ControlsDock() {
             <span className="font-mono tabular-nums text-white/90">{waveStrength.toFixed(2)}</span>
           </div>
           <input
-            type="range" min={0.1} max={1.5} step={0.01}
+            type="range"
+            min={0.1}
+            max={1.5}
+            step={0.01}
             value={waveStrength}
             onChange={(e) => setWaveStrength(parseFloat(e.target.value))}
             className="w-full"
