@@ -1,10 +1,12 @@
-# Ripple
+# Drawing (Ripple)
 
 Full-screen interactive fluid surface. Drag to paint waves; switch worlds; layer camera, mic, and gyro; cast from phone to a second display via QR.
 
+**Intended live URL:** [https://drawing.grok.me](https://drawing.grok.me)
+
 ## Live demo
 
-After publishing from Grok Build, the app is available on your `*.grok.me` link.
+After publishing from Grok Build, choose the subdomain **drawing** so the app is available at `https://drawing.grok.me`.
 
 Or run locally / deploy yourself:
 
@@ -23,7 +25,7 @@ Connect the GitHub repo `maximusmaximus/ripple`. Build command: `npm run build`.
 ### GitHub Pages
 ```bash
 npm run build
-# then push dist/ to gh-pages branch or use the Pages settings with /docs or root of a branch
+# then push dist/ to gh-pages branch or use the Pages settings
 ```
 
 ## Features
