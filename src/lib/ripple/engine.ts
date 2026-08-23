@@ -198,6 +198,11 @@ export class RippleEngine {
     this.clear();
   }
 
+  /** Public layout hook used by the canvas ResizeObserver. */
+  resize() {
+    this.allocSim();
+  }
+
   setParams(opts: {
     viscosity?: number;
     waveStrength?: number;
@@ -356,7 +361,6 @@ export class RippleEngine {
 
   private frame = (t: number) => {
     if (!this.running) return;
-    // Always schedule next frame before early-outs so RAF never dies on tab hide
     this.raf = requestAnimationFrame(this.frame);
     if (document.hidden) return;
     const dt = this.lastT ? (t - this.lastT) / 1000 : 0.016;
