@@ -33,3 +33,5 @@ React 19 · Vite · Zustand · Tailwind (CDN) · WebRTC data channels for cast
 
 - Camera / mic stay on-device; nothing is uploaded.
 - Drawing samples densely along the stroke so fast drags still leave a continuous mark.
+- Landscape mode hides all UI chrome for immersive drawing.
+- Tap outside the Feel menu to close it.
