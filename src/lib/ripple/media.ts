@@ -1,6 +1,7 @@
 export type SensorsState = {
   cameraOn: boolean
   micOn: boolean
+  gyroOn: boolean
   facingMode: 'user' | 'environment'
   cameraStream: MediaStream | null
   micStream: MediaStream | null
@@ -10,6 +11,7 @@ export type SensorsState = {
 export const emptySensorsState: SensorsState = {
   cameraOn: false,
   micOn: false,
+  gyroOn: false,
   facingMode: 'user',
   cameraStream: null,
   micStream: null,
