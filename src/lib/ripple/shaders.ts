@@ -48,25 +48,24 @@ precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
 uniform sampler2D u_prev;
-uniform vec2 u_point;   // UV, y from bottom
+uniform vec2 u_point;
 uniform float u_force;
 uniform float u_radius;
 
 void main() {
   vec4 c = texture(u_prev, v_uv);
-  vec2 d = v_uv - u_point;
-  float dist = length(d);
-  float influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
+  float d = distance(v_uv, u_point);
+  float influence = exp(- (d * d) / (u_radius * u_radius));
   c.r += u_force * influence;
   fragColor = c;
 }
 `
 
 /**
- * Final composite: height → normal → palette color, optionally mixed with live camera.
+ * Final composite: height → normal → palette, with live camera as the medium.
  *
- * Camera UV is rotated by u_camAngle (0/90/180/270) so the feed turns with the device,
- * and optionally mirrored for front-facing cameras.
+ * Strokes refract and pull the feed (faces/objects warp under the brush).
+ * Camera UV is rotated by u_camAngle and optionally mirrored for front cameras.
  */
 export const DISPLAY_FRAG = `#version 300 es
 precision highp float;
@@ -84,9 +83,10 @@ uniform vec3 u_c5;
 uniform float u_rangeStart;
 uniform float u_rangeEnd;
 uniform float u_time;
-uniform float u_camMix;     // 0 = palette only, 1 = full camera under fluid
-uniform float u_camAngle;   // 0, 90, 180, 270 — screen orientation
-uniform float u_camMirror;  // 1 = mirror X (front camera)
+uniform float u_camMix;      // overall camera presence
+uniform float u_camAngle;    // 0, 90, 180, 270 — screen orientation
+uniform float u_camMirror;   // 1 = mirror X (front camera)
+uniform float u_camInteract; // 0 = flat bed, 1 = strokes fully warp the feed
 
 vec3 sampleRamp(float t) {
   t = clamp(t, 0.0, 1.0);
@@ -107,12 +107,10 @@ vec3 sampleRamp(float t) {
 vec2 orientCamUv(vec2 uv, float angleDeg) {
   vec2 p = uv;
   if (angleDeg > 45.0 && angleDeg < 135.0) {
-    // Device tilted 90° CW → rotate sample the same way
     p = vec2(1.0 - uv.y, uv.x);
   } else if (angleDeg > 135.0 && angleDeg < 225.0) {
     p = vec2(1.0 - uv.x, 1.0 - uv.y);
   } else if (angleDeg > 225.0 && angleDeg < 315.0) {
-    // Device tilted 90° CCW (270 CW) → rotate sample the same way
     p = vec2(uv.y, 1.0 - uv.x);
   }
   return p;
@@ -128,7 +126,11 @@ void main() {
   vec3 n = normalize(vec3(-hx * 4.0, -hy * 4.0, 1.0));
   vec3 light = normalize(vec3(0.35, 0.5, 1.0));
   float diff = max(0.0, dot(n, light));
-  float spec = pow(max(0.0, dot(reflect(-light, n), vec3(0.0, 0.0, 1.0))), 32.0);
+  float spec = pow(max(0.0, dot(reflect(-light, n), vec3(0.0, 0.0, 1.0))), 28.0);
+
+  float drawn = smoothstep(0.008, 0.16, abs(h));
+  float edge = length(vec2(hx, hy));
+  float ridge = smoothstep(0.012, 0.14, edge);
 
   float t = (h * 0.5 + 0.5);
   t = mix(u_rangeStart, u_rangeEnd, clamp(t, 0.0, 1.0));
@@ -136,21 +138,41 @@ void main() {
 
   vec3 col = base * (0.45 + 0.55 * diff) + vec3(spec * 0.35);
 
-  // Live camera under the fluid surface
+  // Camera is the medium: strokes refract faces/objects in frame, not hide them.
   if (u_camMix > 0.001) {
-    vec2 cuv = orientCamUv(v_uv, u_camAngle);
+    float interact = clamp(u_camInteract, 0.0, 1.0);
+    // Height gradient bends the sample — strongest on marks and ridges
+    float warpGain = (0.18 + 2.6 * interact) * (0.35 + drawn * 0.9 + ridge * 0.75);
+    vec2 warp = vec2(hx, hy) * warpGain;
+    // Slight radial pull toward stroke centers so features "melt" into the mark
+    warp += n.xy * drawn * interact * 0.04;
+
+    vec2 cuv = orientCamUv(v_uv + warp, u_camAngle);
     if (u_camMirror > 0.5) cuv.x = 1.0 - cuv.x;
-    // Cover: letterbox-safe sample (clamp)
-    cuv = clamp(cuv, 0.0, 1.0);
-    vec3 cam = texture(u_cam, cuv).rgb;
-    // Mix more camera where height is near zero; keep palette highlights on waves
-    float waveMask = smoothstep(0.02, 0.35, abs(h));
-    float mixAmt = u_camMix * (1.0 - waveMask * 0.55);
-    col = mix(col, cam * (0.55 + 0.45 * diff) + vec3(spec * 0.25), mixAmt);
+    cuv = clamp(cuv, 0.002, 0.998);
+
+    // Cheap chromatic spread on hard ridges so warped faces look liquid
+    float chroma = ridge * interact * 0.012;
+    vec3 cam;
+    cam.r = texture(u_cam, clamp(cuv + vec2(chroma, 0.0), 0.0, 1.0)).r;
+    cam.g = texture(u_cam, cuv).g;
+    cam.b = texture(u_cam, clamp(cuv - vec2(chroma, 0.0), 0.0, 1.0)).b;
+
+    vec3 litCam = cam * (0.42 + 0.58 * diff) + vec3(spec * 0.45);
+    // Palette tints the feed; strokes tint harder so marks "own" the subject
+    float tintAmt = 0.22 + drawn * 0.48;
+    vec3 tinted = mix(litCam, litCam * (0.55 + 0.9 * base), tintAmt);
+
+    // Show MORE camera on drawn areas so key in-frame elements ride the stroke
+    float showCam = u_camMix * mix(0.62, 1.0, drawn * 0.75 + ridge * 0.35);
+    col = mix(col, tinted, clamp(showCam, 0.0, 1.0));
+
+    // Extra highlight along stroke edges over the warped feed
+    col += vec3(spec * ridge * interact * 0.22);
   }
 
   float vig = smoothstep(1.2, 0.3, length(v_uv - 0.5));
-  col *= 0.75 + 0.25 * vig;
+  col *= 0.78 + 0.22 * vig;
 
   fragColor = vec4(col, 1.0);
 }
