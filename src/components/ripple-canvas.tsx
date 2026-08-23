@@ -4,6 +4,7 @@ import { PointerPainter, bindPainter, type Splat } from "@/lib/ripple/pointer";
 import { createStrokeTracker } from "@/lib/ripple/gestures";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES } from "@/lib/ripple/palettes";
+import { getBrush } from "@/lib/ripple/brushes";
 import type { SensorsState } from "@/lib/ripple/media";
 import type { ScreenAngle } from "@/lib/ripple/orientation";
 
@@ -43,6 +44,7 @@ export function RippleCanvas({
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
+  const brushId = useRippleStore((s) => s.brushId);
   const clearToken = useRippleStore((s) => s.clearToken);
   const nextWorld = useRippleStore((s) => s.nextWorld);
   const prevWorld = useRippleStore((s) => s.prevWorld);
@@ -75,7 +77,8 @@ export function RippleCanvas({
     engine.start();
 
     const painter = painterRef.current;
-    painter.setBrush(brushDiameter / 2, 0.7);
+    const b0 = getBrush(brushId);
+    painter.setBrush(b0.radius, b0.force, b0.kind);
     const swipe = createStrokeTracker();
 
     const onSplatFrame = (splats: Splat[]) => {
@@ -153,8 +156,11 @@ export function RippleCanvas({
   }, [worldId, viscosity, waveStrength, rangeStart, rangeEnd, sensors.cameraOn, cameraSource]);
 
   useEffect(() => {
-    painterRef.current.setBrush(brushDiameter / 2, 0.65 + waveStrength * 0.25);
-  }, [brushDiameter, waveStrength]);
+    const b = getBrush(brushId);
+    // Wave strength slightly scales weight so lively worlds still bite
+    const force = b.force * (0.85 + waveStrength * 0.2);
+    painterRef.current.setBrush(b.radius, force, b.kind);
+  }, [brushId, brushDiameter, waveStrength]);
 
   useEffect(() => {
     if (clearToken > 0) engineRef.current?.clear();
