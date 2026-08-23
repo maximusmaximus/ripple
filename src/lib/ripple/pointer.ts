@@ -81,18 +81,27 @@ export class PointerPainter {
 export function bindPainter(
   el: HTMLElement,
   painter: PointerPainter,
-  opts?: { onSplatFrame?: (splats: Splat[]) => void },
+  opts?: {
+    onSplatFrame?: (splats: Splat[]) => void
+    /** Fired once when a stroke begins (pointer/touch/mouse down). */
+    onDown?: () => void
+  },
 ): () => void {
   el.style.touchAction = 'none'
   el.style.userSelect = 'none'
   ;(el.style as any).webkitUserSelect = 'none'
   el.style.cursor = 'crosshair'
 
+  // Map client coordinates into the element's content box (0–1).
+  // Re-query the rect every event so layout changes (dock hide, rotate, etc.)
+  // never leave a stale offset between the finger and the painted ripple.
   const norm = (clientX: number, clientY: number) => {
     const r = el.getBoundingClientRect()
+    const w = Math.max(1, r.width)
+    const h = Math.max(1, r.height)
     return {
-      x: Math.min(1, Math.max(0, (clientX - r.left) / Math.max(1, r.width))),
-      y: Math.min(1, Math.max(0, (clientY - r.top) / Math.max(1, r.height))),
+      x: Math.min(1, Math.max(0, (clientX - r.left) / w),
+      y: Math.min(1, Math.max(0, (clientY - r.top) / h)),
     }
   }
 
@@ -106,6 +115,7 @@ export function bindPainter(
     try { el.setPointerCapture(e.pointerId) } catch {}
     const { x, y } = norm(e.clientX, e.clientY)
     painter.down(e.pointerId, x, y, e.timeStamp)
+    opts?.onDown?.()
     e.preventDefault()
     e.stopPropagation()
   }
@@ -136,6 +146,7 @@ export function bindPainter(
       const { x, y } = norm(t.clientX, t.clientY)
       painter.down(1_000_000 + t.identifier, x, y, e.timeStamp)
     }
+    if (e.changedTouches.length) opts?.onDown?.()
   }
   const onTouchMove = (e: TouchEvent) => {
     if (usedPointer && performance.now() < usedPointerUntil) return
@@ -159,6 +170,7 @@ export function bindPainter(
     if (usedPointer && performance.now() < usedPointerUntil) return
     const { x, y } = norm(e.clientX, e.clientY)
     painter.down(-1, x, y, e.timeStamp)
+    opts?.onDown?.()
     e.preventDefault()
   }
   const onMouseMove = (e: MouseEvent) => {
