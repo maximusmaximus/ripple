@@ -1,57 +1,48 @@
-# Drawing (Ripple)
+# Ripple
 
-Full-screen interactive fluid surface. Drag to paint waves; switch worlds; layer camera, mic, and gyro; cast from phone to a second display via QR.
+Full-screen interactive fluid surface. Drag to paint waves; switch worlds; layer camera, mic, and gyro; cast from a phone to a second display via a real QR code.
 
 **Intended live URL:** [https://drawing.grok.me](https://drawing.grok.me)
 
-## Live demo
-
-After publishing from Grok Build, choose the subdomain **drawing** so the app is available at `https://drawing.grok.me`.
-
-Or run locally / deploy yourself:
+## Run
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
-npm run build        # production assets in dist/
-npm run preview      # serve the production build
-```
-
-## Deploy to production (self-host)
-
-### Vercel / Netlify / Cloudflare Pages
-Connect the GitHub repo `maximusmaximus/ripple`. Build command: `npm run build`. Output: `dist`.
-
-### GitHub Pages
-```bash
+npm run dev          # http://localhost:8080
 npm run build
-# then push dist/ to gh-pages branch or use the Pages settings
+npm run preview      # production build
 ```
 
 ## Features
 
-- **Paint** — single-finger / mouse drag with adjustable brush diameter
-- **Feel dock** — color-range gradient (dual handles), viscosity, wave strength
-- **16 worlds** — unique palettes and camera/mic behaviors
-- **Sensors** — top-bar camera + mic toggles; optional gyroscope
-- **Second display** — open `/?wall=1`, scan the QR on a phone to stream the live surface
-- Landscape mode hides all UI chrome for immersive drawing
+- **Paint** — mouse / finger drag with adjustable brush diameter; strokes sample densely so fast drags still leave a continuous mark
+- **Feel dock** — dual-handle color range, viscosity, wave strength
+- **16 worlds** — each with its own palette, thickness, camera mix, and mic drive
+- **Sensors** — camera, flip, mic, and gyroscope; all stay on-device
+- **Second display** — open `/?mode=wall`, scan the QR on a phone; the wall runs the same WebGL fluid, not a video feed
+- Phone landscape hides chrome for immersive drawing (desktop keeps the menu)
 - Tap outside the Feel menu to close it
-- Camera feed rotates with device orientation (same direction as tilt)
+- Camera feed rotates with device orientation
 
 ## URL modes
 
 | URL | Mode |
 |-----|------|
 | `/` | Local interactive surface |
-| `/?wall=1` | Wall / second display (QR pairing) |
-| `/?pad=1&c=CODE` | Phone pad (from QR) |
+| `/?mode=wall` | Wall / second display (QR pairing) |
+| `/?mode=pad&c=CODE` | Phone pad (from QR) |
 
 ## Stack
 
-React 19 · Vite · Zustand · Tailwind (CDN) · WebRTC data channels for cast
+React 19 · TanStack Start · Vite · Zustand · Tailwind v4 · WebGL2 height-field · WebRTC (P2P, STUN) for cast
+
+## Deploy
+
+Connect this repo to Vercel. Build command: `npm run build`.
+
+Cast signaling uses Postgres when `DATABASE_URL` is set, and an in-memory roster otherwise (fine for a single-instance preview). Camera / mic never leave the device.
 
 ## Notes
 
-- Camera / mic stay on-device; nothing is uploaded.
-- Drawing samples densely along the stroke so fast drags still leave a continuous mark.
+- Same Wi-Fi is the reliable path for phone-to-wall. Strict NATs can still fail without a TURN relay.
+- Keyboard: `←` `→` or `[` `]` change worlds. Shift+Backspace clears the surface.
