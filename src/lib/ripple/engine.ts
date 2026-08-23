@@ -3,136 +3,117 @@ import type { Splat } from './pointer'
 import type { ScreenAngle } from './orientation'
 
 function compile(gl: WebGL2RenderingContext, type: number, src: string) {
-  const s = gl.createShader(type)!
-  gl.shaderSource(s, src)
-  gl.compileShader(s)
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    const log = gl.getShaderInfoLog(s)
-    gl.deleteShader(s)
+  const sh = gl.createShader(type)!
+  gl.shaderSource(sh, src)
+  gl.compileShader(sh)
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    const log = gl.getShaderInfoLog(sh)
+    gl.deleteShader(sh)
     throw new Error(`Shader compile: ${log}`)
   }
-  return s
+  return sh
 }
 
-function link(gl: WebGL2RenderingContext, vs: WebGLShader, fs: WebGLShader) {
+function program(gl: WebGL2RenderingContext, vs: string, fs: string) {
   const p = gl.createProgram()!
-  gl.attachShader(p, vs)
-  gl.attachShader(p, fs)
+  gl.attachShader(p, compile(gl, gl.VERTEX_SHADER, vs))
+  gl.attachShader(p, compile(gl, gl.FRAGMENT_SHADER, fs))
   gl.linkProgram(p)
   if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
-    const log = gl.getProgramInfoLog(p)
-    gl.deleteProgram(p)
-    throw new Error(`Program link: ${log}`)
+    throw new Error(`Program link: ${gl.getProgramInfoLog(p)}`)
   }
   return p
 }
 
-function createFBO(
-  gl: WebGL2RenderingContext,
-  w: number,
-  h: number,
-  internalFormat: number,
-  format: number,
-  type: number,
-) {
-  const tex = gl.createTexture()!
-  gl.bindTexture(gl.TEXTURE_2D, tex)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-  gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, format, type, null)
-  const fbo = gl.createFramebuffer()!
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0)
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-  return { tex, fbo, w, h }
+function hexToRgb(hex: string): [number, number, number] {
+  const s = hex.replace('#', '')
+  const full = s.length === 3 ? s.split('').map((c) => c + c).join('') : s
+  const n = parseInt(full, 16)
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255]
 }
 
-type FBO = ReturnType<typeof createFBO>
+type FBO = { tex: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number }
 
 export class RippleEngine {
-  gl: WebGL2RenderingContext
-  canvas: HTMLCanvasElement
-  simW: number
-  simH: number
-  programs: {
-    sim: WebGLProgram
-    splat: WebGLProgram
-    display: WebGLProgram
-    clear: WebGLProgram
-  }
-  heightA: FBO
-  heightB: FBO
-  camTex: WebGLTexture | null = null
-  camW = 0
-  camH = 0
-  cameraFacing: 'user' | 'environment' = 'user'
-  cameraAngle: ScreenAngle = 0
-  paletteIndex = 0
-  cameraMix = 0.35
-  micDrive = 0
-  time = 0
-  lastT = 0
-  running = false
-  raf = 0
+  private gl: WebGL2RenderingContext
+  private canvas: HTMLCanvasElement
+  private simW = 384
+  private simH = 384
+  private ping!: FBO
+  private pong!: FBO
+  private simProg!: WebGLProgram
+  private splatProg!: WebGLProgram
+  private displayProg!: WebGLProgram
+  private clearProg!: WebGLProgram
+  private vao!: WebGLVertexArrayObject
+  private damping = 0.985
+  private speed = 0.18
+  private rangeStart = 0
+  private rangeEnd = 1
+  private colors: [number, number, number][] = [
+    [0, 0, 0], [0.1, 0.1, 0.2], [0.2, 0.3, 0.5], [0.4, 0.6, 0.8], [0.7, 0.9, 1], [1, 1, 1],
+  ]
+  private running = false
+  private raf = 0
+  private lastT = 0
+  private camTex: WebGLTexture | null = null
+  private camVideo: HTMLVideoElement | null = null
+  private camMix = 0
+  private camAngle: ScreenAngle = 0
+  private camMirror = false
+  private camReady = false
 
-  constructor(canvas: HTMLCanvasElement, simSize = 384) {
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     const gl = canvas.getContext('webgl2', {
-      alpha: false,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      powerPreference: 'high-performance',
-      preserveDrawingBuffer: true,
+      alpha: false, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: false,
     })
     if (!gl) throw new Error('WebGL2 required')
     this.gl = gl
+    this.init()
+  }
 
-    // Prefer half-float for height field; fall back to 8-bit
+  private makeFBO(w: number, h: number): FBO {
+    const gl = this.gl
+    const tex = gl.createTexture()!
+    gl.bindTexture(gl.TEXTURE_2D, tex)
+    let internal: number = gl.RGBA16F
+    let type: number = gl.HALF_FLOAT
     const ext = gl.getExtension('EXT_color_buffer_float')
-    let internal: number, format: number, type: number
-    if (ext) {
-      internal = gl.RGBA16F
-      format = gl.RGBA
-      type = gl.HALF_FLOAT
-    } else {
-      internal = gl.RGBA
-      format = gl.RGBA
-      type = gl.UNSIGNED_BYTE
-    }
+    if (!ext) { internal = gl.RGBA; type = gl.UNSIGNED_BYTE }
+    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, gl.RGBA, type, null)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+    const fbo = gl.createFramebuffer()!
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    return { tex, fbo, w, h }
+  }
 
-    this.simW = simSize
-    this.simH = simSize
-
-    const vs = compile(gl, gl.VERTEX_SHADER, VERT)
-    this.programs = {
-      sim: link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, SIM_FRAG)),
-      splat: link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, SPLAT_FRAG)),
-      display: link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, DISPLAY_FRAG)),
-      clear: link(gl, vs, compile(gl, gl.FRAGMENT_SHADER, CLEAR_FRAG)),
-    }
-
-    this.heightA = createFBO(gl, this.simW, this.simH, internal, format, type)
-    this.heightB = createFBO(gl, this.simW, this.simH, internal, format, type)
-
-    // Fullscreen quad
+  private init() {
+    const gl = this.gl
+    this.simProg = program(gl, VERT, SIM_FRAG)
+    this.splatProg = program(gl, VERT, SPLAT_FRAG)
+    this.displayProg = program(gl, VERT, DISPLAY_FRAG)
+    this.clearProg = program(gl, VERT, CLEAR_FRAG)
+    this.ping = this.makeFBO(this.simW, this.simH)
+    this.pong = this.makeFBO(this.simW, this.simH)
     const buf = gl.createBuffer()!
     gl.bindBuffer(gl.ARRAY_BUFFER, buf)
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
-    for (const p of Object.values(this.programs)) {
+    this.vao = gl.createVertexArray()!
+    gl.bindVertexArray(this.vao)
+    for (const p of [this.simProg, this.splatProg, this.displayProg, this.clearProg]) {
       const loc = gl.getAttribLocation(p, 'a_pos')
-      if (loc >= 0) {
-        gl.enableVertexAttribArray(loc)
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-      }
+      if (loc >= 0) { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0) }
     }
-
     this.clear()
   }
 
-  resizeDisplay() {
+  resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
     const w = Math.floor(this.canvas.clientWidth * dpr)
     const h = Math.floor(this.canvas.clientHeight * dpr)
@@ -142,23 +123,90 @@ export class RippleEngine {
     }
   }
 
-  setPalette(index: number, cameraMix = 0.35) {
-    this.paletteIndex = index
-    this.cameraMix = cameraMix
+  setParams(opts: {
+    viscosity?: number; waveStrength?: number; colors?: string[]
+    rangeStart?: number; rangeEnd?: number; cameraMix?: number
+  }) {
+    if (opts.viscosity != null) this.damping = 0.996 - (1 - opts.viscosity) * 0.078
+    if (opts.waveStrength != null) this.speed = Math.max(0.05, Math.min(0.35, opts.waveStrength * 0.22))
+    if (opts.colors) {
+      const cols = opts.colors.slice(0, 6)
+      while (cols.length < 6) cols.push(cols[cols.length - 1] ?? '#ffffff')
+      this.colors = cols.map(hexToRgb)
+    }
+    if (opts.rangeStart != null) this.rangeStart = opts.rangeStart
+    if (opts.rangeEnd != null) this.rangeEnd = opts.rangeEnd
+    if (opts.cameraMix != null) this.camMix = Math.max(0, Math.min(1, opts.cameraMix))
   }
 
-  setMicDrive(v: number) {
-    this.micDrive = Math.max(0, Math.min(1, v))
+  setCamera(video: HTMLVideoElement | null, opts?: { angle?: ScreenAngle; mirror?: boolean; mix?: number }) {
+    this.camVideo = video
+    if (opts?.angle != null) this.camAngle = opts.angle
+    if (opts?.mirror != null) this.camMirror = opts.mirror
+    if (opts?.mix != null) this.camMix = Math.max(0, Math.min(1, opts.mix))
+    if (!video) { this.camReady = false; this.camMix = 0 }
   }
 
-  setCameraOrientation(angle: ScreenAngle, facing: 'user' | 'environment') {
-    this.cameraAngle = angle
-    this.cameraFacing = facing
-  }
+  setCameraOrientation(angle: ScreenAngle) { this.camAngle = angle }
 
-  uploadCamera(video: HTMLVideoElement) {
+  applySplats(splats: Splat[]) {
+    if (!splats.length) return
     const gl = this.gl
-    if (!video.videoWidth || video.readyState < 2) return
+    gl.useProgram(this.splatProg)
+    gl.bindVertexArray(this.vao)
+    gl.viewport(0, 0, this.simW, this.simH)
+    const uPrev = gl.getUniformLocation(this.splatProg, 'u_prev')
+    const uPoint = gl.getUniformLocation(this.splatProg, 'u_point')
+    const uForce = gl.getUniformLocation(this.splatProg, 'u_force')
+    const uRadius = gl.getUniformLocation(this.splatProg, 'u_radius')
+    for (const s of splats) {
+      const ux = s.x
+      const uy = 1 - s.y
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo)
+      gl.activeTexture(gl.TEXTURE0)
+      gl.bindTexture(gl.TEXTURE_2D, this.ping.tex)
+      gl.uniform1i(uPrev, 0)
+      gl.uniform2f(uPoint, ux, uy)
+      gl.uniform1f(uForce, s.force)
+      gl.uniform1f(uRadius, Math.max(0.004, s.radius))
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+      const tmp = this.ping; this.ping = this.pong; this.pong = tmp
+    }
+  }
+
+  clear() {
+    const gl = this.gl
+    gl.useProgram(this.clearProg)
+    gl.bindVertexArray(this.vao)
+    gl.viewport(0, 0, this.simW, this.simH)
+    for (const f of [this.ping, this.pong]) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, f.fbo)
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  }
+
+  private step(dt: number) {
+    const gl = this.gl
+    gl.useProgram(this.simProg)
+    gl.bindVertexArray(this.vao)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo)
+    gl.viewport(0, 0, this.simW, this.simH)
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, this.ping.tex)
+    gl.uniform1i(gl.getUniformLocation(this.simProg, 'u_prev'), 0)
+    gl.uniform2f(gl.getUniformLocation(this.simProg, 'u_texel'), 1 / this.simW, 1 / this.simH)
+    gl.uniform1f(gl.getUniformLocation(this.simProg, 'u_damping'), this.damping)
+    gl.uniform1f(gl.getUniformLocation(this.simProg, 'u_speed'), this.speed)
+    gl.uniform1f(gl.getUniformLocation(this.simProg, 'u_dt'), Math.min(dt, 0.033))
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    const tmp = this.ping; this.ping = this.pong; this.pong = tmp
+  }
+
+  private uploadCam() {
+    const gl = this.gl
+    const video = this.camVideo
+    if (!video || !video.videoWidth || video.readyState < 2) return
     if (!this.camTex) {
       this.camTex = gl.createTexture()!
       gl.bindTexture(gl.TEXTURE_2D, this.camTex)
@@ -169,97 +217,42 @@ export class RippleEngine {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)
     }
     gl.bindTexture(gl.TEXTURE_2D, this.camTex)
-    if (this.camW !== video.videoWidth || this.camH !== video.videoHeight) {
-      this.camW = video.videoWidth
-      this.camH = video.videoHeight
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video)
-    } else {
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video)
-    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video)
+    this.camReady = true
   }
 
-  clear() {
+  private drawDisplay() {
     const gl = this.gl
-    gl.useProgram(this.programs.clear)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.heightA.fbo)
-    gl.viewport(0, 0, this.simW, this.simH)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.heightB.fbo)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-  }
-
-  splat(s: Splat) {
-    const gl = this.gl
-    const prog = this.programs.splat
-    gl.useProgram(prog)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.heightA.fbo)
-    gl.viewport(0, 0, this.simW, this.simH)
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_point'), s.x, s.y)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_radius'), s.radius)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_strength'), s.strength)
-    gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, this.heightB.tex)
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_prev'), 0)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-    // swap
-    const tmp = this.heightA
-    this.heightA = this.heightB
-    this.heightB = tmp
-  }
-
-  step(dt: number) {
-    const gl = this.gl
-    const prog = this.programs.sim
-    gl.useProgram(prog)
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.heightA.fbo)
-    gl.viewport(0, 0, this.simW, this.simH)
-    gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, this.heightB.tex)
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_prev'), 0)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_dt'), Math.min(dt, 0.033))
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_damping'), 0.995)
-    gl.uniform2f(gl.getUniformLocation(prog, 'u_texel'), 1 / this.simW, 1 / this.simH)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_mic'), this.micDrive)
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
-    const tmp = this.heightA
-    this.heightA = this.heightB
-    this.heightB = tmp
-  }
-
-  drawDisplay() {
-    const gl = this.gl
-    this.resizeDisplay()
+    this.resize()
+    if (this.camVideo) this.uploadCam()
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     gl.viewport(0, 0, this.canvas.width, this.canvas.height)
-    const prog = this.programs.display
-    gl.useProgram(prog)
+    gl.useProgram(this.displayProg)
+    gl.bindVertexArray(this.vao)
     gl.activeTexture(gl.TEXTURE0)
-    gl.bindTexture(gl.TEXTURE_2D, this.heightB.tex)
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_height'), 0)
+    gl.bindTexture(gl.TEXTURE_2D, this.ping.tex)
+    gl.uniform1i(gl.getUniformLocation(this.displayProg, 'u_height'), 0)
     gl.activeTexture(gl.TEXTURE1)
-    if (this.camTex) {
-      gl.bindTexture(gl.TEXTURE_2D, this.camTex)
-    } else {
-      gl.bindTexture(gl.TEXTURE_2D, this.heightB.tex)
+    gl.bindTexture(gl.TEXTURE_2D, this.camReady && this.camTex ? this.camTex : this.ping.tex)
+    gl.uniform1i(gl.getUniformLocation(this.displayProg, 'u_cam'), 1)
+    gl.uniform2f(gl.getUniformLocation(this.displayProg, 'u_texel'), 1 / this.simW, 1 / this.simH)
+    for (let i = 0; i < 6; i++) {
+      const c = this.colors[i] ?? [1, 1, 1]
+      gl.uniform3f(gl.getUniformLocation(this.displayProg, `u_c${i}`), c[0], c[1], c[2])
     }
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_camera'), 1)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_cameraMix'), this.camTex ? this.cameraMix : 0)
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_palette'), this.paletteIndex)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_time'), this.time)
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_aspect'), this.canvas.width / Math.max(1, this.canvas.height))
-    // orientation: same direction as device tilt
-    const angle = this.cameraAngle
-    gl.uniform1f(gl.getUniformLocation(prog, 'u_camAngle'), angle)
-    gl.uniform1i(gl.getUniformLocation(prog, 'u_camFacing'), this.cameraFacing === 'user' ? 1 : 0)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_rangeStart'), this.rangeStart)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_rangeEnd'), this.rangeEnd)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_time'), this.lastT / 1000)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_camMix'), this.camReady ? this.camMix : 0)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_camAngle'), this.camAngle)
+    gl.uniform1f(gl.getUniformLocation(this.displayProg, 'u_camMirror'), this.camMirror ? 1 : 0)
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
   }
 
-  frame = (t: number) => {
+  private frame = (t: number) => {
     if (!this.running) return
     const dt = this.lastT ? (t - this.lastT) / 1000 : 0.016
     this.lastT = t
-    this.time += dt
     this.step(dt)
     this.drawDisplay()
     this.raf = requestAnimationFrame(this.frame)
@@ -280,11 +273,16 @@ export class RippleEngine {
   dispose() {
     this.stop()
     const gl = this.gl
-    for (const p of Object.values(this.programs)) gl.deleteProgram(p)
-    gl.deleteTexture(this.heightA.tex)
-    gl.deleteTexture(this.heightB.tex)
-    gl.deleteFramebuffer(this.heightA.fbo)
-    gl.deleteFramebuffer(this.heightB.fbo)
+    gl.deleteProgram(this.simProg)
+    gl.deleteProgram(this.splatProg)
+    gl.deleteProgram(this.displayProg)
+    gl.deleteProgram(this.clearProg)
+    gl.deleteTexture(this.ping.tex)
+    gl.deleteTexture(this.pong.tex)
+    gl.deleteFramebuffer(this.ping.fbo)
+    gl.deleteFramebuffer(this.pong.fbo)
     if (this.camTex) gl.deleteTexture(this.camTex)
+    gl.deleteVertexArray(this.vao)
+    this.camVideo = null
   }
 }
