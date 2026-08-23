@@ -240,3 +240,117 @@ function parseHex(h: string): [number, number, number] {
   const n = parseInt(s.length === 3 ? s.split('').map((c) => c + c).join('') : s, 16)
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
+
+/** Editable gradient stop on the color bar. */
+export type ColorStop = {
+  id: string
+  /** Position along the gradient 0–1. */
+  t: number
+  color: string
+}
+
+export const MAX_COLOR_STOPS = 11 // default 6 + 5 extra
+export const MIN_COLOR_STOPS = 2
+
+let stopSeq = 0
+export function newStopId(): string {
+  stopSeq += 1
+  return `s${Date.now().toString(36)}_${stopSeq}`
+}
+
+export function stopsFromColors(colors: string[], idPrefix = 'c'): ColorStop[] {
+  if (colors.length === 0) return [{ id: `${idPrefix}-0`, t: 0, color: '#000000' }]
+  if (colors.length === 1) return [{ id: `${idPrefix}-0`, t: 0, color: colors[0]! }]
+  return colors.map((color, i) => ({
+    id: `${idPrefix}-${i}`,
+    t: i / (colors.length - 1),
+    color,
+  }))
+}
+
+export function sortStops(stops: ColorStop[]): ColorStop[] {
+  return [...stops].sort((a, b) => a.t - b.t)
+}
+
+export function gradientFromStops(stops: ColorStop[]): string {
+  const sorted = sortStops(stops)
+  if (sorted.length === 0) return 'transparent'
+  if (sorted.length === 1) return sorted[0]!.color
+  const parts = sorted.map((s) => `${s.color} ${s.t * 100}%`)
+  return `linear-gradient(90deg, ${parts.join(', ')})`
+}
+
+export function sampleFromStops(stops: ColorStop[], t: number): string {
+  const sorted = sortStops(stops)
+  if (sorted.length === 0) return '#000'
+  if (sorted.length === 1) return sorted[0]!.color
+  const x = Math.max(0, Math.min(1, t))
+  if (x <= sorted[0]!.t) return sorted[0]!.color
+  if (x >= sorted[sorted.length - 1]!.t) return sorted[sorted.length - 1]!.color
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i]!
+    const b = sorted[i + 1]!
+    if (x >= a.t && x <= b.t) {
+      const span = b.t - a.t
+      const f = span > 1e-6 ? (x - a.t) / span : 0
+      return lerpHex(a.color, b.color, f)
+    }
+  }
+  return sorted[sorted.length - 1]!.color
+}
+
+/** Resample arbitrary stops into a fixed-length list for the WebGL ramp. */
+export function resampleStops(stops: ColorStop[], count = 6): string[] {
+  const sorted = sortStops(stops)
+  if (sorted.length === 0) return Array.from({ length: count }, () => '#000000')
+  if (count <= 1) return [sampleFromStops(sorted, 0.5)]
+  return Array.from({ length: count }, (_, i) =>
+    sampleFromStops(sorted, i / (count - 1)),
+  )
+}
+
+/** Insert a new stop in the largest gap (or at mid if only one). */
+export function addStop(stops: ColorStop[], color?: string): ColorStop[] {
+  const sorted = sortStops(stops)
+  if (sorted.length >= MAX_COLOR_STOPS) return sorted
+  if (sorted.length === 0) {
+    return [{ id: newStopId(), t: 0.5, color: color ?? '#ffffff' }]
+  }
+  if (sorted.length === 1) {
+    const only = sorted[0]!
+    const t = only.t < 0.5 ? Math.min(1, only.t + 0.35) : Math.max(0, only.t - 0.35)
+    return sortStops([
+      only,
+      { id: newStopId(), t, color: color ?? sampleFromStops(sorted, t) },
+    ])
+  }
+  let bestI = 0
+  let bestGap = -1
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i + 1]!.t - sorted[i]!.t
+    if (gap > bestGap) {
+      bestGap = gap
+      bestI = i
+    }
+  }
+  const a = sorted[bestI]!
+  const b = sorted[bestI + 1]!
+  const t = (a.t + b.t) / 2
+  const c = color ?? sampleFromStops(sorted, t)
+  return sortStops([...sorted, { id: newStopId(), t, color: c }])
+}
+
+export function removeStop(stops: ColorStop[], id: string): ColorStop[] {
+  if (stops.length <= MIN_COLOR_STOPS) return stops
+  return sortStops(stops.filter((s) => s.id !== id))
+}
+
+export function updateStop(
+  stops: ColorStop[],
+  id: string,
+  patch: Partial<Pick<ColorStop, 't' | 'color'>>,
+): ColorStop[] {
+  return sortStops(
+    stops.map((s) => (s.id === id ? { ...s, ...patch, t: patch.t != null ? Math.max(0, Math.min(1, patch.t)) : s.t } : s)),
+  )
+}
