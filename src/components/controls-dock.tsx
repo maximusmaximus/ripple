@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Cast } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { ColorRangeSlider } from "./color-range-slider";
+import { BrushPicker } from "./brush-picker";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTE_ORDER } from "@/lib/ripple/palettes";
 
@@ -8,10 +9,8 @@ export function ControlsDock() {
   const navigate = useNavigate({ from: "/" });
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
-  const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const setViscosity = useRippleStore((s) => s.setViscosity);
   const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
-  const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
   const clearSurface = useRippleStore((s) => s.clearSurface);
   const worldId = useRippleStore((s) => s.worldId);
   const nextWorld = useRippleStore((s) => s.nextWorld);
@@ -19,7 +18,6 @@ export function ControlsDock() {
   const setDockOpen = useRippleStore((s) => s.setDockOpen);
   const palette = useRippleStore((s) => s.getActivePalette());
   const worldIndex = PALETTE_ORDER.indexOf(worldId) + 1;
-  const diameterLabel = Math.round(brushDiameter * 200);
 
   return (
     <div className="controls-dock flex w-full max-w-sm flex-col gap-3 rounded-3xl border border-line bg-ink/85 p-4 shadow-2xl backdrop-blur-xl">
@@ -62,21 +60,7 @@ export function ControlsDock() {
       <section className="flex flex-col gap-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Feel</h3>
         <ColorRangeSlider />
-        <label className="flex flex-col gap-2">
-          <div className="flex justify-between text-[12px] text-muted">
-            <span>Brush diameter</span>
-            <span className="font-mono tabular-nums text-fg">{diameterLabel}</span>
-          </div>
-          <input
-            type="range"
-            min={0.01}
-            max={0.12}
-            step={0.002}
-            value={brushDiameter}
-            onChange={(e) => setBrushDiameter(parseFloat(e.target.value))}
-            className="w-full"
-          />
-        </label>
+        <BrushPicker />
         <label className="flex flex-col gap-2">
           <div className="flex justify-between text-[12px] text-muted">
             <span>Viscosity</span>

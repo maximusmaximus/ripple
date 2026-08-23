@@ -4,27 +4,56 @@ type Track = { x: number; y: number; down: boolean; t: number }
 const MAX_SPLATS_PER_MOVE = 128
 const MIN_STEP = 0.002
 
+export type BrushKind = 'round' | 'soft' | 'scatter'
+
 export class PointerPainter {
   private tracks = new Map<number, Track>()
   private queue: Splat[] = []
   private radius = 0.03
   private force = 0.7
+  private kind: BrushKind = 'round'
 
-  setBrush(radius: number, force: number) {
-    this.radius = Math.max(0.008, radius)
-    this.force = Math.max(0.25, force)
+  setBrush(radius: number, force: number, kind: BrushKind = 'round') {
+    this.radius = Math.max(0.006, radius)
+    this.force = Math.max(0.2, force)
+    this.kind = kind
+  }
+
+  private emit(x: number, y: number, forceScale = 1) {
+    if (this.kind === 'scatter') {
+      const n = 4
+      const spread = this.radius * 1.6
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + Math.random() * 0.8
+        const d = Math.random() * spread
+        this.queue.push({
+          x: Math.min(1, Math.max(0, x + Math.cos(a) * d)),
+          y: Math.min(1, Math.max(0, y + Math.sin(a) * d)),
+          force: this.force * forceScale * (0.45 + Math.random() * 0.55),
+          radius: this.radius * (0.35 + Math.random() * 0.45),
+        })
+      }
+      return
+    }
+    const soft = this.kind === 'soft'
+    this.queue.push({
+      x,
+      y,
+      force: this.force * forceScale * (soft ? 0.85 : 1),
+      radius: this.radius * (soft ? 1.15 : 1),
+    })
   }
 
   down(id: number, x: number, y: number, t = performance.now()) {
     this.tracks.set(id, { x, y, down: true, t })
-    this.queue.push({ x, y, force: this.force, radius: this.radius })
+    this.emit(x, y, 1)
   }
 
   move(id: number, x: number, y: number, t = performance.now()) {
     let last = this.tracks.get(id)
     if (!last || !last.down) {
       this.tracks.set(id, { x, y, down: true, t })
-      this.queue.push({ x, y, force: this.force, radius: this.radius })
+      this.emit(x, y, 1)
       return
     }
 
@@ -32,24 +61,21 @@ export class PointerPainter {
     const dy = y - last.y
     const dist = Math.hypot(dx, dy)
     if (dist < 1e-7) {
-      this.queue.push({ x, y, force: this.force * 0.6, radius: this.radius })
+      this.emit(x, y, 0.55)
       this.tracks.set(id, { x, y, down: true, t })
       return
     }
 
-    const steps = Math.max(1, Math.ceil(dist / MIN_STEP))
+    // Soft marks step a little farther so they feel airy; scatter denser.
+    const step =
+      this.kind === 'soft' ? MIN_STEP * 1.35 : this.kind === 'scatter' ? MIN_STEP * 0.85 : MIN_STEP
+    const steps = Math.max(1, Math.ceil(dist / step))
     const useSteps = Math.min(MAX_SPLATS_PER_MOVE, steps)
     const inv = 1 / useSteps
-    const force = this.force
 
     for (let i = 1; i <= useSteps; i++) {
       const u = i * inv
-      this.queue.push({
-        x: last.x + dx * u,
-        y: last.y + dy * u,
-        force,
-        radius: this.radius,
-      })
+      this.emit(last.x + dx * u, last.y + dy * u, 1)
     }
     this.tracks.set(id, { x, y, down: true, t })
   }
