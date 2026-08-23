@@ -23,6 +23,7 @@ interface RippleState {
   brushDiameter: number
   clearToken: number
   castPinned: boolean
+  dockOpen: boolean
 
   setWorld: (id: WorldId) => void
   nextWorld: () => void
@@ -34,6 +35,7 @@ interface RippleState {
   setBrushDiameter: (v: number) => void
   clearSurface: () => void
   setCastPinned: (v: boolean) => void
+  setDockOpen: (v: boolean) => void
 
   getActiveRange: () => ColorRange
   getActivePalette: () => (typeof PALETTES)[PaletteId]
@@ -64,6 +66,7 @@ export const useRippleStore = create<RippleState>()(
       brushDiameter: 0.04,
       clearToken: 0,
       castPinned: false,
+      dockOpen: true,
 
       setWorld: (id) => set({ worldId: id }),
 
@@ -103,6 +106,7 @@ export const useRippleStore = create<RippleState>()(
       setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
+      setDockOpen: (v) => set({ dockOpen: v }),
 
       getActiveRange: () => {
         const { worldId, colorRanges } = get()
