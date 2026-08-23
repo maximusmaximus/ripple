@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { PALETTES, PALETTE_ORDER, type PaletteId } from "@/lib/ripple/palettes";
+import { DEFAULT_BRUSH_ID, getBrush, type BrushId } from "@/lib/ripple/brushes";
 
 export type WorldId = PaletteId;
 
@@ -17,6 +18,8 @@ interface RippleState {
   waveStrength: number;
   /** Brush diameter in normalized units (0.01 – 0.12). */
   brushDiameter: number;
+  /** Active brush preset id. */
+  brushId: BrushId;
   clearToken: number;
   castPinned: boolean;
   dockOpen: boolean;
@@ -29,6 +32,7 @@ interface RippleState {
   setViscosity: (v: number) => void;
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
+  setBrushId: (id: BrushId) => void;
   clearSurface: () => void;
   setCastPinned: (v: boolean) => void;
   setDockOpen: (v: boolean) => void;
@@ -70,7 +74,8 @@ export const useRippleStore = create<RippleState>()(
       colorRanges: {},
       viscosity: PALETTES.abyss.viscosity,
       waveStrength: PALETTES.abyss.waveStrength,
-      brushDiameter: 0.04,
+      brushDiameter: getBrush(DEFAULT_BRUSH_ID).radius * 2,
+      brushId: DEFAULT_BRUSH_ID,
       clearToken: 0,
       castPinned: false,
       dockOpen: true,
@@ -113,6 +118,10 @@ export const useRippleStore = create<RippleState>()(
       setViscosity: (v) => set({ viscosity: Math.max(0.85, Math.min(0.999, v)) }),
       setWaveStrength: (v) => set({ waveStrength: Math.max(0.1, Math.min(1.5, v)) }),
       setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
+      setBrushId: (id) => {
+        const b = getBrush(id);
+        set({ brushId: b.id, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
+      },
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
       setDockOpen: (v) => set({ dockOpen: v }),
@@ -141,6 +150,7 @@ export const useRippleStore = create<RippleState>()(
         viscosity: s.viscosity,
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
+        brushId: s.brushId,
       }),
     },
   ),
