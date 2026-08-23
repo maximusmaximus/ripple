@@ -2,7 +2,7 @@ export type Splat = { x: number; y: number; force: number; radius: number }
 type Track = { x: number; y: number; down: boolean; t: number }
 
 const MAX_SPLATS_PER_MOVE = 128
-const MIN_STEP = 0.002 // denser sampling so fast drags still fill solidly
+const MIN_STEP = 0.002
 
 export class PointerPainter {
   private tracks = new Map<number, Track>()
@@ -83,7 +83,6 @@ export function bindPainter(
   painter: PointerPainter,
   opts?: {
     onSplatFrame?: (splats: Splat[]) => void
-    /** Fired once when a stroke begins (pointer/touch/mouse down). */
     onDown?: () => void
   },
 ): () => void {
@@ -92,15 +91,12 @@ export function bindPainter(
   ;(el.style as any).webkitUserSelect = 'none'
   el.style.cursor = 'crosshair'
 
-  // Map client coordinates into the element's content box (0–1).
-  // Re-query the rect every event so layout changes (dock hide, rotate, etc.)
-  // never leave a stale offset between the finger and the painted ripple.
   const norm = (clientX: number, clientY: number) => {
     const r = el.getBoundingClientRect()
     const w = Math.max(1, r.width)
     const h = Math.max(1, r.height)
     return {
-      x: Math.min(1, Math.max(0, (clientX - r.left) / w),
+      x: Math.min(1, Math.max(0, (clientX - r.left) / w)),
       y: Math.min(1, Math.max(0, (clientY - r.top) / h)),
     }
   }
