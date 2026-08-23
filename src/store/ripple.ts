@@ -20,6 +20,12 @@ interface RippleState {
   brushDiameter: number;
   /** Active brush preset id. */
   brushId: BrushId;
+  /** How strongly strokes warp / pull the live camera feed. */
+  cameraInteract: number;
+  /** Mic visual drive scale (0–1.5). */
+  micSensitivity: number;
+  /** Gyro slosh strength (0–1.5); starts high. */
+  gyroSensitivity: number;
   clearToken: number;
   castPinned: boolean;
   dockOpen: boolean;
@@ -33,6 +39,9 @@ interface RippleState {
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
   setBrushId: (id: BrushId) => void;
+  setCameraInteract: (v: number) => void;
+  setMicSensitivity: (v: number) => void;
+  setGyroSensitivity: (v: number) => void;
   clearSurface: () => void;
   setCastPinned: (v: boolean) => void;
   setDockOpen: (v: boolean) => void;
@@ -76,6 +85,9 @@ export const useRippleStore = create<RippleState>()(
       waveStrength: PALETTES.abyss.waveStrength,
       brushDiameter: getBrush(DEFAULT_BRUSH_ID).radius * 2,
       brushId: DEFAULT_BRUSH_ID,
+      cameraInteract: 0.9,
+      micSensitivity: 0.5,
+      gyroSensitivity: 1.25,
       clearToken: 0,
       castPinned: false,
       dockOpen: true,
@@ -122,6 +134,9 @@ export const useRippleStore = create<RippleState>()(
         const b = getBrush(id);
         set({ brushId: b.id, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
       },
+      setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
+      setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
+      setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
       setDockOpen: (v) => set({ dockOpen: v }),
@@ -151,6 +166,9 @@ export const useRippleStore = create<RippleState>()(
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
         brushId: s.brushId,
+        cameraInteract: s.cameraInteract,
+        micSensitivity: s.micSensitivity,
+        gyroSensitivity: s.gyroSensitivity,
       }),
     },
   ),
