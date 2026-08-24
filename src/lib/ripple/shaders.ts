@@ -1,4 +1,5 @@
 export { INK_FLOW_FRAG } from "./ink-flow";
+export { DISPLAY_FRAG } from "./display-frag";
 export const VERT = `#version 300 es
 precision highp float;
 layout(location=0) in vec2 a_pos;
