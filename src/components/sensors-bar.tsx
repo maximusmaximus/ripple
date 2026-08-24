@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { Camera, FlipHorizontal2, Mic, Smartphone, MoveHorizontal, MoveVertical } from "lucide-react";
+import {
+  Camera,
+  CameraOff,
+  SwitchCamera,
+  Mic,
+  Smartphone,
+  MoveHorizontal,
+  MoveVertical,
+} from "lucide-react";
 import type { GyroMode, SensorsState } from "@/lib/ripple/media";
 import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
 
@@ -8,60 +16,89 @@ type Props = {
   onChange: (s: SensorsState) => void;
 };
 
+async function openCamera(facing: "user" | "environment"): Promise<MediaStream> {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facing } },
+      audio: false,
+    });
+  } catch {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing },
+      audio: false,
+    });
+  }
+}
+
 export function SensorsBar({ sensors, onChange }: Props) {
   const [busy, setBusy] = useState(false);
 
-  const toggleCamera = useCallback(async () => {
+  /** Cycle: off → rear → front → off. One top-left button. */
+  const cycleCamera = useCallback(async () => {
     if (busy) return;
     setBusy(true);
-    try {
-      if (sensors.cameraOn && sensors.cameraStream) {
-        sensors.cameraStream.getTracks().forEach((t) => t.stop());
-        onChange({ ...sensors, cameraOn: false, cameraStream: null, error: null });
-      } else {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: sensors.facingMode },
-          audio: false,
-        });
-        onChange({
-          ...sensors,
-          cameraOn: true,
-          cameraStream: stream,
-          error: null,
-        });
-      }
-    } catch (err) {
-      onChange({ ...sensors, cameraOn: false, cameraStream: null, error: mediaErrorMessage(err) });
-    } finally {
-      setBusy(false);
-    }
-  }, [busy, sensors, onChange]);
 
-  const flipCamera = useCallback(async () => {
-    if (busy) return;
-    const nextFacing = sensors.facingMode === "user" ? "environment" : "user";
-    if (!sensors.cameraOn) {
-      onChange({ ...sensors, facingMode: nextFacing });
-      return;
-    }
-    setBusy(true);
-    try {
+    const stopTracks = () => {
       sensors.cameraStream?.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: nextFacing },
-        audio: false,
-      });
+    };
+
+    try {
+      if (!sensors.cameraOn) {
+        try {
+          const stream = await openCamera("environment");
+          onChange({
+            ...sensors,
+            cameraOn: true,
+            cameraStream: stream,
+            facingMode: "environment",
+            error: null,
+          });
+        } catch {
+          const stream = await openCamera("user");
+          onChange({
+            ...sensors,
+            cameraOn: true,
+            cameraStream: stream,
+            facingMode: "user",
+            error: null,
+          });
+        }
+        return;
+      }
+
+      if (sensors.facingMode === "environment") {
+        stopTracks();
+        try {
+          const stream = await openCamera("user");
+          onChange({
+            ...sensors,
+            cameraOn: true,
+            cameraStream: stream,
+            facingMode: "user",
+            error: null,
+          });
+        } catch (err) {
+          onChange({
+            ...sensors,
+            cameraOn: false,
+            cameraStream: null,
+            facingMode: "user",
+            error: mediaErrorMessage(err),
+          });
+        }
+        return;
+      }
+
+      stopTracks();
       onChange({
         ...sensors,
-        facingMode: nextFacing,
-        cameraOn: true,
-        cameraStream: stream,
+        cameraOn: false,
+        cameraStream: null,
         error: null,
       });
     } catch (err) {
       onChange({
         ...sensors,
-        facingMode: nextFacing,
         cameraOn: false,
         cameraStream: null,
         error: mediaErrorMessage(err),
@@ -148,42 +185,67 @@ export function SensorsBar({ sensors, onChange }: Props) {
   const GyroIcon =
     gyroMode === "horizontal" ? MoveHorizontal : gyroMode === "vertical" ? MoveVertical : Smartphone;
 
+  const camState: "off" | "rear" | "front" = !sensors.cameraOn
+    ? "off"
+    : sensors.facingMode === "environment"
+      ? "rear"
+      : "front";
+
+  const camLabel =
+    camState === "off"
+      ? "Camera off — tap for rear"
+      : camState === "rear"
+        ? "Rear camera — tap for front"
+        : "Front camera — tap to turn off";
+
+  const CamIcon = camState === "off" ? CameraOff : camState === "rear" ? Camera : SwitchCamera;
+
   const btn =
-    "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/50 text-fg/80 backdrop-blur-md transition hover:bg-ink/70 hover:text-fg";
+    "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/50 text-fg/80 backdrop-blur-md transition hover:bg-ink/70 hover:text-fg active:scale-95";
 
   return (
     <div
       data-ui-chrome
       className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
       onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
       <div className="flex gap-2">
         <button
           type="button"
           className={btn}
-          style={{ opacity: sensors.cameraOn ? 1 : 0.55 }}
-          onClick={toggleCamera}
-          aria-label="Toggle camera"
-          title="Camera"
+          style={{ opacity: camState === "off" ? 0.5 : 1 }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void cycleCamera();
+          }}
+          disabled={busy}
+          aria-label={camLabel}
+          title={camLabel}
         >
-          <Camera className="size-4" strokeWidth={1.75} />
+          <CamIcon className="size-4" strokeWidth={1.75} />
+          {camState !== "off" && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/90 px-1 text-[8px] font-semibold tracking-wide text-fg">
+              {camState === "rear" ? "REAR" : "FRONT"}
+            </span>
+          )}
+          {camState === "off" && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/70 px-1 text-[8px] font-semibold tracking-wide text-fg/70">
+              OFF
+            </span>
+          )}
         </button>
-        {sensors.cameraOn && (
-          <button
-            type="button"
-            className={btn}
-            onClick={flipCamera}
-            aria-label="Flip camera"
-            title="Flip camera"
-          >
-            <FlipHorizontal2 className="size-4" strokeWidth={1.75} />
-          </button>
-        )}
         <button
           type="button"
           className={btn}
           style={{ opacity: sensors.micOn ? 1 : 0.55 }}
-          onClick={toggleMic}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void toggleMic();
+          }}
+          disabled={busy}
           aria-label="Toggle microphone"
           title="Microphone"
         >
@@ -193,7 +255,12 @@ export function SensorsBar({ sensors, onChange }: Props) {
           type="button"
           className={btn}
           style={{ opacity: gyroMode === "off" ? 0.55 : 1 }}
-          onClick={cycleGyro}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void cycleGyro();
+          }}
+          disabled={busy}
           aria-label={gyroTitle}
           title={`${gyroTitle} — tap to cycle`}
         >
