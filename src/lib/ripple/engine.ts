@@ -97,6 +97,8 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform2f(this.inkFlowU.gravity, this.gx, this.gy);
     gl.uniform1f(this.inkFlowU.mic, this.mic.level);
     gl.uniform1f(this.inkFlowU.dt, clampedDt);
+    gl.uniform1i(this.inkFlowU.texId, this.texId);
+    gl.uniform1f(this.inkFlowU.time, this.lastT / 1000);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     const inkTmp = this.inkPing;
     this.inkPing = this.inkPong;
@@ -171,6 +173,7 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.dispU.shadowAngle, this.shadowAngle);
     gl.uniform1f(this.dispU.shadowOpacity, this.shadowOpacity);
     gl.uniform1f(this.dispU.shadowDist, this.shadowDist);
+    gl.uniform1i(this.dispU.texId, this.texId);
     const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
     const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
     const cam = sourceSize(this.camSource);

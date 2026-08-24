@@ -151,6 +151,7 @@ export type DispU = {
   shadowAngle: WebGLUniformLocation | null;
   shadowOpacity: WebGLUniformLocation | null;
   shadowDist: WebGLUniformLocation | null;
+  texId: WebGLUniformLocation | null;
 };
 
 export function mix01(a: number, b: number, t: number) {

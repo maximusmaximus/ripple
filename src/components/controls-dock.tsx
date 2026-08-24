@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Cast } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { ColorRangeSlider } from "./color-range-slider";
+import { TexturePicker } from "./texture-picker";
 import { BrushPicker } from "./brush-picker";
 import { BrushFxPicker } from "./brush-fx";
 import { BrushShadow } from "./brush-shadow";
@@ -75,6 +76,7 @@ export function ControlsDock() {
 
       <section className="flex flex-col gap-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Feel</h3>
+        <TexturePicker />
         <ColorRangeSlider />
         <BrushPicker />
         <BrushShadow />

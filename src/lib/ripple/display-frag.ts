@@ -1,4 +1,7 @@
-export const DISPLAY_FRAG = `#version 300 es
+import { TEXTURE_GLSL } from "./texture-glsl";
+
+export const DISPLAY_FRAG =
+  `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
@@ -37,7 +40,10 @@ uniform vec3 u_shadowColor;
 uniform float u_shadowAngle;
 uniform float u_shadowOpacity;
 uniform float u_shadowDist;
-
+uniform int u_texId;
+` +
+  TEXTURE_GLSL +
+  `
 vec4 sampleRamp4(float t) {
   t = clamp(t, 0.0, 1.0);
   int n = u_nStops;
@@ -117,6 +123,12 @@ void main() {
   vec2 uv = clamp(v_uv + slosh, 0.0, 1.0);
   float h = texture(u_height, uv).r;
   float vel = texture(u_height, uv).g;
+  vec4 tf = mediaField(u_texId, uv, u_time, h, u_gravity);
+  if (u_texId > 0) {
+    uv = clamp(uv + tf.yz * 0.012, 0.0, 1.0);
+    h = texture(u_height, uv).r;
+    vel = texture(u_height, uv).g;
+  }
   float hx = texture(u_height, uv + vec2(u_texel.x, 0.0)).r - texture(u_height, uv - vec2(u_texel.x, 0.0)).r;
   float hy = texture(u_height, uv + vec2(0.0, u_texel.y)).r - texture(u_height, uv - vec2(0.0, u_texel.y)).r;
   vec3 n = normalize(vec3(-hx * 4.0, -hy * 4.0, 1.0));
@@ -148,6 +160,7 @@ void main() {
   inkFlow += vec2(-hy, hx) * vel * 2.0;
   inkFlow += u_gravity * 6.0;
   inkFlow += vec2(sin(u_time * 3.4 + uv.y * 14.0 + h * 6.0), cos(u_time * 2.9 + uv.x * 12.0 - h * 5.0)) * (0.35 + pulse * 1.4);
+  if (u_texId > 0) inkFlow += tf.yz * (2.4 + abs(h) * 4.0);
   vec2 inkUv = clamp(uv + inkFlow * 0.012 * (0.4 + drawn * 1.6), 0.0, 1.0);
   vec4 ink = texture(u_ink, inkUv);
   float inkMark = smoothstep(0.02, 0.14, ink.a);
@@ -189,6 +202,12 @@ void main() {
   float alpha = coverage * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
   alpha *= 1.0 + pulse * 0.12 * inkMark;
   col = mix(surface, stroked, clamp(alpha, 0.0, 1.0));
+  if (u_texId > 0) {
+    float texAmt = mix(0.35, 0.85, max(drawn, inkMark));
+    col *= mix(1.0, 0.58 + tf.x * 0.72, texAmt);
+    col += vec3(tf.w * 0.16 * texAmt);
+    col = mix(col, col * col * (0.7 + tf.x), texAmt * 0.22);
+  }
   float vig = smoothstep(1.25, 0.28, length(v_uv - 0.5));
   float vigAmt = mix(0.28, 0.12, u_camMix);
   col *= (1.0 - vigAmt) + vigAmt * vig;

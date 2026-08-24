@@ -43,6 +43,8 @@ export class RippleEngineBase {
     gravity: WebGLUniformLocation | null;
     mic: WebGLUniformLocation | null;
     dt: WebGLUniformLocation | null;
+    texId: WebGLUniformLocation | null;
+    time: WebGLUniformLocation | null;
   };
   protected dispU!: DispU;
   protected damping = 0.985;
@@ -87,6 +89,7 @@ export class RippleEngineBase {
   protected shadowAngle = 135;
   protected shadowOpacity = 0.45;
   protected shadowDist = 0.016;
+  protected texId = 0;
   protected firstFrameCb: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -206,6 +209,8 @@ export class RippleEngineBase {
       gravity: gl.getUniformLocation(this.inkFlowProg, "u_gravity"),
       mic: gl.getUniformLocation(this.inkFlowProg, "u_mic"),
       dt: gl.getUniformLocation(this.inkFlowProg, "u_dt"),
+      texId: gl.getUniformLocation(this.inkFlowProg, "u_texId"),
+      time: gl.getUniformLocation(this.inkFlowProg, "u_time"),
     };
     this.dispU = {
       height: gl.getUniformLocation(this.displayProg, "u_height"),
@@ -244,6 +249,7 @@ export class RippleEngineBase {
       shadowAngle: gl.getUniformLocation(this.displayProg, "u_shadowAngle"),
       shadowOpacity: gl.getUniformLocation(this.displayProg, "u_shadowOpacity"),
       shadowDist: gl.getUniformLocation(this.displayProg, "u_shadowDist"),
+      texId: gl.getUniformLocation(this.displayProg, "u_texId"),
     };
 
     this.quad = gl.createBuffer()!;
@@ -299,6 +305,7 @@ export class RippleEngineBase {
     shadowAngle?: number;
     shadowOpacity?: number;
     shadowDist?: number;
+    texId?: number;
   }) {
     if (opts.viscosity != null) this.damping = 0.996 - (1 - opts.viscosity) * 0.078;
     if (opts.waveStrength != null) this.speed = Math.max(0.05, Math.min(0.35, opts.waveStrength * 0.22));
@@ -329,6 +336,7 @@ export class RippleEngineBase {
     if (opts.shadowAngle != null) this.shadowAngle = ((opts.shadowAngle % 360) + 360) % 360;
     if (opts.shadowOpacity != null) this.shadowOpacity = Math.max(0, Math.min(1, opts.shadowOpacity));
     if (opts.shadowDist != null) this.shadowDist = Math.max(0.002, Math.min(0.08, opts.shadowDist));
+    if (opts.texId != null) this.texId = opts.texId | 0;
   }
 
   setGravity(x: number, y: number) {

@@ -6,6 +6,7 @@ import { useRippleStore } from "@/store/ripple";
 import { PALETTES } from "@/lib/ripple/palettes";
 import { getBrush } from "@/lib/ripple/brushes";
 import { asFxList, fxMask } from "@/lib/ripple/blend";
+import { getTexture } from "@/lib/ripple/textures";
 import type { SensorsState } from "@/lib/ripple/media";
 import {
   createMicMonitor,
@@ -74,6 +75,7 @@ export function RippleCanvas({
   const shadowColor = useRippleStore((s) => s.shadowColor);
   const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
+  const textureId = useRippleStore((s) => s.textureId);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
   const micSensitivity = useRippleStore((s) => s.micSensitivity);
   const micSensRef = useRef(micSensitivity);
@@ -211,6 +213,7 @@ export function RippleCanvas({
       shadowAngle,
       shadowOpacity,
       shadowDist: 0.01 + brushDiameter * 0.18,
+      texId: getTexture(textureId).code,
     });
   }, [
     worldId,
@@ -230,6 +233,7 @@ export function RippleCanvas({
     shadowColor,
     shadowAngle,
     shadowOpacity,
+    textureId,
   ]);
 
   useEffect(() => {

@@ -18,6 +18,7 @@ import {
 } from "@/lib/ripple/palettes";
 import { getBrush, type BrushId } from "@/lib/ripple/brushes";
 import { asFxList, toggleBrushFx, type BrushFxId } from "@/lib/ripple/blend";
+import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 
 export type WorldId = PaletteId;
 
@@ -47,6 +48,7 @@ interface RippleState {
   shadowColor: string;
   shadowAngle: number;
   shadowOpacity: number;
+  textureId: TextureId;
   /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
   /** 0–1.5 — how hard the mic throbs painted marks. */
@@ -80,6 +82,7 @@ interface RippleState {
   setBrushShadowColor: (hex: string) => void;
   setShadowAngle: (deg: number) => void;
   setShadowOpacity: (v: number) => void;
+  setTextureId: (id: TextureId) => void;
   setCameraInteract: (v: number) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
@@ -159,6 +162,7 @@ export const useRippleStore = create<RippleState>()(
       shadowColor: "#0a0810",
       shadowAngle: 135,
       shadowOpacity: 0.45,
+      textureId: DEFAULT_TEXTURE_ID,
       cameraInteract: PALETTES.lens.cameraMix,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
@@ -310,6 +314,7 @@ export const useRippleStore = create<RippleState>()(
       setBrushShadowColor: (hex) => set({ shadowColor: hex }),
       setShadowAngle: (deg) => set({ shadowAngle: ((deg % 360) + 360) % 360 }),
       setShadowOpacity: (v) => set({ shadowOpacity: Math.max(0, Math.min(1, v)) }),
+      setTextureId: (id) => set({ textureId: getTexture(id).id }),
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
@@ -362,6 +367,7 @@ export const useRippleStore = create<RippleState>()(
         shadowColor: s.shadowColor,
         shadowAngle: s.shadowAngle,
         shadowOpacity: s.shadowOpacity,
+        textureId: s.textureId,
         cameraInteract: s.cameraInteract,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,

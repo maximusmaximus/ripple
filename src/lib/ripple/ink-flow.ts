@@ -1,4 +1,7 @@
-export const INK_FLOW_FRAG = `#version 300 es
+import { TEXTURE_GLSL } from "./texture-glsl";
+
+export const INK_FLOW_FRAG =
+  `#version 300 es
 precision highp float;
 in vec2 v_uv;
 out vec4 fragColor;
@@ -8,7 +11,11 @@ uniform vec2 u_texel;
 uniform vec2 u_gravity;
 uniform float u_mic;
 uniform float u_dt;
-
+uniform int u_texId;
+uniform float u_time;
+` +
+  TEXTURE_GLSL +
+  `
 void main() {
   vec4 htex = texture(u_height, v_uv);
   float h = htex.r;
@@ -25,7 +32,14 @@ void main() {
   float mic = clamp(u_mic, 0.0, 1.5);
   flow += vec2(sin(h * 18.0 + vel * 9.0), cos(h * 14.0 - vel * 11.0)) * mic * 0.9;
 
+  vec4 tf = mediaField(u_texId, v_uv, u_time, h, u_gravity);
+  if (u_texId > 0) {
+    flow += tf.yz * (2.2 + abs(h) * 5.0 + abs(vel) * 3.0);
+    flow *= mix(1.0, 0.55 + tf.x * 0.7, 0.8);
+  }
+
   float energy = abs(h) * 1.4 + abs(vel) * 2.2 + mic * 0.35 + length(u_gravity) * 12.0;
+  energy += (u_texId > 0 ? abs(tf.x - 0.5) * 0.6 : 0.0);
   float strength = clamp(energy * 1.8, 0.05, 1.0);
   float dtScale = clamp(u_dt, 0.008, 0.04) * 55.0;
 
@@ -51,6 +65,7 @@ void main() {
   float wave = smoothstep(0.008, 0.2, abs(h) + abs(vel) * 1.5);
   float thin = 1.0 - smoothstep(0.04, 0.3, c.a);
   float dilate = wave * thin * 0.58;
+  if (u_texId > 0) dilate *= mix(0.7, 1.25, tf.x);
   rgb = mix(rgb, rgbBest, dilate);
   a = mix(a, max(a, aBest * 0.92), dilate);
 
