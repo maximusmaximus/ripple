@@ -1,7 +1,35 @@
 {
   "version": 1,
-  "note": "Homebase presets shipped with the repo. User-saved presets merge from the shared studio database and survive deploys when this file is updated.",
+  "note": "Homebase presets. Shipped with the repo and pulled from GitHub after restarts or updates.",
   "presets": [
+    {
+      "id": "home_easy",
+      "name": "Easy",
+      "createdAt": "2026-08-24T00:00:00.000Z",
+      "snapshot": {
+        "worldId": "lens",
+        "colorRanges": {},
+        "colorPairs": {},
+        "colorStops": {},
+        "viscosity": 0.96,
+        "waveStrength": 0.7,
+        "brushDiameter": 0.04,
+        "brushId": "ink",
+        "brushFx": { "ink": ["normal"] },
+        "brushFxOpacity": 0.7,
+        "fxLayers": ["brush"],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "none",
+        "textureFit": "cover",
+        "customTexture": null,
+        "cameraInteract": 0.85,
+        "micSensitivity": 0.4,
+        "gyroSensitivity": 0.5
+      }
+    },
     {
       "id": "home_night_paper",
       "name": "Night paper",
