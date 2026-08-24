@@ -70,6 +70,10 @@ export function RippleCanvas({
   const brushId = useRippleStore((s) => s.brushId);
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
+  const shadowOn = useRippleStore((s) => s.shadowOn);
+  const shadowColor = useRippleStore((s) => s.shadowColor);
+  const shadowAngle = useRippleStore((s) => s.shadowAngle);
+  const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
   const micSensitivity = useRippleStore((s) => s.micSensitivity);
   const micSensRef = useRef(micSensitivity);
@@ -202,6 +206,11 @@ export function RippleCanvas({
       cameraInteract: sensors.cameraOn || cameraSource ? Math.max(0.95, cameraInteract) : cameraInteract,
       brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
       fxOpacity: brushFxOpacity,
+      shadowOn,
+      shadowColor,
+      shadowAngle,
+      shadowOpacity,
+      shadowDist: 0.01 + brushDiameter * 0.18,
     });
   }, [
     worldId,
@@ -216,6 +225,11 @@ export function RippleCanvas({
     colorStopsSig,
     brushFxSig,
     brushFxOpacity,
+    brushDiameter,
+    shadowOn,
+    shadowColor,
+    shadowAngle,
+    shadowOpacity,
   ]);
 
   useEffect(() => {

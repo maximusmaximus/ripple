@@ -43,6 +43,10 @@ interface RippleState {
   brushFx: Partial<Record<BrushId, BrushFxId | BrushFxId[]>>;
   /** 0–1 strength of the selected Brush FX. */
   brushFxOpacity: number;
+  shadowOn: boolean;
+  shadowColor: string;
+  shadowAngle: number;
+  shadowOpacity: number;
   /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
   /** 0–1.5 — how hard the mic throbs painted marks. */
@@ -72,6 +76,10 @@ interface RippleState {
   setBrushFx: (id: BrushFxId) => void;
   getActiveBrushFx: () => BrushFxId[];
   setBrushFxOpacity: (v: number) => void;
+  setShadowOn: (v: boolean) => void;
+  setBrushShadowColor: (hex: string) => void;
+  setShadowAngle: (deg: number) => void;
+  setShadowOpacity: (v: number) => void;
   setCameraInteract: (v: number) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
@@ -147,6 +155,10 @@ export const useRippleStore = create<RippleState>()(
       brushId: PALETTES.lens.brushId,
       brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
       brushFxOpacity: PALETTES.lens.brushFxOpacity,
+      shadowOn: false,
+      shadowColor: "#0a0810",
+      shadowAngle: 135,
+      shadowOpacity: 0.45,
       cameraInteract: PALETTES.lens.cameraMix,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
@@ -294,6 +306,10 @@ export const useRippleStore = create<RippleState>()(
         return asFxList(brushFx[brushId]);
       },
       setBrushFxOpacity: (v) => set({ brushFxOpacity: Math.max(0, Math.min(1, v)) }),
+      setShadowOn: (v) => set({ shadowOn: v }),
+      setBrushShadowColor: (hex) => set({ shadowColor: hex }),
+      setShadowAngle: (deg) => set({ shadowAngle: ((deg % 360) + 360) % 360 }),
+      setShadowOpacity: (v) => set({ shadowOpacity: Math.max(0, Math.min(1, v)) }),
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
@@ -342,6 +358,10 @@ export const useRippleStore = create<RippleState>()(
         brushId: s.brushId,
         brushFx: s.brushFx,
         brushFxOpacity: s.brushFxOpacity,
+        shadowOn: s.shadowOn,
+        shadowColor: s.shadowColor,
+        shadowAngle: s.shadowAngle,
+        shadowOpacity: s.shadowOpacity,
         cameraInteract: s.cameraInteract,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,

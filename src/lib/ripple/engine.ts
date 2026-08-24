@@ -1,6 +1,6 @@
 import type { Splat } from "./pointer";
 import { resolveCameraAngle } from "./orientation";
-import { sampleStopsRgb, sampleStopsA, mix01, isVideo, sourceSize } from "./engine-utils";
+import { sampleStopsA, mix01, isVideo, sourceSize } from "./engine-utils";
 import { RippleEngineBase } from "./engine-base";
 
 export class RippleEngine extends RippleEngineBase {
@@ -33,11 +33,8 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform2f(this.inkU.point, ux, uy);
       gl.uniform1f(this.inkU.force, s.force);
       gl.uniform1f(this.inkU.radius, Math.max(0.004, s.radius));
-      const rgb = this.strokeRgb(s.force);
-      gl.uniform3f(this.inkU.color, rgb[0], rgb[1], rgb[2]);
+      gl.uniform1f(this.inkU.t, this.strokeT(s.force));
       gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.force));
-      gl.uniform1i(this.inkU.brushFx, this.brushFx);
-      gl.uniform1f(this.inkU.fxOpacity, this.fxOpacity);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const inkTmp = this.inkPing;
       this.inkPing = this.inkPong;
@@ -46,13 +43,12 @@ export class RippleEngine extends RippleEngineBase {
     }
   }
 
-  private strokeRgb(force: number): [number, number, number] {
-    const t = mix01(this.rangeStart, this.rangeEnd, Math.max(0, Math.min(1, Math.abs(force))));
-    return sampleStopsRgb(this.stopColors, this.stopT, t);
+  private strokeT(force: number): number {
+    return mix01(this.rangeStart, this.rangeEnd, Math.max(0, Math.min(1, Math.abs(force))));
   }
 
   private strokeAlpha(force: number): number {
-    const t = mix01(this.rangeStart, this.rangeEnd, Math.max(0, Math.min(1, Math.abs(force))));
+    const t = this.strokeT(force);
     return sampleStopsA(this.stopA, this.stopT, t);
   }
 
@@ -170,6 +166,11 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1i(this.dispU.brushFx, this.brushFx);
     gl.uniform1f(this.dispU.fxOpacity, this.fxOpacity);
     gl.uniform2f(this.dispU.gravity, this.gx, this.gy);
+    gl.uniform1f(this.dispU.shadowOn, this.shadowOn);
+    gl.uniform3f(this.dispU.shadowColor, this.shadowColor[0], this.shadowColor[1], this.shadowColor[2]);
+    gl.uniform1f(this.dispU.shadowAngle, this.shadowAngle);
+    gl.uniform1f(this.dispU.shadowOpacity, this.shadowOpacity);
+    gl.uniform1f(this.dispU.shadowDist, this.shadowDist);
     const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
     const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
     const cam = sourceSize(this.camSource);

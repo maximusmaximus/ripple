@@ -116,10 +116,8 @@ export type InkU = {
   point: WebGLUniformLocation | null;
   force: WebGLUniformLocation | null;
   radius: WebGLUniformLocation | null;
-  color: WebGLUniformLocation | null;
+  t: WebGLUniformLocation | null;
   colorA: WebGLUniformLocation | null;
-  brushFx: WebGLUniformLocation | null;
-  fxOpacity: WebGLUniformLocation | null;
 };
 
 export type DispU = {
@@ -148,6 +146,11 @@ export type DispU = {
   brushFx: WebGLUniformLocation | null;
   fxOpacity: WebGLUniformLocation | null;
   gravity: WebGLUniformLocation | null;
+  shadowOn: WebGLUniformLocation | null;
+  shadowColor: WebGLUniformLocation | null;
+  shadowAngle: WebGLUniformLocation | null;
+  shadowOpacity: WebGLUniformLocation | null;
+  shadowDist: WebGLUniformLocation | null;
 };
 
 export function mix01(a: number, b: number, t: number) {

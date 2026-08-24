@@ -32,6 +32,11 @@ uniform vec2 u_viewSize;
 uniform int u_brushFx;
 uniform float u_fxOpacity;
 uniform vec2 u_gravity;
+uniform float u_shadowOn;
+uniform vec3 u_shadowColor;
+uniform float u_shadowAngle;
+uniform float u_shadowOpacity;
+uniform float u_shadowDist;
 
 vec4 sampleRamp4(float t) {
   t = clamp(t, 0.0, 1.0);
@@ -148,7 +153,10 @@ void main() {
   float inkMark = smoothstep(0.02, 0.14, ink.a);
   float wave = smoothstep(0.01, 0.22, abs(h) + abs(vel) * 1.2);
   float coverage = max(inkMark, wave * mix(0.45, 0.95, inkMark));
-  vec3 inkLit = ink.rgb * (0.4 + 0.6 * diff) * breathe + vec3(spec * 0.45);
+  vec4 liveInk = sampleRamp4(clamp(ink.r, 0.0, 1.0));
+  vec3 pigment = liveInk.rgb;
+  paintA = mix(paintA, liveInk.a, inkMark);
+  vec3 inkLit = pigment * (0.4 + 0.6 * diff) * breathe + vec3(spec * 0.45);
   inkLit = mix(inkLit, keyCol, highAmt * inkMark * 0.35);
   inkLit = mix(inkLit, u_c0, bass * inkMark * 0.2);
   vec3 dye = mix(col, inkLit, max(inkMark, wave * 0.4));
@@ -163,6 +171,15 @@ void main() {
     camLit = cam * (0.78 + 0.22 * diff) + vec3(spec * 0.2);
   }
   vec3 surface = mix(mix(rest, col, 0.35), camLit, u_camMix);
+  if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
+    float ang = radians(u_shadowAngle);
+    vec2 shDir = vec2(cos(ang), -sin(ang)) * max(0.004, u_shadowDist);
+    float shA = texture(u_ink, clamp(inkUv - shDir, 0.0, 1.0)).a;
+    shA = max(shA, 0.55 * texture(u_ink, clamp(inkUv - shDir * 1.7, 0.0, 1.0)).a);
+    float sh = smoothstep(0.015, 0.22, shA) * (1.0 - inkMark * 0.82);
+    surface = mix(surface, u_shadowColor, clamp(sh * u_shadowOpacity, 0.0, 0.92));
+    camLit = mix(camLit, u_shadowColor, clamp(sh * u_shadowOpacity * 0.7, 0.0, 0.85));
+  }
   vec3 bed = mix(rest, camLit, u_camMix);
   vec3 fxed = applyBrushFx(bed, dye, u_brushFx);
   float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);

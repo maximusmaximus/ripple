@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ColorRangeSlider } from "./color-range-slider";
 import { BrushPicker } from "./brush-picker";
 import { BrushFxPicker } from "./brush-fx";
+import { BrushShadow } from "./brush-shadow";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTE_ORDER } from "@/lib/ripple/palettes";
 
@@ -76,6 +77,7 @@ export function ControlsDock() {
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Feel</h3>
         <ColorRangeSlider />
         <BrushPicker />
+        <BrushShadow />
         <BrushFxPicker />
         <label className="flex flex-col gap-2">
           <div className="flex justify-between text-[12px] text-muted">

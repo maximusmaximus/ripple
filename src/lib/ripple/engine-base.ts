@@ -82,6 +82,11 @@ export class RippleEngineBase {
   protected fxOpacity = 1;
   protected gx = 0;
   protected gy = 0;
+  protected shadowOn = 0;
+  protected shadowColor: [number, number, number] = [0.05, 0.04, 0.06];
+  protected shadowAngle = 135;
+  protected shadowOpacity = 0.45;
+  protected shadowDist = 0.016;
   protected firstFrameCb: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -191,10 +196,8 @@ export class RippleEngineBase {
       point: gl.getUniformLocation(this.inkProg, "u_point"),
       force: gl.getUniformLocation(this.inkProg, "u_force"),
       radius: gl.getUniformLocation(this.inkProg, "u_radius"),
-      color: gl.getUniformLocation(this.inkProg, "u_color"),
+      t: gl.getUniformLocation(this.inkProg, "u_t"),
       colorA: gl.getUniformLocation(this.inkProg, "u_colorA"),
-      brushFx: gl.getUniformLocation(this.inkProg, "u_brushFx"),
-      fxOpacity: gl.getUniformLocation(this.inkProg, "u_fxOpacity"),
     };
     this.inkFlowU = {
       prev: gl.getUniformLocation(this.inkFlowProg, "u_prev"),
@@ -236,6 +239,11 @@ export class RippleEngineBase {
       brushFx: gl.getUniformLocation(this.displayProg, "u_brushFx"),
       fxOpacity: gl.getUniformLocation(this.displayProg, "u_fxOpacity"),
       gravity: gl.getUniformLocation(this.displayProg, "u_gravity"),
+      shadowOn: gl.getUniformLocation(this.displayProg, "u_shadowOn"),
+      shadowColor: gl.getUniformLocation(this.displayProg, "u_shadowColor"),
+      shadowAngle: gl.getUniformLocation(this.displayProg, "u_shadowAngle"),
+      shadowOpacity: gl.getUniformLocation(this.displayProg, "u_shadowOpacity"),
+      shadowDist: gl.getUniformLocation(this.displayProg, "u_shadowDist"),
     };
 
     this.quad = gl.createBuffer()!;
@@ -286,6 +294,11 @@ export class RippleEngineBase {
     cameraInteract?: number;
     brushFx?: number;
     fxOpacity?: number;
+    shadowOn?: boolean;
+    shadowColor?: string;
+    shadowAngle?: number;
+    shadowOpacity?: number;
+    shadowDist?: number;
   }) {
     if (opts.viscosity != null) this.damping = 0.996 - (1 - opts.viscosity) * 0.078;
     if (opts.waveStrength != null) this.speed = Math.max(0.05, Math.min(0.35, opts.waveStrength * 0.22));
@@ -311,6 +324,11 @@ export class RippleEngineBase {
     if (opts.cameraInteract != null) this.camInteract = Math.max(0, Math.min(1, opts.cameraInteract));
     if (opts.brushFx != null) this.brushFx = opts.brushFx | 0;
     if (opts.fxOpacity != null) this.fxOpacity = Math.max(0, Math.min(1, opts.fxOpacity));
+    if (opts.shadowOn != null) this.shadowOn = opts.shadowOn ? 1 : 0;
+    if (opts.shadowColor) this.shadowColor = hexToRgb(opts.shadowColor);
+    if (opts.shadowAngle != null) this.shadowAngle = ((opts.shadowAngle % 360) + 360) % 360;
+    if (opts.shadowOpacity != null) this.shadowOpacity = Math.max(0, Math.min(1, opts.shadowOpacity));
+    if (opts.shadowDist != null) this.shadowDist = Math.max(0.002, Math.min(0.08, opts.shadowDist));
   }
 
   setGravity(x: number, y: number) {
