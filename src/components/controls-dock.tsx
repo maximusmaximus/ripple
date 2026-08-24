@@ -40,12 +40,17 @@ export function ControlsDock() {
         >
           <ChevronLeft className="size-4" />
         </button>
-        <span className="font-medium tracking-wide text-fg">
-          {palette.name}{" "}
-          <span className="text-subtle">
-            {worldIndex} / {PALETTE_ORDER.length}
+        <div className="flex min-w-0 flex-1 flex-col items-center px-2">
+          <span className="font-medium tracking-wide text-fg">
+            {palette.name}{" "}
+            <span className="text-subtle">
+              {worldIndex} / {PALETTE_ORDER.length}
+            </span>
           </span>
-        </span>
+          <span className="max-w-[13rem] truncate text-center text-[10px] leading-tight text-subtle">
+            {palette.blurb}
+          </span>
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"

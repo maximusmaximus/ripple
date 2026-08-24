@@ -10,12 +10,13 @@ import {
   removeStop as removeStopHelper,
   updateStop as updateStopHelper,
   resampleStops,
+  defaultStopsFor,
   MAX_COLOR_STOPS,
   type PaletteId,
   type ColorPair,
   type ColorStop,
 } from "@/lib/ripple/palettes";
-import { DEFAULT_BRUSH_ID, getBrush, type BrushId } from "@/lib/ripple/brushes";
+import { getBrush, type BrushId } from "@/lib/ripple/brushes";
 import { asFxList, toggleBrushFx, type BrushFxId } from "@/lib/ripple/blend";
 
 export type WorldId = PaletteId;
@@ -101,6 +102,7 @@ function normalizeRange(r: ColorRange): ColorRange {
 
 function worldPatch(id: WorldId) {
   const p = PALETTES[id] ?? PALETTES.lens;
+  const brush = getBrush(p.brushId);
   return {
     worldId: p.id,
     viscosity: p.viscosity,
@@ -108,6 +110,9 @@ function worldPatch(id: WorldId) {
     cameraInteract: p.cameraMix,
     micSensitivity: p.micDrive,
     gyroSensitivity: p.gyroDrive,
+    brushId: p.brushId,
+    brushDiameter: Math.max(0.01, Math.min(0.12, brush.radius * 2)),
+    brushFxOpacity: p.brushFxOpacity,
   };
 }
 
@@ -138,10 +143,10 @@ export const useRippleStore = create<RippleState>()(
       colorStops: {},
       viscosity: PALETTES.lens.viscosity,
       waveStrength: PALETTES.lens.waveStrength,
-      brushDiameter: getBrush(DEFAULT_BRUSH_ID).radius * 2,
-      brushId: DEFAULT_BRUSH_ID,
-      brushFx: {},
-      brushFxOpacity: 1,
+      brushDiameter: getBrush(PALETTES.lens.brushId).radius * 2,
+      brushId: PALETTES.lens.brushId,
+      brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
+      brushFxOpacity: PALETTES.lens.brushFxOpacity,
       cameraInteract: PALETTES.lens.cameraMix,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
@@ -149,22 +154,28 @@ export const useRippleStore = create<RippleState>()(
       castPinned: false,
       dockOpen: true,
 
-      setWorld: (id) => set(worldPatch(id)),
+      setWorld: (id) =>
+        set((s) => {
+          const patch = worldPatch(id);
+          const p = PALETTES[id] ?? PALETTES.lens;
+          return {
+            ...patch,
+            brushFx: { ...s.brushFx, [p.brushId]: p.brushFx },
+          };
+        }),
 
       nextWorld: () => {
         const { worldId } = get();
         const i = PALETTE_ORDER.indexOf(worldId);
-        set(worldPatch(PALETTE_ORDER[(i + 1) % PALETTE_ORDER.length]!));
+        const next = PALETTE_ORDER[(i + 1 + PALETTE_ORDER.length) % PALETTE_ORDER.length]!;
+        get().setWorld(next);
       },
 
       prevWorld: () => {
         const { worldId } = get();
         const i = PALETTE_ORDER.indexOf(worldId);
-        set(
-          worldPatch(
-            PALETTE_ORDER[(i - 1 + PALETTE_ORDER.length) % PALETTE_ORDER.length]!,
-          ),
-        );
+        const prev = PALETTE_ORDER[(i - 1 + PALETTE_ORDER.length) % PALETTE_ORDER.length]!;
+        get().setWorld(prev);
       },
 
       setColorRange: (range) => {
@@ -217,8 +228,7 @@ export const useRippleStore = create<RippleState>()(
         const saved = colorStops[worldId];
         if (saved && saved.length >= 2) return saved;
         const palette = PALETTES[worldId] ?? PALETTES.lens;
-        const colors = resolveColors(palette, colorPairs[worldId]);
-        return stopsFromColors(colors, worldId);
+        return defaultStopsFor(palette, colorPairs[worldId]);
       },
 
       addColorStop: () => {
@@ -319,7 +329,7 @@ export const useRippleStore = create<RippleState>()(
       },
     }),
     {
-      name: "ripple-world-v2",
+      name: "ripple-world-v3",
       storage: createJSONStorage(() => liveStorage()),
       partialize: (s) => ({
         worldId: s.worldId,

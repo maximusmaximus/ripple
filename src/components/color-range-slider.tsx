@@ -10,9 +10,8 @@ import { Minus, Plus } from "lucide-react";
 import {
   gradientFromStops,
   sampleFromStops,
-  stopsFromColors,
-  resolveColors,
   resolvePair,
+  defaultStopsFor,
   MAX_COLOR_STOPS,
   MIN_COLOR_STOPS,
   type ColorStop,
@@ -41,8 +40,8 @@ export function ColorRangeSlider() {
 
   const stops = useMemo(() => {
     if (customStops && customStops.length >= 2) return customStops;
-    return stopsFromColors(resolveColors(palette, storedPair), worldId);
-  }, [customStops, palette, storedPair, worldId]);
+    return defaultStopsFor(palette, storedPair);
+  }, [customStops, palette, storedPair]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
