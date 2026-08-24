@@ -27,9 +27,9 @@ void main() {
 
   float energy = abs(h) * 1.4 + abs(vel) * 2.2 + mic * 0.35 + length(u_gravity) * 12.0;
   float strength = clamp(energy * 1.8, 0.05, 1.0);
-  float step = clamp(u_dt, 0.008, 0.04) * 55.0;
+  float dtScale = clamp(u_dt, 0.008, 0.04) * 55.0;
 
-  vec2 src = clamp(v_uv - flow * strength * step * 0.018, u_texel, vec2(1.0) - u_texel);
+  vec2 src = clamp(v_uv - flow * strength * dtScale * 0.018, u_texel, vec2(1.0) - u_texel);
   vec4 c = texture(u_prev, v_uv);
   vec4 adv = texture(u_prev, src);
 
