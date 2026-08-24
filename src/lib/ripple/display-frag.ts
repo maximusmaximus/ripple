@@ -123,20 +123,30 @@ void main() {
   vec2 uv = clamp(v_uv + slosh, 0.0, 1.0);
   float h = texture(u_height, uv).r;
   float vel = texture(u_height, uv).g;
-  vec4 tf = mediaField(u_texId, uv, u_time, h, u_gravity);
-  if (u_texId > 0) {
-    uv = clamp(uv + tf.yz * 0.012, 0.0, 1.0);
-    h = texture(u_height, uv).r;
-    vel = texture(u_height, uv).g;
-  }
   float hx = texture(u_height, uv + vec2(u_texel.x, 0.0)).r - texture(u_height, uv - vec2(u_texel.x, 0.0)).r;
   float hy = texture(u_height, uv + vec2(0.0, u_texel.y)).r - texture(u_height, uv - vec2(0.0, u_texel.y)).r;
+  vec2 slope = vec2(hx, hy);
+  float pulse = u_micPulse;
+  vec2 inkFlow = -slope * (1.2 + abs(vel) * 3.5);
+  inkFlow += vec2(-hy, hx) * vel * 2.0;
+  inkFlow += u_gravity * 6.0;
+  inkFlow += vec2(sin(u_time * 3.4 + uv.y * 14.0 + h * 6.0), cos(u_time * 2.9 + uv.x * 12.0 - h * 5.0)) * (0.35 + pulse * 1.4);
+  float drawnEarly = smoothstep(0.008, 0.14, abs(h));
+  vec2 texP = fluidDomain(uv, h, vel, slope, u_gravity, pulse, inkFlow * 0.014 * (0.45 + drawnEarly * 1.4));
+  vec4 tf = mediaField(u_texId, texP, u_time, h, vel);
+  if (u_texId > 0) {
+    uv = clamp(uv + tf.yz * 0.01 + inkFlow * 0.004, 0.0, 1.0);
+    h = texture(u_height, uv).r;
+    vel = texture(u_height, uv).g;
+    hx = texture(u_height, uv + vec2(u_texel.x, 0.0)).r - texture(u_height, uv - vec2(u_texel.x, 0.0)).r;
+    hy = texture(u_height, uv + vec2(0.0, u_texel.y)).r - texture(u_height, uv - vec2(0.0, u_texel.y)).r;
+    slope = vec2(hx, hy);
+  }
   vec3 n = normalize(vec3(-hx * 4.0, -hy * 4.0, 1.0));
   vec3 light = normalize(vec3(0.35, 0.5, 1.0));
   float diff = max(0.0, dot(n, light));
   float spec = pow(max(0.0, dot(reflect(-light, n), vec3(0.0, 0.0, 1.0))), 32.0);
   float drawn = smoothstep(0.008, 0.14, abs(h));
-  float pulse = u_micPulse;
   float bass = u_micBass;
   float mid = u_micMid;
   float high = u_micHigh;
@@ -156,12 +166,16 @@ void main() {
   spec += (pulse * 0.28 + highAmt * 0.55) * mix(0.15, 1.0, drawn) * shimmer;
   vec3 col = base * (0.45 + 0.55 * diff) * breathe + vec3(spec * 0.35);
   vec3 rest = sampleRamp(u_rangeStart) * (0.45 + 0.55 * diff) * breathe;
-  vec2 inkFlow = -vec2(hx, hy) * (1.2 + abs(vel) * 3.5);
+  inkFlow = -slope * (1.2 + abs(vel) * 3.5);
   inkFlow += vec2(-hy, hx) * vel * 2.0;
   inkFlow += u_gravity * 6.0;
   inkFlow += vec2(sin(u_time * 3.4 + uv.y * 14.0 + h * 6.0), cos(u_time * 2.9 + uv.x * 12.0 - h * 5.0)) * (0.35 + pulse * 1.4);
-  if (u_texId > 0) inkFlow += tf.yz * (2.4 + abs(h) * 4.0);
+  if (u_texId > 0) inkFlow += tf.yz * (1.2 + abs(h) * 2.0);
   vec2 inkUv = clamp(uv + inkFlow * 0.012 * (0.4 + drawn * 1.6), 0.0, 1.0);
+  if (u_texId > 0) {
+    texP = fluidDomain(uv, h, vel, slope, u_gravity, pulse, inkFlow * 0.016 * (0.5 + drawn * 1.5));
+    tf = mediaField(u_texId, texP, u_time, h, vel);
+  }
   vec4 ink = texture(u_ink, inkUv);
   float inkMark = smoothstep(0.02, 0.14, ink.a);
   float wave = smoothstep(0.01, 0.22, abs(h) + abs(vel) * 1.2);

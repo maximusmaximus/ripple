@@ -25,17 +25,18 @@ void main() {
            - texture(u_height, v_uv - vec2(u_texel.x, 0.0)).r;
   float hy = texture(u_height, v_uv + vec2(0.0, u_texel.y)).r
            - texture(u_height, v_uv - vec2(0.0, u_texel.y)).r;
+  vec2 slope = vec2(hx, hy);
 
-  vec2 flow = -vec2(hx, hy) * (2.4 + abs(vel) * 5.5);
+  vec2 flow = -slope * (2.4 + abs(vel) * 5.5);
   flow += vec2(-hy, hx) * vel * 3.2;
   flow += u_gravity * 7.0;
   float mic = clamp(u_mic, 0.0, 1.5);
   flow += vec2(sin(h * 18.0 + vel * 9.0), cos(h * 14.0 - vel * 11.0)) * mic * 0.9;
 
-  vec4 tf = mediaField(u_texId, v_uv, u_time, h, u_gravity);
+  vec2 texP = fluidDomain(v_uv, h, vel, slope, u_gravity, mic, flow * 0.016);
+  vec4 tf = mediaField(u_texId, texP, u_time, h, vel);
   if (u_texId > 0) {
-    flow += tf.yz * (2.2 + abs(h) * 5.0 + abs(vel) * 3.0);
-    flow *= mix(1.0, 0.55 + tf.x * 0.7, 0.8);
+    flow *= mix(1.0, 0.78 + tf.x * 0.3, 0.55);
   }
 
   float energy = abs(h) * 1.4 + abs(vel) * 2.2 + mic * 0.35 + length(u_gravity) * 12.0;
