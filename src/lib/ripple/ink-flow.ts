@@ -13,6 +13,11 @@ uniform float u_mic;
 uniform float u_dt;
 uniform int u_texId;
 uniform float u_time;
+uniform sampler2D u_texMap;
+uniform float u_texHasMap;
+uniform float u_texFit;
+uniform vec2 u_texSize;
+uniform vec2 u_viewSize;
 ` +
   TEXTURE_GLSL +
   `

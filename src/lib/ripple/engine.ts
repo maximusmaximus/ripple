@@ -99,6 +99,14 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.inkFlowU.dt, clampedDt);
     gl.uniform1i(this.inkFlowU.texId, this.texId);
     gl.uniform1f(this.inkFlowU.time, this.lastT / 1000);
+    this.bindCustomMap(
+      2,
+      this.inkFlowU.texMap,
+      this.inkFlowU.texHasMap,
+      this.inkFlowU.texFit,
+      this.inkFlowU.texSize,
+      this.inkFlowU.viewSize,
+    );
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     const inkTmp = this.inkPing;
     this.inkPing = this.inkPong;
@@ -124,10 +132,52 @@ export class RippleEngine extends RippleEngineBase {
     this.camReady = true;
   }
 
+  private uploadCustom() {
+    const gl = this.gl;
+    const src = this.customSource;
+    if (!src) return;
+    if (isVideo(src) && (!src.videoWidth || src.readyState < 2)) return;
+    if (!this.customTex) {
+      this.customTex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.customTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.customTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    const sz = sourceSize(src);
+    if (sz.w > 0 && sz.h > 0) this.customSize = [sz.w, sz.h];
+    this.customReady = true;
+  }
+
+  private bindCustomMap(
+    unit: number,
+    map: WebGLUniformLocation | null,
+    has: WebGLUniformLocation | null,
+    fit: WebGLUniformLocation | null,
+    size: WebGLUniformLocation | null,
+    view: WebGLUniformLocation | null,
+  ) {
+    const gl = this.gl;
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, this.customReady && this.customTex ? this.customTex : this.ping.tex);
+    gl.uniform1i(map, unit);
+    gl.uniform1f(has, this.customReady && this.texId === 12 ? 1 : 0);
+    gl.uniform1f(fit, this.texFit);
+    gl.uniform2f(size, this.customSize[0], this.customSize[1]);
+    const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
+    const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
+    gl.uniform2f(view, viewW, viewH);
+  }
+
   private drawDisplay() {
     const gl = this.gl;
     this.resize();
     if (this.camSource) this.uploadCam();
+    if (this.customSource) this.uploadCustom();
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.useProgram(this.displayProg);
@@ -167,6 +217,7 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.dispU.micHigh, this.mic.high);
     gl.uniform1i(this.dispU.brushFx, this.brushFx);
     gl.uniform1f(this.dispU.fxOpacity, this.fxOpacity);
+    gl.uniform1i(this.dispU.fxLayers, this.fxLayers);
     gl.uniform2f(this.dispU.gravity, this.gx, this.gy);
     gl.uniform1f(this.dispU.shadowOn, this.shadowOn);
     gl.uniform3f(this.dispU.shadowColor, this.shadowColor[0], this.shadowColor[1], this.shadowColor[2]);
@@ -174,6 +225,14 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.dispU.shadowOpacity, this.shadowOpacity);
     gl.uniform1f(this.dispU.shadowDist, this.shadowDist);
     gl.uniform1i(this.dispU.texId, this.texId);
+    this.bindCustomMap(
+      3,
+      this.dispU.texMap,
+      this.dispU.texHasMap,
+      this.dispU.texFit,
+      this.dispU.texSize,
+      this.dispU.viewSize,
+    );
     const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
     const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
     const cam = sourceSize(this.camSource);
@@ -240,6 +299,7 @@ export class RippleEngine extends RippleEngineBase {
     this.deleteFBO(this.inkPing);
     this.deleteFBO(this.inkPong);
     if (this.camTex) gl.deleteTexture(this.camTex);
+    if (this.customTex) gl.deleteTexture(this.customTex);
     gl.deleteBuffer(this.quad);
     gl.deleteVertexArray(this.vao);
     this.camSource = null;

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Camera,
   CameraOff,
@@ -7,6 +7,8 @@ import {
   Smartphone,
   MoveHorizontal,
   MoveVertical,
+  Circle,
+  Square,
 } from "lucide-react";
 import type { GyroMode, SensorsState } from "@/lib/ripple/media";
 import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
@@ -14,6 +16,9 @@ import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
 type Props = {
   sensors: SensorsState;
   onChange: (s: SensorsState) => void;
+  recording?: boolean;
+  onToggleRecord?: () => void;
+  recordStartedAt?: number | null;
 };
 
 async function openCamera(facing: "user" | "environment"): Promise<MediaStream> {
@@ -30,8 +35,16 @@ async function openCamera(facing: "user" | "environment"): Promise<MediaStream> 
   }
 }
 
-export function SensorsBar({ sensors, onChange }: Props) {
+export function SensorsBar({ sensors, onChange, recording = false, onToggleRecord, recordStartedAt }: Props) {
   const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!recording) return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [recording]);
+  const elapsed = recording && recordStartedAt ? Math.max(0, Math.floor((now - recordStartedAt) / 1000)) : 0;
+  const recLabel = recording ? `REC ${elapsed}s` : "REC";
 
   /** Cycle: off → rear → front → off. One top-left button. */
   const cycleCamera = useCallback(async () => {
@@ -276,6 +289,40 @@ export function SensorsBar({ sensors, onChange }: Props) {
         <div className="pointer-events-auto max-w-[60%] rounded-lg bg-ink/70 px-3 py-1.5 text-xs text-amber-200 backdrop-blur">
           {sensors.error}
         </div>
+      )}
+      {onToggleRecord && (
+        <button
+          type="button"
+          className={
+            btn +
+            (recording
+              ? " border-red-500/80 bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.55)]"
+              : "")
+          }
+          style={{ opacity: recording ? 1 : 0.7 }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleRecord();
+          }}
+          aria-pressed={recording}
+          aria-label={recording ? "Stop recording" : "Start recording"}
+          title={recording ? "Recording — tap to stop and save" : "Record the canvas"}
+        >
+          {recording ? (
+            <Square className="size-3.5 fill-current" strokeWidth={2} />
+          ) : (
+            <Circle className="size-4 text-red-400" strokeWidth={2.25} />
+          )}
+          <span
+            className={
+              "absolute -bottom-0.5 rounded-full px-1 text-[8px] font-semibold tracking-wide " +
+              (recording ? "bg-red-700 text-white" : "bg-ink/80 text-fg/80")
+            }
+          >
+            {recLabel}
+          </span>
+        </button>
       )}
     </div>
   );

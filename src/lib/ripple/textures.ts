@@ -10,7 +10,8 @@ export type TextureId =
   | "mesh"
   | "hatch"
   | "foam"
-  | "scan";
+  | "scan"
+  | "custom";
 
 export type CanvasTexture = {
   id: TextureId;
@@ -116,6 +117,13 @@ export const TEXTURES: CanvasTexture[] = [
     preview:
       "repeating-linear-gradient(0deg, rgba(0,0,0,.55) 0 1px, rgba(80,255,160,.25) 1px 2px, transparent 2px 4px), linear-gradient(#04140c, #0a2818)",
   },
+  {
+    id: "custom",
+    name: "Upload",
+    code: 12,
+    hint: "Your image, cropped to the canvas.",
+    preview: "linear-gradient(145deg, #3a3a44, #1a1a20)",
+  },
 ];
 
 export const DEFAULT_TEXTURE_ID: TextureId = "none";
@@ -124,4 +132,7 @@ export function getTexture(id: TextureId | string | undefined): CanvasTexture {
   return TEXTURES.find((t) => t.id === id) ?? TEXTURES[0]!;
 }
 
-export const TEXTURE_ROWS: CanvasTexture[][] = [TEXTURES.slice(0, 6), TEXTURES.slice(6, 12)];
+export const TEXTURE_ROWS: CanvasTexture[][] = [
+  TEXTURES.filter((t) => t.id !== "custom").slice(0, 6),
+  TEXTURES.filter((t) => t.id !== "custom").slice(6, 12),
+];

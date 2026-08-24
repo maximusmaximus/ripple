@@ -45,6 +45,11 @@ export class RippleEngineBase {
     dt: WebGLUniformLocation | null;
     texId: WebGLUniformLocation | null;
     time: WebGLUniformLocation | null;
+    texMap: WebGLUniformLocation | null;
+    texHasMap: WebGLUniformLocation | null;
+    texFit: WebGLUniformLocation | null;
+    texSize: WebGLUniformLocation | null;
+    viewSize: WebGLUniformLocation | null;
   };
   protected dispU!: DispU;
   protected damping = 0.985;
@@ -82,6 +87,7 @@ export class RippleEngineBase {
   protected mic: MicFrame = { ...SILENT_MIC };
   protected brushFx = 0;
   protected fxOpacity = 1;
+  protected fxLayers = 4;
   protected gx = 0;
   protected gy = 0;
   protected shadowOn = 0;
@@ -90,6 +96,11 @@ export class RippleEngineBase {
   protected shadowOpacity = 0.45;
   protected shadowDist = 0.016;
   protected texId = 0;
+  protected customTex: WebGLTexture | null = null;
+  protected customSource: TexImageSource | null = null;
+  protected customSize: [number, number] = [1, 1];
+  protected texFit = 0;
+  protected customReady = false;
   protected firstFrameCb: (() => void) | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -211,6 +222,11 @@ export class RippleEngineBase {
       dt: gl.getUniformLocation(this.inkFlowProg, "u_dt"),
       texId: gl.getUniformLocation(this.inkFlowProg, "u_texId"),
       time: gl.getUniformLocation(this.inkFlowProg, "u_time"),
+      texMap: gl.getUniformLocation(this.inkFlowProg, "u_texMap"),
+      texHasMap: gl.getUniformLocation(this.inkFlowProg, "u_texHasMap"),
+      texFit: gl.getUniformLocation(this.inkFlowProg, "u_texFit"),
+      texSize: gl.getUniformLocation(this.inkFlowProg, "u_texSize"),
+      viewSize: gl.getUniformLocation(this.inkFlowProg, "u_viewSize"),
     };
     this.dispU = {
       height: gl.getUniformLocation(this.displayProg, "u_height"),
@@ -243,6 +259,7 @@ export class RippleEngineBase {
       micHigh: gl.getUniformLocation(this.displayProg, "u_micHigh"),
       brushFx: gl.getUniformLocation(this.displayProg, "u_brushFx"),
       fxOpacity: gl.getUniformLocation(this.displayProg, "u_fxOpacity"),
+      fxLayers: gl.getUniformLocation(this.displayProg, "u_fxLayers"),
       gravity: gl.getUniformLocation(this.displayProg, "u_gravity"),
       shadowOn: gl.getUniformLocation(this.displayProg, "u_shadowOn"),
       shadowColor: gl.getUniformLocation(this.displayProg, "u_shadowColor"),
@@ -250,6 +267,10 @@ export class RippleEngineBase {
       shadowOpacity: gl.getUniformLocation(this.displayProg, "u_shadowOpacity"),
       shadowDist: gl.getUniformLocation(this.displayProg, "u_shadowDist"),
       texId: gl.getUniformLocation(this.displayProg, "u_texId"),
+      texMap: gl.getUniformLocation(this.displayProg, "u_texMap"),
+      texHasMap: gl.getUniformLocation(this.displayProg, "u_texHasMap"),
+      texFit: gl.getUniformLocation(this.displayProg, "u_texFit"),
+      texSize: gl.getUniformLocation(this.displayProg, "u_texSize"),
     };
 
     this.quad = gl.createBuffer()!;
@@ -300,12 +321,14 @@ export class RippleEngineBase {
     cameraInteract?: number;
     brushFx?: number;
     fxOpacity?: number;
+    fxLayers?: number;
     shadowOn?: boolean;
     shadowColor?: string;
     shadowAngle?: number;
     shadowOpacity?: number;
     shadowDist?: number;
     texId?: number;
+    texFit?: number;
   }) {
     if (opts.viscosity != null) this.damping = 0.996 - (1 - opts.viscosity) * 0.078;
     if (opts.waveStrength != null) this.speed = Math.max(0.05, Math.min(0.35, opts.waveStrength * 0.22));
@@ -331,12 +354,20 @@ export class RippleEngineBase {
     if (opts.cameraInteract != null) this.camInteract = Math.max(0, Math.min(1, opts.cameraInteract));
     if (opts.brushFx != null) this.brushFx = opts.brushFx | 0;
     if (opts.fxOpacity != null) this.fxOpacity = Math.max(0, Math.min(1, opts.fxOpacity));
+    if (opts.fxLayers != null) this.fxLayers = opts.fxLayers | 0;
     if (opts.shadowOn != null) this.shadowOn = opts.shadowOn ? 1 : 0;
     if (opts.shadowColor) this.shadowColor = hexToRgb(opts.shadowColor);
     if (opts.shadowAngle != null) this.shadowAngle = ((opts.shadowAngle % 360) + 360) % 360;
     if (opts.shadowOpacity != null) this.shadowOpacity = Math.max(0, Math.min(1, opts.shadowOpacity));
     if (opts.shadowDist != null) this.shadowDist = Math.max(0.002, Math.min(0.08, opts.shadowDist));
     if (opts.texId != null) this.texId = opts.texId | 0;
+    if (opts.texFit != null) this.texFit = opts.texFit;
+  }
+
+  setCustomTexture(source: TexImageSource | null, size?: { w: number; h: number }) {
+    this.customSource = source;
+    this.customReady = false;
+    if (size) this.customSize = [Math.max(1, size.w), Math.max(1, size.h)];
   }
 
   setGravity(x: number, y: number) {

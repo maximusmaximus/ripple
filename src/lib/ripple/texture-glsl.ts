@@ -19,6 +19,20 @@ float fbm2(vec2 p) {
   return vnoise(p) * 0.55 + vnoise(p * 2.07) * 0.28 + vnoise(p * 4.13) * 0.17;
 }
 
+vec2 texMapUv(vec2 uv) {
+  float ia = max(u_texSize.x, 1.0) / max(u_texSize.y, 1.0);
+  float va = max(u_viewSize.x, 1.0) / max(u_viewSize.y, 1.0);
+  vec2 p = uv;
+  if (u_texFit < 0.5) {
+    if (va > ia) p.y = (p.y - 0.5) * (ia / va) + 0.5;
+    else p.x = (p.x - 0.5) * (va / ia) + 0.5;
+  } else if (u_texFit < 1.5) {
+    if (va > ia) p.x = (p.x - 0.5) * (va / ia) + 0.5;
+    else p.y = (p.y - 0.5) * (ia / va) + 0.5;
+  }
+  return p;
+}
+
 vec2 fluidDomain(vec2 uv, float h, float vel, vec2 slope, vec2 g, float pulse, vec2 extra) {
   vec2 p = uv - 0.5;
   p *= 1.0 / max(0.62, 1.0 + h * 0.38);
@@ -33,6 +47,14 @@ vec2 fluidDomain(vec2 uv, float h, float vel, vec2 slope, vec2 g, float pulse, v
 
 vec4 mediaField(int id, vec2 p, float time, float h, float vel) {
   if (id <= 0) return vec4(0.5, 0.0, 0.0, 0.0);
+  if (id == 12) {
+    if (u_texHasMap < 0.5) return vec4(0.45, 0.0, 0.0, 0.0);
+    vec2 tuv = texMapUv(p);
+    vec4 s = texture(u_texMap, clamp(tuv, 0.0, 1.0));
+    float L = dot(s.rgb, vec3(0.299, 0.587, 0.114));
+    vec2 w = (s.rg - 0.5) * 0.55;
+    return vec4(L, w, s.b * 0.35);
+  }
   float t = time;
   float stretch = 1.0 + abs(h) * 0.35 + abs(vel) * 0.2;
   if (id == 1) {

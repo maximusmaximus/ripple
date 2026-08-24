@@ -1,12 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { RippleEngine } from "@/lib/ripple/engine";
 import { PointerPainter, bindPainter, type Splat } from "@/lib/ripple/pointer";
 import { createStrokeTracker } from "@/lib/ripple/gestures";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES } from "@/lib/ripple/palettes";
 import { getBrush } from "@/lib/ripple/brushes";
-import { asFxList, fxMask } from "@/lib/ripple/blend";
+import { asFxList, asFxLayers, fxMask, fxLayerMask } from "@/lib/ripple/blend";
 import { getTexture } from "@/lib/ripple/textures";
+import { fitCode } from "@/lib/ripple/studio";
 import type { SensorsState } from "@/lib/ripple/media";
 import {
   createMicMonitor,
@@ -33,7 +34,7 @@ type Props = {
   onReady?: () => void;
 };
 
-export function RippleCanvas({
+export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function RippleCanvas({
   sensors,
   orientationAngle = 0,
   onPaintStart,
@@ -46,8 +47,9 @@ export function RippleCanvas({
   remoteGyro = null,
   webglError,
   onReady,
-}: Props) {
+}: Props, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  useImperativeHandle(ref, () => canvasRef.current!, []);
   const engineRef = useRef<RippleEngine | null>(null);
   const painterRef = useRef(new PointerPainter());
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -71,11 +73,15 @@ export function RippleCanvas({
   const brushId = useRippleStore((s) => s.brushId);
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
+  const fxLayerSig = useRippleStore((s) => asFxLayers(s.fxLayers).join(","));
   const shadowOn = useRippleStore((s) => s.shadowOn);
   const shadowColor = useRippleStore((s) => s.shadowColor);
   const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
   const textureId = useRippleStore((s) => s.textureId);
+  const textureFit = useRippleStore((s) => s.textureFit);
+  const customTexture = useRippleStore((s) => s.customTexture);
+  const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
   const micSensitivity = useRippleStore((s) => s.micSensitivity);
   const micSensRef = useRef(micSensitivity);
@@ -208,12 +214,14 @@ export function RippleCanvas({
       cameraInteract: sensors.cameraOn || cameraSource ? Math.max(0.95, cameraInteract) : cameraInteract,
       brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
       fxOpacity: brushFxOpacity,
+      fxLayers: fxLayerMask(asFxLayers(useRippleStore.getState().getActiveFxLayers())),
       shadowOn,
       shadowColor,
       shadowAngle,
       shadowOpacity,
       shadowDist: 0.01 + brushDiameter * 0.18,
       texId: getTexture(textureId).code,
+      texFit: fitCode(textureFit),
     });
   }, [
     worldId,
@@ -228,13 +236,33 @@ export function RippleCanvas({
     colorStopsSig,
     brushFxSig,
     brushFxOpacity,
+    fxLayerSig,
     brushDiameter,
     shadowOn,
     shadowColor,
     shadowAngle,
     shadowOpacity,
     textureId,
+    textureFit,
   ]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const src = textureId === "custom" ? (customLiveUrl || customTexture?.dataUrl) : null;
+    if (!src) {
+      engine.setCustomTexture(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => engine.setCustomTexture(img, { w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => engine.setCustomTexture(null);
+    img.src = src;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [textureId, customTexture, customLiveUrl]);
 
   useEffect(() => {
     const brush = getBrush(brushId);
@@ -443,4 +471,4 @@ export function RippleCanvas({
       }}
     />
   );
-}
+});

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "note": "Homebase presets shipped with the repo. User-saved presets merge from the shared studio database and survive deploys when this file is updated.",
+  "presets": [
+    {
+      "id": "home_night_paper",
+      "name": "Night paper",
+      "createdAt": "2026-08-24T00:00:00.000Z",
+      "snapshot": {
+        "worldId": "noir",
+        "colorRanges": {},
+        "colorPairs": {},
+        "colorStops": {},
+        "viscosity": 0.97,
+        "waveStrength": 0.85,
+        "brushDiameter": 0.04,
+        "brushId": "ink",
+        "brushFx": { "ink": ["multiply", "overlay"] },
+        "brushFxOpacity": 0.8,
+        "fxLayers": ["brush", "texture"],
+        "shadowOn": true,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.5,
+        "textureId": "paper",
+        "textureFit": "cover",
+        "customTexture": null,
+        "cameraInteract": 0.7,
+        "micSensitivity": 0.45,
+        "gyroSensitivity": 0.8
+      }
+    },
+    {
+      "id": "home_silk_lens",
+      "name": "Silk lens",
+      "createdAt": "2026-08-24T00:00:00.000Z",
+      "snapshot": {
+        "worldId": "lens",
+        "colorRanges": {},
+        "colorPairs": {},
+        "colorStops": {},
+        "viscosity": 0.94,
+        "waveStrength": 1.05,
+        "brushDiameter": 0.05,
+        "brushId": "soft",
+        "brushFx": { "soft": ["screen", "color"] },
+        "brushFxOpacity": 0.7,
+        "fxLayers": ["brush", "camera"],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "silk",
+        "textureFit": "cover",
+        "customTexture": null,
+        "cameraInteract": 0.95,
+        "micSensitivity": 0.55,
+        "gyroSensitivity": 0.6
+      }
+    }
+  ]
+}

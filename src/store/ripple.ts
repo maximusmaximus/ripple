@@ -17,8 +17,9 @@ import {
   type ColorStop,
 } from "@/lib/ripple/palettes";
 import { getBrush, type BrushId } from "@/lib/ripple/brushes";
-import { asFxList, toggleBrushFx, type BrushFxId } from "@/lib/ripple/blend";
+import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
+import type { CustomTexture, StudioSnapshot, TextureFit } from "@/lib/ripple/studio";
 
 export type WorldId = PaletteId;
 
@@ -44,11 +45,17 @@ interface RippleState {
   brushFx: Partial<Record<BrushId, BrushFxId | BrushFxId[]>>;
   /** 0–1 strength of the selected Brush FX. */
   brushFxOpacity: number;
+  /** Which layers inherit the FX stack. Empty = collapsed / idle. */
+  fxLayers: FxLayerId[];
   shadowOn: boolean;
   shadowColor: string;
   shadowAngle: number;
   shadowOpacity: number;
   textureId: TextureId;
+  textureFit: TextureFit;
+  customTexture: CustomTexture | null;
+  /** Object URL for an animated GIF while this session is open. Not persisted. */
+  customLiveUrl: string | null;
   /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
   /** 0–1.5 — how hard the mic throbs painted marks. */
@@ -78,11 +85,18 @@ interface RippleState {
   setBrushFx: (id: BrushFxId) => void;
   getActiveBrushFx: () => BrushFxId[];
   setBrushFxOpacity: (v: number) => void;
+  toggleFxLayer: (id: FxLayerId) => void;
+  getActiveFxLayers: () => FxLayerId[];
   setShadowOn: (v: boolean) => void;
   setBrushShadowColor: (hex: string) => void;
   setShadowAngle: (deg: number) => void;
   setShadowOpacity: (v: number) => void;
   setTextureId: (id: TextureId) => void;
+  setTextureFit: (fit: TextureFit) => void;
+  setCustomTexture: (tex: CustomTexture | null, liveUrl?: string | null) => void;
+  takeSnapshot: () => StudioSnapshot;
+  applySnapshot: (snap: StudioSnapshot) => void;
+  cleanSession: () => void;
   setCameraInteract: (v: number) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
@@ -158,11 +172,15 @@ export const useRippleStore = create<RippleState>()(
       brushId: PALETTES.lens.brushId,
       brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
       brushFxOpacity: PALETTES.lens.brushFxOpacity,
+      fxLayers: ["brush"],
       shadowOn: false,
       shadowColor: "#0a0810",
       shadowAngle: 135,
       shadowOpacity: 0.45,
       textureId: DEFAULT_TEXTURE_ID,
+      textureFit: "cover",
+      customTexture: null,
+      customLiveUrl: null,
       cameraInteract: PALETTES.lens.cameraMix,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
@@ -310,11 +328,115 @@ export const useRippleStore = create<RippleState>()(
         return asFxList(brushFx[brushId]);
       },
       setBrushFxOpacity: (v) => set({ brushFxOpacity: Math.max(0, Math.min(1, v)) }),
+      toggleFxLayer: (id) => {
+        const current = asFxLayers(get().fxLayers);
+        set({ fxLayers: toggleFxLayerHelper(current, id) });
+      },
+      getActiveFxLayers: () => asFxLayers(get().fxLayers),
       setShadowOn: (v) => set({ shadowOn: v }),
       setBrushShadowColor: (hex) => set({ shadowColor: hex }),
       setShadowAngle: (deg) => set({ shadowAngle: ((deg % 360) + 360) % 360 }),
       setShadowOpacity: (v) => set({ shadowOpacity: Math.max(0, Math.min(1, v)) }),
       setTextureId: (id) => set({ textureId: getTexture(id).id }),
+      setTextureFit: (fit) => set({ textureFit: fit }),
+      setCustomTexture: (tex, liveUrl) =>
+        set((s) => {
+          if (s.customLiveUrl && s.customLiveUrl !== liveUrl) {
+            try {
+              URL.revokeObjectURL(s.customLiveUrl);
+            } catch {
+              /* ignore */
+            }
+          }
+          return {
+            customTexture: tex,
+            customLiveUrl: tex ? (liveUrl ?? null) : null,
+            textureId: tex ? "custom" : DEFAULT_TEXTURE_ID,
+          };
+        }),
+      takeSnapshot: () => {
+        const s = get();
+        return {
+          worldId: s.worldId,
+          colorRanges: s.colorRanges,
+          colorPairs: s.colorPairs,
+          colorStops: s.colorStops,
+          viscosity: s.viscosity,
+          waveStrength: s.waveStrength,
+          brushDiameter: s.brushDiameter,
+          brushId: s.brushId,
+          brushFx: s.brushFx,
+          brushFxOpacity: s.brushFxOpacity,
+          fxLayers: s.fxLayers,
+          shadowOn: s.shadowOn,
+          shadowColor: s.shadowColor,
+          shadowAngle: s.shadowAngle,
+          shadowOpacity: s.shadowOpacity,
+          textureId: s.textureId,
+          textureFit: s.textureFit,
+          customTexture: s.customTexture,
+          cameraInteract: s.cameraInteract,
+          micSensitivity: s.micSensitivity,
+          gyroSensitivity: s.gyroSensitivity,
+        };
+      },
+      applySnapshot: (snap) => {
+        const brush = getBrush(snap.brushId);
+        set({
+          worldId: snap.worldId,
+          colorRanges: snap.colorRanges ?? {},
+          colorPairs: snap.colorPairs ?? {},
+          colorStops: snap.colorStops ?? {},
+          viscosity: snap.viscosity,
+          waveStrength: snap.waveStrength,
+          brushDiameter: snap.brushDiameter ?? Math.max(0.01, Math.min(0.12, brush.radius * 2)),
+          brushId: brush.id,
+          brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
+          brushFxOpacity: snap.brushFxOpacity,
+          fxLayers: asFxLayers(snap.fxLayers),
+          shadowOn: snap.shadowOn,
+          shadowColor: snap.shadowColor,
+          shadowAngle: snap.shadowAngle,
+          shadowOpacity: snap.shadowOpacity,
+          textureId: getTexture(snap.textureId).id,
+          textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
+          customTexture: snap.customTexture ?? null,
+          customLiveUrl: null,
+          cameraInteract: snap.cameraInteract,
+          micSensitivity: snap.micSensitivity,
+          gyroSensitivity: snap.gyroSensitivity,
+        });
+      },
+      cleanSession: () => {
+        const p = PALETTES.lens;
+        const brush = getBrush(p.brushId);
+        set({
+          worldId: p.id,
+          colorRanges: {},
+          colorPairs: {},
+          colorStops: {},
+          viscosity: p.viscosity,
+          waveStrength: p.waveStrength,
+          brushDiameter: Math.max(0.01, Math.min(0.12, brush.radius * 2)),
+          brushId: brush.id,
+          brushFx: { [brush.id]: p.brushFx },
+          brushFxOpacity: p.brushFxOpacity,
+          fxLayers: ["brush"],
+          shadowOn: false,
+          shadowColor: "#0a0810",
+          shadowAngle: 135,
+          shadowOpacity: 0.45,
+          textureId: DEFAULT_TEXTURE_ID,
+          textureFit: "cover",
+          customTexture: null,
+          customLiveUrl: null,
+          cameraInteract: p.cameraMix,
+          micSensitivity: p.micDrive,
+          gyroSensitivity: p.gyroDrive,
+          dockOpen: true,
+          clearToken: get().clearToken + 1,
+        });
+      },
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
@@ -363,11 +485,14 @@ export const useRippleStore = create<RippleState>()(
         brushId: s.brushId,
         brushFx: s.brushFx,
         brushFxOpacity: s.brushFxOpacity,
+        fxLayers: s.fxLayers,
         shadowOn: s.shadowOn,
         shadowColor: s.shadowColor,
         shadowAngle: s.shadowAngle,
         shadowOpacity: s.shadowOpacity,
         textureId: s.textureId,
+        textureFit: s.textureFit,
+        customTexture: s.customTexture,
         cameraInteract: s.cameraInteract,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,

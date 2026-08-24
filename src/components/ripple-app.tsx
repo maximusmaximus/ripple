@@ -12,6 +12,8 @@ import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
+import { StudioSync } from "./studio-sync";
+import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
 
 export function RippleApp() {
@@ -30,6 +32,8 @@ export function RippleApp() {
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const { angle, isImmersive } = useOrientation();
   const splash = useSurfaceSplash();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const record = useCanvasRecord(() => canvasRef.current);
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
@@ -118,7 +122,9 @@ export function RippleApp() {
       className="relative h-dvh w-dvw overflow-hidden bg-ink"
       style={{ touchAction: "none", overscrollBehavior: "none" }}
     >
+      <StudioSync />
       <RippleCanvas
+        ref={canvasRef}
         sensors={sensors}
         orientationAngle={angle}
         onPaintStart={onPaintStart}
@@ -143,7 +149,15 @@ export function RippleApp() {
         </div>
       )}
 
-      {showChrome && <SensorsBar sensors={sensors} onChange={onSensorsChange} />}
+      {showChrome && (
+        <SensorsBar
+          sensors={sensors}
+          onChange={onSensorsChange}
+          recording={record.state === "recording"}
+          onToggleRecord={record.toggle}
+          recordStartedAt={record.startedAt}
+        />
+      )}
 
       {showChrome && (
         <div

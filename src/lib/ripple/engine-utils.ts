@@ -145,6 +145,7 @@ export type DispU = {
   micHigh: WebGLUniformLocation | null;
   brushFx: WebGLUniformLocation | null;
   fxOpacity: WebGLUniformLocation | null;
+  fxLayers: WebGLUniformLocation | null;
   gravity: WebGLUniformLocation | null;
   shadowOn: WebGLUniformLocation | null;
   shadowColor: WebGLUniformLocation | null;
@@ -152,6 +153,10 @@ export type DispU = {
   shadowOpacity: WebGLUniformLocation | null;
   shadowDist: WebGLUniformLocation | null;
   texId: WebGLUniformLocation | null;
+  texMap: WebGLUniformLocation | null;
+  texHasMap: WebGLUniformLocation | null;
+  texFit: WebGLUniformLocation | null;
+  texSize: WebGLUniformLocation | null;
 };
 
 export function mix01(a: number, b: number, t: number) {

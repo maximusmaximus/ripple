@@ -34,6 +34,7 @@ uniform vec2 u_camSize;
 uniform vec2 u_viewSize;
 uniform int u_brushFx;
 uniform float u_fxOpacity;
+uniform int u_fxLayers;
 uniform vec2 u_gravity;
 uniform float u_shadowOn;
 uniform vec3 u_shadowColor;
@@ -41,6 +42,10 @@ uniform float u_shadowAngle;
 uniform float u_shadowOpacity;
 uniform float u_shadowDist;
 uniform int u_texId;
+uniform sampler2D u_texMap;
+uniform float u_texHasMap;
+uniform float u_texFit;
+uniform vec2 u_texSize;
 ` +
   TEXTURE_GLSL +
   `
@@ -196,6 +201,10 @@ void main() {
     cuv = clamp(cuv, 0.0, 1.0);
     vec3 cam = texture(u_cam, cuv).rgb;
     camLit = cam * (0.78 + 0.22 * diff) + vec3(spec * 0.2);
+    if ((u_fxLayers & 1) != 0) {
+      vec3 camFx = applyBrushFx(rest, camLit, u_brushFx);
+      camLit = mix(camLit, camFx, clamp(u_fxOpacity, 0.0, 1.0));
+    }
   }
   vec3 surface = mix(mix(rest, col, 0.35), camLit, u_camMix);
   if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
@@ -208,19 +217,34 @@ void main() {
     camLit = mix(camLit, u_shadowColor, clamp(sh * u_shadowOpacity * 0.7, 0.0, 0.85));
   }
   vec3 bed = mix(rest, camLit, u_camMix);
-  vec3 fxed = applyBrushFx(bed, dye, u_brushFx);
   float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);
-  vec3 stroked = mix(dye, fxed, fxAmt);
-  float seeCam = u_camMix * mix(0.5, 0.2, inkMark);
-  stroked = mix(stroked, mix(fxed, camLit, 0.35), seeCam * (0.35 + 0.55 * fxAmt));
+  if ((u_fxLayers & 2) != 0) {
+    vec3 micCol = mix(u_c0, keyCol, highAmt);
+    micCol = mix(micCol, u_c3, mid);
+    float micW = clamp(pulse * 0.7 + highAmt * 0.5 + bass * 0.3, 0.0, 1.0);
+    dye = mix(dye, applyBrushFx(dye, micCol, u_brushFx), fxAmt * micW);
+    col = mix(col, applyBrushFx(col, micCol, u_brushFx), fxAmt * micW * 0.65);
+  }
+  vec3 stroked = dye;
+  if ((u_fxLayers & 4) != 0) {
+    vec3 fxed = applyBrushFx(bed, dye, u_brushFx);
+    stroked = mix(dye, fxed, fxAmt * mix(0.4, 1.0, inkMark));
+    float seeCam = u_camMix * mix(0.5, 0.2, inkMark);
+    stroked = mix(stroked, mix(fxed, camLit, 0.35), seeCam * (0.35 + 0.55 * fxAmt));
+  }
   float alpha = coverage * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
   alpha *= 1.0 + pulse * 0.12 * inkMark;
   col = mix(surface, stroked, clamp(alpha, 0.0, 1.0));
   if (u_texId > 0) {
     float texAmt = mix(0.35, 0.85, max(drawn, inkMark));
-    col *= mix(1.0, 0.58 + tf.x * 0.72, texAmt);
-    col += vec3(tf.w * 0.16 * texAmt);
-    col = mix(col, col * col * (0.7 + tf.x), texAmt * 0.22);
+    if ((u_fxLayers & 8) != 0) {
+      vec3 grain = mix(vec3(tf.x), pigment, 0.28) + vec3(tf.w * 0.22);
+      col = mix(col, applyBrushFx(col, grain, u_brushFx), texAmt * fxAmt);
+    } else {
+      col *= mix(1.0, 0.58 + tf.x * 0.72, texAmt);
+      col += vec3(tf.w * 0.16 * texAmt);
+      col = mix(col, col * col * (0.7 + tf.x), texAmt * 0.22);
+    }
   }
   float vig = smoothstep(1.25, 0.28, length(v_uv - 0.5));
   float vigAmt = mix(0.28, 0.12, u_camMix);
