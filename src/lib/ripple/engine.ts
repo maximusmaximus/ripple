@@ -181,7 +181,7 @@ export class RippleEngine extends RippleEngineBase {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  private frame = (t: number) => {
+  protected frame = (t: number) => {
     if (!this.running) return;
     this.raf = requestAnimationFrame(this.frame);
     if (document.hidden) return;
