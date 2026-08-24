@@ -201,12 +201,12 @@ export function tiltToGravity(
   if (axis === "horizontal") y = 0;
   if (axis === "vertical") x = 0;
   const sens = Math.max(0, Math.min(1.5, sensitivity));
-  const span = Math.max(5.5, 26 - sens * 16);
+  const span = Math.max(4.2, 22 - sens * 14);
   let nx = Math.max(-1, Math.min(1, x / span));
   let ny = Math.max(-1, Math.min(1, y / span));
-  const dead = 0.025;
+  const dead = 0.018;
   if (Math.abs(nx) < dead) nx = 0;
   if (Math.abs(ny) < dead) ny = 0;
-  const gain = 0.007 + sens * 0.016;
+  const gain = 0.012 + sens * 0.028;
   return { gx: nx * gain, gy: ny * gain };
 }
