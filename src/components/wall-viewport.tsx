@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { QrMark } from "./qr-mark";
 import { RippleCanvas } from "./ripple-canvas";
+import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import { emptySensorsState, type SensorsState } from "@/lib/ripple/media";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
@@ -22,6 +23,12 @@ export function WallViewport({ preferredCode }: Props) {
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
   const [remoteMic, setRemoteMic] = useState(0);
+  const [remoteMicBands, setRemoteMicBands] = useState<number[] | null>(null);
+  const [remoteGyro, setRemoteGyro] = useState<{
+    beta: number;
+    gamma: number;
+    angle?: 0 | 90 | 180 | 270;
+  } | null>(null);
   const [camSource, setCamSource] = useState<HTMLCanvasElement | null>(null);
   const camCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastBmp = useRef<ImageBitmap | null>(null);
@@ -67,24 +74,23 @@ export function WallViewport({ preferredCode }: Props) {
         setWaveStrength(input.feel.waveStrength);
         setBrushDiameter(input.feel.brushDiameter);
       }
-      if (input.mic) setRemoteMic(input.mic.level);
+      if (input.mic) {
+        setRemoteMic(input.mic.level);
+        setRemoteMicBands(input.mic.bands ?? null);
+      }
       if (input.gyro) {
-        const { beta, gamma } = input.gyro;
-        const nx = 0.5 + Math.max(-0.35, Math.min(0.35, gamma / 45));
-        const ny = 0.5 + Math.max(-0.35, Math.min(0.35, beta / 60));
-        const mag = Math.min(1, Math.hypot(gamma / 45, beta / 60));
-        if (mag >= 0.06) {
-          setInjectSplats([
-            { x: nx, y: ny, radius: 0.12 + mag * 0.1, force: 0.012 + mag * 0.035 },
-          ]);
-          setInjectKey((n) => n + 1);
-        }
+        setRemoteGyro({
+          beta: input.gyro.beta,
+          gamma: input.gyro.gamma,
+          angle: input.gyro.angle,
+        });
       }
     },
     [setWorld, setViscosity, setWaveStrength, setBrushDiameter],
   );
 
   const host = useCastHost({ preferredCode, onCamFrame, onRemoteInput });
+  const splash = useSurfaceSplash();
 
   useEffect(() => () => lastBmp.current?.close(), []);
 
@@ -104,6 +110,9 @@ export function WallViewport({ preferredCode }: Props) {
         injectKey={injectKey}
         cameraSource={camSource}
         remoteMicLevel={remoteMic}
+        remoteMicBands={remoteMicBands}
+        remoteGyro={remoteGyro}
+        onReady={splash.markReady}
       />
 
       {host.isLive && (
@@ -192,6 +201,8 @@ export function WallViewport({ preferredCode }: Props) {
               : "Waiting for a phone"}
         </div>
       </div>
+
+      {splash.show && <RippleSplash fading={splash.fading} />}
     </div>
   );
 }

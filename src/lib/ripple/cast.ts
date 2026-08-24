@@ -15,7 +15,7 @@ export type CastMsg =
   | { t: "feel"; viscosity: number; waveStrength: number; brushDiameter: number }
   | { t: "ptr"; x: number; y: number; down: boolean; id?: number }
   | { t: "splats"; s: Splat[] }
-  | { t: "gyro"; alpha: number; beta: number; gamma: number }
+  | { t: "gyro"; alpha: number; beta: number; gamma: number; ang?: 0 | 90 | 180 | 270 }
   | { t: "mic"; level: number; bands?: number[] }
   | { t: "cam"; b64: string }
   | { t: "ping"; ts: number }

@@ -3,16 +3,20 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import {
   PALETTES,
   PALETTE_ORDER,
-  type PaletteId,
-  type ColorStop,
+  resolveColors,
+  resolvePair,
   stopsFromColors,
   addStop as addStopHelper,
   removeStop as removeStopHelper,
   updateStop as updateStopHelper,
   resampleStops,
   MAX_COLOR_STOPS,
+  type PaletteId,
+  type ColorPair,
+  type ColorStop,
 } from "@/lib/ripple/palettes";
 import { DEFAULT_BRUSH_ID, getBrush, type BrushId } from "@/lib/ripple/brushes";
+import { asFxList, toggleBrushFx, type BrushFxId } from "@/lib/ripple/blend";
 
 export type WorldId = PaletteId;
 
@@ -24,20 +28,25 @@ export interface ColorRange {
 interface RippleState {
   worldId: WorldId;
   colorRanges: Partial<Record<WorldId, ColorRange>>;
-  /** Per-world editable gradient stops (defaults to palette colors). */
+  colorPairs: Partial<Record<WorldId, ColorPair>>;
+  /** Per-world extra gradient stops (on top of the 6-stop ramp). */
   colorStops: Partial<Record<WorldId, ColorStop[]>>;
 
   viscosity: number;
   waveStrength: number;
   /** Brush diameter in normalized units (0.01 – 0.12). */
   brushDiameter: number;
-  /** Active brush preset id. */
+  /** Active brush preset. */
   brushId: BrushId;
-  /** How strongly strokes warp / pull the live camera feed. */
+  /** Per-brush mix with bed + camera. One or more compatible modes. */
+  brushFx: Partial<Record<BrushId, BrushFxId | BrushFxId[]>>;
+  /** 0–1 strength of the selected Brush FX. */
+  brushFxOpacity: number;
+  /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
-  /** Mic visual drive scale (0–1.5). */
+  /** 0–1.5 — how hard the mic throbs painted marks. */
   micSensitivity: number;
-  /** Gyro slosh strength (0–1.5); starts high. */
+  /** 0–1.5 — gyro slosh. Default is hot. */
   gyroSensitivity: number;
   clearToken: number;
   castPinned: boolean;
@@ -47,18 +56,21 @@ interface RippleState {
   nextWorld: () => void;
   prevWorld: () => void;
   setColorRange: (range: ColorRange) => void;
+  setKeyColor: (hex: string) => void;
+  setShadowColor: (hex: string) => void;
   resetColorRange: () => void;
   getActiveStops: () => ColorStop[];
-  setColorStops: (stops: ColorStop[]) => void;
   addColorStop: () => void;
   removeColorStop: (id: string) => void;
-  updateColorStop: (id: string, patch: Partial<Pick<ColorStop, "t" | "color">>) => void;
+  updateColorStop: (id: string, patch: Partial<Pick<ColorStop, "t" | "color" | "alpha">>) => void;
   resetColorStops: () => void;
-  getActiveColors: () => string[];
   setViscosity: (v: number) => void;
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
   setBrushId: (id: BrushId) => void;
+  setBrushFx: (id: BrushFxId) => void;
+  getActiveBrushFx: () => BrushFxId[];
+  setBrushFxOpacity: (v: number) => void;
   setCameraInteract: (v: number) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
@@ -67,6 +79,8 @@ interface RippleState {
   setDockOpen: (v: boolean) => void;
 
   getActiveRange: () => ColorRange;
+  getActivePair: () => ColorPair;
+  getActiveColors: () => string[];
   getActivePalette: () => (typeof PALETTES)[PaletteId];
 }
 
@@ -86,8 +100,15 @@ function normalizeRange(r: ColorRange): ColorRange {
 }
 
 function worldPatch(id: WorldId) {
-  const p = PALETTES[id] ?? PALETTES.abyss;
-  return { worldId: id, viscosity: p.viscosity, waveStrength: p.waveStrength };
+  const p = PALETTES[id] ?? PALETTES.lens;
+  return {
+    worldId: p.id,
+    viscosity: p.viscosity,
+    waveStrength: p.waveStrength,
+    cameraInteract: p.cameraMix,
+    micSensitivity: p.micDrive,
+    gyroSensitivity: p.gyroDrive,
+  };
 }
 
 const noopStorage = {
@@ -96,19 +117,34 @@ const noopStorage = {
   removeItem: () => {},
 };
 
+function liveStorage() {
+  if (typeof window === "undefined") return noopStorage;
+  try {
+    const probe = "__ripple_ls";
+    window.localStorage.setItem(probe, "1");
+    window.localStorage.removeItem(probe);
+    return window.localStorage;
+  } catch {
+    return noopStorage;
+  }
+}
+
 export const useRippleStore = create<RippleState>()(
   persist(
     (set, get) => ({
-      worldId: "abyss",
+      worldId: "lens",
       colorRanges: {},
+      colorPairs: {},
       colorStops: {},
-      viscosity: PALETTES.abyss.viscosity,
-      waveStrength: PALETTES.abyss.waveStrength,
+      viscosity: PALETTES.lens.viscosity,
+      waveStrength: PALETTES.lens.waveStrength,
       brushDiameter: getBrush(DEFAULT_BRUSH_ID).radius * 2,
       brushId: DEFAULT_BRUSH_ID,
-      cameraInteract: 0.9,
-      micSensitivity: 0.5,
-      gyroSensitivity: 1.25,
+      brushFx: {},
+      brushFxOpacity: 1,
+      cameraInteract: PALETTES.lens.cameraMix,
+      micSensitivity: PALETTES.lens.micDrive,
+      gyroSensitivity: PALETTES.lens.gyroDrive,
       clearToken: 0,
       castPinned: false,
       dockOpen: true,
@@ -141,40 +177,58 @@ export const useRippleStore = create<RippleState>()(
         });
       },
 
+      setKeyColor: (hex) => {
+        const { worldId, colorPairs } = get();
+        const palette = PALETTES[worldId] ?? PALETTES.lens;
+        const prev = resolvePair(palette, colorPairs[worldId]);
+        set({
+          colorPairs: {
+            ...colorPairs,
+            [worldId]: { key: hex, shadow: prev.shadow },
+          },
+        });
+      },
+
+      setShadowColor: (hex) => {
+        const { worldId, colorPairs } = get();
+        const palette = PALETTES[worldId] ?? PALETTES.lens;
+        const prev = resolvePair(palette, colorPairs[worldId]);
+        set({
+          colorPairs: {
+            ...colorPairs,
+            [worldId]: { key: prev.key, shadow: hex },
+          },
+        });
+      },
+
       resetColorRange: () => {
-        const { worldId, colorRanges } = get();
-        const next = { ...colorRanges };
-        delete next[worldId];
-        set({ colorRanges: next });
+        const { worldId, colorRanges, colorPairs, colorStops } = get();
+        const nextRanges = { ...colorRanges };
+        const nextPairs = { ...colorPairs };
+        const nextStops = { ...colorStops };
+        delete nextRanges[worldId];
+        delete nextPairs[worldId];
+        delete nextStops[worldId];
+        set({ colorRanges: nextRanges, colorPairs: nextPairs, colorStops: nextStops });
       },
 
       getActiveStops: () => {
-        const { worldId, colorStops } = get();
+        const { worldId, colorStops, colorPairs } = get();
         const saved = colorStops[worldId];
         if (saved && saved.length >= 2) return saved;
-        const p = PALETTES[worldId] ?? PALETTES.abyss;
-        return stopsFromColors(p.colors, worldId);
-      },
-
-      setColorStops: (stops) => {
-        const { worldId, colorStops } = get();
-        set({
-          colorStops: {
-            ...colorStops,
-            [worldId]: stops.slice(0, MAX_COLOR_STOPS),
-          },
-        });
+        const palette = PALETTES[worldId] ?? PALETTES.lens;
+        const colors = resolveColors(palette, colorPairs[worldId]);
+        return stopsFromColors(colors, worldId);
       },
 
       addColorStop: () => {
         const { worldId, colorStops } = get();
         const current = get().getActiveStops();
         if (current.length >= MAX_COLOR_STOPS) return;
-        const next = addStopHelper(current);
         set({
           colorStops: {
             ...colorStops,
-            [worldId]: next,
+            [worldId]: addStopHelper(current),
           },
         });
       },
@@ -182,11 +236,10 @@ export const useRippleStore = create<RippleState>()(
       removeColorStop: (id) => {
         const { worldId, colorStops } = get();
         const current = get().getActiveStops();
-        const next = removeStopHelper(current, id);
         set({
           colorStops: {
             ...colorStops,
-            [worldId]: next,
+            [worldId]: removeStopHelper(current, id),
           },
         });
       },
@@ -194,11 +247,10 @@ export const useRippleStore = create<RippleState>()(
       updateColorStop: (id, patch) => {
         const { worldId, colorStops } = get();
         const current = get().getActiveStops();
-        const next = updateStopHelper(current, id, patch);
         set({
           colorStops: {
             ...colorStops,
-            [worldId]: next,
+            [worldId]: updateStopHelper(current, id, patch),
           },
         });
       },
@@ -210,10 +262,6 @@ export const useRippleStore = create<RippleState>()(
         set({ colorStops: next });
       },
 
-      getActiveColors: () => {
-        return resampleStops(get().getActiveStops(), 6);
-      },
-
       setViscosity: (v) => set({ viscosity: Math.max(0.85, Math.min(0.999, v)) }),
       setWaveStrength: (v) => set({ waveStrength: Math.max(0.1, Math.min(1.5, v)) }),
       setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
@@ -221,6 +269,21 @@ export const useRippleStore = create<RippleState>()(
         const b = getBrush(id);
         set({ brushId: b.id, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
       },
+      setBrushFx: (fx) => {
+        const { brushId, brushFx } = get();
+        const current = asFxList(brushFx[brushId]);
+        set({
+          brushFx: {
+            ...brushFx,
+            [brushId]: toggleBrushFx(current, fx),
+          },
+        });
+      },
+      getActiveBrushFx: () => {
+        const { brushId, brushFx } = get();
+        return asFxList(brushFx[brushId]);
+      },
+      setBrushFxOpacity: (v) => set({ brushFxOpacity: Math.max(0, Math.min(1, v)) }),
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
@@ -236,24 +299,39 @@ export const useRippleStore = create<RippleState>()(
         return { start: def[0], end: def[1] };
       },
 
+      getActivePair: () => {
+        const { worldId, colorPairs } = get();
+        const palette = PALETTES[worldId] ?? PALETTES.lens;
+        return resolvePair(palette, colorPairs[worldId]);
+      },
+
+      getActiveColors: () => {
+        const { worldId, colorPairs, colorStops } = get();
+        const palette = PALETTES[worldId] ?? PALETTES.lens;
+        const saved = colorStops[worldId];
+        if (saved && saved.length >= 2) return resampleStops(saved, 6);
+        return resolveColors(palette, colorPairs[worldId]);
+      },
+
       getActivePalette: () => {
         const { worldId } = get();
-        return PALETTES[worldId] ?? PALETTES.abyss;
+        return PALETTES[worldId] ?? PALETTES.lens;
       },
     }),
     {
-      name: "ripple-world-v1",
-      storage: createJSONStorage(() =>
-        typeof window === "undefined" ? noopStorage : localStorage,
-      ),
+      name: "ripple-world-v2",
+      storage: createJSONStorage(() => liveStorage()),
       partialize: (s) => ({
         worldId: s.worldId,
         colorRanges: s.colorRanges,
+        colorPairs: s.colorPairs,
         colorStops: s.colorStops,
         viscosity: s.viscosity,
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
         brushId: s.brushId,
+        brushFx: s.brushFx,
+        brushFxOpacity: s.brushFxOpacity,
         cameraInteract: s.cameraInteract,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,

@@ -1,11 +1,7 @@
 /** Screen orientation angle in degrees (clockwise from portrait-primary). */
 export type ScreenAngle = 0 | 90 | 180 | 270;
 
-/**
- * Device rotation angle from the Orientation API / legacy window.orientation.
- * On desktop this is usually always 0 even when the window is wide.
- */
-export function getScreenAngle(): ScreenAngle {
+function readApiAngle(): ScreenAngle {
   if (typeof window === "undefined") return 0;
 
   const so = window.screen?.orientation;
@@ -21,9 +17,55 @@ export function getScreenAngle(): ScreenAngle {
   return 0;
 }
 
+function viewSize(): { w: number; h: number } {
+  if (typeof window === "undefined") return { w: 1, h: 1 };
+  const vv = window.visualViewport;
+  const w = vv?.width || window.innerWidth || 1;
+  const h = vv?.height || window.innerHeight || 1;
+  return { w, h };
+}
+
+/**
+ * Device rotation from the Orientation API / legacy window.orientation.
+ * Falls back to viewport aspect so a landscape frame still counts when the
+ * OS reports angle 0 (desktop, iframes, some iOS webviews).
+ */
+export function getScreenAngle(): ScreenAngle {
+  const api = readApiAngle();
+  if (api === 90 || api === 180 || api === 270) return api;
+  const { w, h } = viewSize();
+  return w > h ? 90 : 0;
+}
+
+/**
+ * Align the camera's long axis with the viewport's long axis.
+ *
+ * Phone/webcam frames are often landscape pixels even in a portrait window.
+ * `screen.orientation.angle` is also often 0 when only the *viewport* flipped.
+ * Rotating only when pixel aspect disagrees with the view prevents a
+ * double-rotate that keeps the feed vertical after going landscape.
+ */
+export function resolveCameraAngle(
+  camW: number,
+  camH: number,
+  viewW: number,
+  viewH: number,
+  apiAngle: ScreenAngle = 0,
+): ScreenAngle {
+  if (camW < 2 || camH < 2 || viewW < 2 || viewH < 2) {
+    return viewW > viewH ? 90 : 0;
+  }
+  const camLand = camW >= camH;
+  const viewLand = viewW >= viewH;
+  if (camLand === viewLand) {
+    return apiAngle === 180 ? 180 : 0;
+  }
+  if (apiAngle === 270) return 270;
+  return 90;
+}
+
 /**
  * True when the phone is tilted horizontal OR the viewport is wider than tall.
- * Uses matchMedia + aspect as primary signals so desktop/tablets also hide chrome.
  */
 export function isLandscapeViewport(): boolean {
   if (typeof window === "undefined") return false;
@@ -34,9 +76,10 @@ export function isLandscapeViewport(): boolean {
     /* ignore */
   }
 
-  if (window.innerWidth > window.innerHeight) return true;
+  const { w, h } = viewSize();
+  if (w > h) return true;
 
-  const angle = getScreenAngle();
+  const angle = readApiAngle();
   return angle === 90 || angle === 270;
 }
 
@@ -52,7 +95,7 @@ export function isImmersiveViewport(): boolean {
     const narrow = window.matchMedia("(max-width: 920px)").matches;
     return coarse || narrow;
   } catch {
-    return window.innerWidth <= 920;
+    return viewSize().w <= 920;
   }
 }
 
@@ -92,6 +135,12 @@ export function subscribeOrientation(
     so.addEventListener("change", fire);
   }
 
+  const vv = window.visualViewport;
+  if (vv) {
+    vv.addEventListener("resize", fire);
+    vv.addEventListener("scroll", fire);
+  }
+
   let mql: MediaQueryList | null = null;
   try {
     mql = window.matchMedia("(orientation: landscape)");
@@ -107,9 +156,57 @@ export function subscribeOrientation(
     if (so && typeof so.removeEventListener === "function") {
       so.removeEventListener("change", fire);
     }
+    if (vv) {
+      vv.removeEventListener("resize", fire);
+      vv.removeEventListener("scroll", fire);
+    }
     if (mql) {
       if (typeof mql.removeEventListener === "function") mql.removeEventListener("change", fire);
       else if (typeof mql.removeListener === "function") mql.removeListener(fire);
     }
   };
+}
+
+/**
+ * Map device beta/gamma into screen-space tilt (degrees).
+ * +x = right, +y = toward the top of the *current* viewport.
+ * Stays correct after the canvas flips landscape/portrait.
+ */
+export function mapTiltToScreen(
+  beta: number,
+  gamma: number,
+  angle: ScreenAngle,
+): { x: number; y: number } {
+  switch (angle) {
+    case 90:
+      return { x: beta, y: -gamma };
+    case 270:
+      return { x: -beta, y: gamma };
+    case 180:
+      return { x: -gamma, y: -beta };
+    default:
+      return { x: gamma, y: beta };
+  }
+}
+
+/** Convert screen tilt (deg from rest) into sim gravity. Very sensitive by default. */
+export function tiltToGravity(
+  dx: number,
+  dy: number,
+  axis: "on" | "horizontal" | "vertical",
+  sensitivity: number,
+): { gx: number; gy: number } {
+  let x = dx;
+  let y = dy;
+  if (axis === "horizontal") y = 0;
+  if (axis === "vertical") x = 0;
+  const sens = Math.max(0, Math.min(1.5, sensitivity));
+  const span = Math.max(5.5, 26 - sens * 16);
+  let nx = Math.max(-1, Math.min(1, x / span));
+  let ny = Math.max(-1, Math.min(1, y / span));
+  const dead = 0.025;
+  if (Math.abs(nx) < dead) nx = 0;
+  if (Math.abs(ny) < dead) ny = 0;
+  const gain = 0.007 + sens * 0.016;
+  return { gx: nx * gain, gy: ny * gain };
 }

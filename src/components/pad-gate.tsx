@@ -7,7 +7,7 @@ export type PadHandle = {
   sendSplats: (s: Splat[]) => void;
   sendWorld: (id: string) => void;
   sendFeel: (viscosity: number, waveStrength: number, brushDiameter: number) => void;
-  sendGyro: (alpha: number, beta: number, gamma: number) => void;
+  sendGyro: (alpha: number, beta: number, gamma: number, ang?: 0 | 90 | 180 | 270) => void;
   sendMic: (level: number, bands?: number[]) => void;
   startCameraLoop: () => Promise<void>;
 };

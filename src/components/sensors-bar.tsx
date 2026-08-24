@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
-import { Camera, FlipHorizontal2, Mic, Smartphone } from "lucide-react";
-import type { SensorsState } from "@/lib/ripple/media";
-import { mediaErrorMessage } from "@/lib/ripple/media";
+import { Camera, FlipHorizontal2, Mic, Smartphone, MoveHorizontal, MoveVertical } from "lucide-react";
+import type { GyroMode, SensorsState } from "@/lib/ripple/media";
+import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
 
 type Props = {
   sensors: SensorsState;
@@ -89,59 +89,74 @@ export function SensorsBar({ sensors, onChange }: Props) {
     }
   }, [busy, sensors, onChange]);
 
-  const toggleGyro = useCallback(async () => {
+  const cycleGyro = useCallback(async () => {
     if (busy) return;
-    if (sensors.gyroOn) {
-      onChange({ ...sensors, gyroOn: false, error: null });
+    const current: GyroMode = sensors.gyroMode ?? (sensors.gyroOn ? "on" : "off");
+    const next = nextGyroMode(current);
+
+    if (next === "off") {
+      onChange({ ...sensors, gyroOn: false, gyroMode: "off", error: null });
+      return;
+    }
+
+    if (current !== "off") {
+      onChange({ ...sensors, gyroOn: true, gyroMode: next, error: null });
       return;
     }
 
     setBusy(true);
     try {
-      const DOE = DeviceOrientationEvent as unknown as {
-        requestPermission?: () => Promise<"granted" | "denied" | "default">;
-      };
-      if (typeof DOE.requestPermission === "function") {
-        const state = await DOE.requestPermission();
+      const request =
+        (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> })
+          .requestPermission ||
+        (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> })
+          .requestPermission;
+      if (typeof request === "function") {
+        const state = await request();
         if (state !== "granted") {
           onChange({
             ...sensors,
             gyroOn: false,
+            gyroMode: "off",
             error: "Gyroscope permission denied",
           });
           return;
         }
       }
-
-      const hasMotion =
-        typeof window !== "undefined" &&
-        ("DeviceOrientationEvent" in window || "DeviceMotionEvent" in window);
-      if (!hasMotion) {
-        onChange({
-          ...sensors,
-          gyroOn: false,
-          error: "No gyroscope on this device",
-        });
-        return;
-      }
-
-      onChange({ ...sensors, gyroOn: true, error: null });
+      onChange({ ...sensors, gyroOn: true, gyroMode: next, error: null });
     } catch (err) {
       onChange({
         ...sensors,
-        gyroOn: false,
-        error: mediaErrorMessage(err) || "Gyroscope unavailable",
+        gyroOn: true,
+        gyroMode: next,
+        error: mediaErrorMessage(err) || null,
       });
     } finally {
       setBusy(false);
     }
   }, [busy, sensors, onChange]);
 
+  const gyroMode: GyroMode = sensors.gyroMode ?? (sensors.gyroOn ? "on" : "off");
+  const gyroTitle =
+    gyroMode === "off"
+      ? "Gyro off"
+      : gyroMode === "horizontal"
+        ? "Gyro horizontal only"
+        : gyroMode === "vertical"
+          ? "Gyro vertical only"
+          : "Gyro on";
+  const GyroIcon =
+    gyroMode === "horizontal" ? MoveHorizontal : gyroMode === "vertical" ? MoveVertical : Smartphone;
+
   const btn =
-    "pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/50 text-fg/80 backdrop-blur-md transition hover:bg-ink/70 hover:text-fg";
+    "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/50 text-fg/80 backdrop-blur-md transition hover:bg-ink/70 hover:text-fg";
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div
+      data-ui-chrome
+      className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div className="flex gap-2">
         <button
           type="button"
@@ -177,12 +192,17 @@ export function SensorsBar({ sensors, onChange }: Props) {
         <button
           type="button"
           className={btn}
-          style={{ opacity: sensors.gyroOn ? 1 : 0.55 }}
-          onClick={toggleGyro}
-          aria-label="Toggle gyroscope"
-          title="Gyroscope"
+          style={{ opacity: gyroMode === "off" ? 0.55 : 1 }}
+          onClick={cycleGyro}
+          aria-label={gyroTitle}
+          title={`${gyroTitle} — tap to cycle`}
         >
-          <Smartphone className="size-4" strokeWidth={1.75} />
+          <GyroIcon className="size-4" strokeWidth={1.75} />
+          {gyroMode !== "off" && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-fg/90">
+              {gyroMode === "on" ? "ON" : gyroMode === "horizontal" ? "H" : "V"}
+            </span>
+          )}
         </button>
       </div>
       {sensors.error && (

@@ -60,6 +60,14 @@
     box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
   }
 
+  input[type="color"].color-swatch-input {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 0;
+    padding: 0;
+    background: transparent;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -68,5 +76,125 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+.ripple-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  background: var(--color-ink);
+  pointer-events: none;
+  opacity: 1;
+  transition:
+    opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ripple-splash.is-fading {
+  opacity: 0;
+  filter: blur(3px);
+}
+
+.ripple-splash-rings {
+  position: relative;
+  width: 9.5rem;
+  height: 9.5rem;
+}
+
+.ripple-splash-rings span {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--color-ripple) 55%, transparent);
+  animation: ripple-wake 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.ripple-splash-rings span:nth-child(2) {
+  animation-delay: 0.85s;
+}
+
+.ripple-splash-rings span:nth-child(3) {
+  animation-delay: 1.7s;
+}
+
+.ripple-splash-title {
+  margin: 0;
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-fg);
+  line-height: 1.1;
+}
+
+.ripple-splash-sub {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+  background: linear-gradient(
+    100deg,
+    var(--color-subtle) 20%,
+    var(--color-fg) 50%,
+    var(--color-subtle) 80%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ripple-shimmer 1.8s linear infinite;
+}
+
+@keyframes ripple-wake {
+  0% {
+    transform: scale(0.42);
+    opacity: 0.7;
+  }
+  70% {
+    opacity: 0.22;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes ripple-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ripple-splash-rings span,
+  .ripple-splash-sub {
+    animation: none;
+  }
+  .ripple-splash-sub {
+    color: var(--color-subtle);
+    background: none;
+  }
+  .ripple-splash-rings span:nth-child(1) {
+    transform: scale(0.55);
+    opacity: 0.45;
+  }
+  .ripple-splash-rings span:nth-child(2) {
+    transform: scale(0.8);
+    opacity: 0.28;
+  }
+  .ripple-splash-rings span:nth-child(3) {
+    transform: scale(1.05);
+    opacity: 0.14;
   }
 }

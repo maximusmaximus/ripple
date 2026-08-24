@@ -18,7 +18,7 @@ export type HostConnectionState = "idle" | "waiting" | "connected" | "reconnecti
 export type RemoteInput = {
   splats?: Splat[];
   ptr?: { x: number; y: number; down: boolean };
-  gyro?: { alpha: number; beta: number; gamma: number };
+  gyro?: { alpha: number; beta: number; gamma: number; angle?: 0 | 90 | 180 | 270 };
   mic?: { level: number; bands?: number[] };
   worldId?: PaletteId | string;
   feel?: { viscosity: number; waveStrength: number; brushDiameter: number };
@@ -135,7 +135,8 @@ function handleMsg(msg: CastMsg, opts: UseCastHostOptions) {
   const input: RemoteInput = {};
   if (msg.t === "splats") input.splats = msg.s;
   if (msg.t === "ptr") input.ptr = { x: msg.x, y: msg.y, down: msg.down };
-  if (msg.t === "gyro") input.gyro = { alpha: msg.alpha, beta: msg.beta, gamma: msg.gamma };
+  if (msg.t === "gyro")
+    input.gyro = { alpha: msg.alpha, beta: msg.beta, gamma: msg.gamma, angle: msg.ang };
   if (msg.t === "mic") input.mic = { level: msg.level, bands: msg.bands };
   if (msg.t === "world") input.worldId = msg.id;
   if (msg.t === "feel") input.feel = msg;

@@ -6,8 +6,9 @@ import { PadGate } from "./pad-gate";
 import { ControlsDock } from "./controls-dock";
 import { SensorsBar } from "./sensors-bar";
 import { RippleCanvas } from "./ripple-canvas";
+import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import type { SensorsState } from "@/lib/ripple/media";
-import { emptySensorsState } from "@/lib/ripple/media";
+import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
@@ -28,6 +29,7 @@ export function RippleApp() {
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const { angle, isImmersive } = useOrientation();
+  const splash = useSurfaceSplash();
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
@@ -121,6 +123,7 @@ export function RippleApp() {
         orientationAngle={angle}
         onPaintStart={onPaintStart}
         webglError={setGlError}
+        onReady={splash.markReady}
       />
 
       {glError && (
@@ -153,8 +156,12 @@ export function RippleApp() {
         >
           <div
             ref={dockPanelRef}
+            data-ui-chrome
             className="w-full max-w-sm"
             style={{ pointerEvents: dockOpen ? "auto" : "none" }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <ControlsDock />
           </div>
@@ -165,6 +172,7 @@ export function RippleApp() {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
+            data-ui-chrome
             className="pointer-events-auto flex h-11 items-center gap-2 rounded-full border border-line bg-ink/55 px-4 text-sm text-fg/85 shadow-lg backdrop-blur-md transition hover:bg-ink/70 hover:text-fg"
             onClick={() => setDockOpen(true)}
             aria-label="Show menu"
@@ -174,6 +182,8 @@ export function RippleApp() {
           </button>
         </div>
       )}
+
+      {splash.show && <RippleSplash fading={splash.fading} />}
     </div>
   );
 }
@@ -202,13 +212,15 @@ function PadSurface({
   sendSplats: (s: Splat[]) => void;
   sendWorld: (id: string) => void;
   sendFeel: (viscosity: number, waveStrength: number, brushDiameter: number) => void;
-  sendGyro: (alpha: number, beta: number, gamma: number) => void;
+  sendGyro: (alpha: number, beta: number, gamma: number, ang?: 0 | 90 | 180 | 270) => void;
   sendMic: (level: number, bands?: number[]) => void;
   worldId: string;
   viscosity: number;
   waveStrength: number;
   brushDiameter: number;
 }) {
+  const splash = useSurfaceSplash();
+
   useEffect(() => {
     sendWorld(worldId);
   }, [worldId, sendWorld]);
@@ -218,39 +230,36 @@ function PadSurface({
   }, [viscosity, waveStrength, brushDiameter, sendFeel]);
 
   useEffect(() => {
-    if (!sensors.gyroOn) return;
+    if (!sensors.gyroOn && sensors.gyroMode === "off") return;
     const onOrient = (e: DeviceOrientationEvent) => {
-      sendGyro(e.alpha ?? 0, e.beta ?? 0, e.gamma ?? 0);
+      sendGyro(e.alpha ?? 0, e.beta ?? 0, e.gamma ?? 0, angle);
     };
     window.addEventListener("deviceorientation", onOrient);
     return () => window.removeEventListener("deviceorientation", onOrient);
-  }, [sensors.gyroOn, sendGyro]);
+  }, [sensors.gyroOn, sensors.gyroMode, sendGyro, angle]);
 
   useEffect(() => {
     if (!sensors.micOn || !sensors.micStream) return;
-    const ctx = new AudioContext();
-    const src = ctx.createMediaStreamSource(sensors.micStream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    src.connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
+    let monitor: ReturnType<typeof createMicMonitor>;
+    try {
+      monitor = createMicMonitor(sensors.micStream);
+    } catch {
+      return;
+    }
     let raf = 0;
     let last = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const now = performance.now();
-      if (now - last < 80) return;
+      if (now - last < 50) return;
       last = now;
-      analyser.getByteFrequencyData(data);
-      let sum = 0;
-      const n = Math.min(24, data.length);
-      for (let i = 0; i < n; i++) sum += data[i]!;
-      sendMic(sum / (n * 255));
+      const frame = monitor.read();
+      sendMic(frame.level, [frame.bass, frame.mid, frame.high]);
     };
     tick();
     return () => {
       cancelAnimationFrame(raf);
-      void ctx.close();
+      monitor.stop();
     };
   }, [sensors.micOn, sensors.micStream, sendMic]);
 
@@ -261,8 +270,10 @@ function PadSurface({
         orientationAngle={angle}
         onPaintStart={onPaintStart}
         onSplats={sendSplats}
+        onReady={splash.markReady}
       />
       {showChrome && <SensorsBar sensors={sensors} onChange={onSensorsChange} />}
+      {splash.show && <RippleSplash fading={splash.fading} />}
     </div>
   );
 }

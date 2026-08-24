@@ -151,8 +151,8 @@ export function useCastPad(opts: UseCastPadOptions) {
     [sendJson],
   );
   const sendGyro = useCallback(
-    (alpha: number, beta: number, gamma: number) => {
-      sendJson({ t: "gyro", alpha, beta, gamma }, false);
+    (alpha: number, beta: number, gamma: number, ang?: 0 | 90 | 180 | 270) => {
+      sendJson({ t: "gyro", alpha, beta, gamma, ang }, false);
     },
     [sendJson],
   );

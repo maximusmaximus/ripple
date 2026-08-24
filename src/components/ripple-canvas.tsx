@@ -5,8 +5,17 @@ import { createStrokeTracker } from "@/lib/ripple/gestures";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES } from "@/lib/ripple/palettes";
 import { getBrush } from "@/lib/ripple/brushes";
+import { asFxList, fxMask } from "@/lib/ripple/blend";
 import type { SensorsState } from "@/lib/ripple/media";
+import {
+  createMicMonitor,
+  tickMicEnvelope,
+  micFromRemote,
+  SILENT_MIC,
+  type MicFrame,
+} from "@/lib/ripple/media";
 import type { ScreenAngle } from "@/lib/ripple/orientation";
+import { mapTiltToScreen, tiltToGravity } from "@/lib/ripple/orientation";
 
 type Props = {
   sensors: SensorsState;
@@ -17,7 +26,10 @@ type Props = {
   injectKey?: number;
   cameraSource?: TexImageSource | null;
   remoteMicLevel?: number;
+  remoteMicBands?: number[] | null;
+  remoteGyro?: { beta: number; gamma: number; angle?: ScreenAngle } | null;
   webglError?: (message: string) => void;
+  onReady?: () => void;
 };
 
 export function RippleCanvas({
@@ -29,7 +41,10 @@ export function RippleCanvas({
   injectKey = 0,
   cameraSource,
   remoteMicLevel = 0,
+  remoteMicBands = null,
+  remoteGyro = null,
   webglError,
+  onReady,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<RippleEngine | null>(null);
@@ -39,12 +54,29 @@ export function RippleCanvas({
   onPaintStartRef.current = onPaintStart;
   const onSplatsRef = useRef(onSplats);
   onSplatsRef.current = onSplats;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
+  const remoteMicRef = useRef(remoteMicLevel);
+  remoteMicRef.current = remoteMicLevel;
+  const remoteBandsRef = useRef(remoteMicBands);
+  remoteBandsRef.current = remoteMicBands;
+  const remoteGyroRef = useRef(remoteGyro);
+  remoteGyroRef.current = remoteGyro;
 
   const worldId = useRippleStore((s) => s.worldId);
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const brushId = useRippleStore((s) => s.brushId);
+  const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
+  const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
+  const cameraInteract = useRippleStore((s) => s.cameraInteract);
+  const micSensitivity = useRippleStore((s) => s.micSensitivity);
+  const micSensRef = useRef(micSensitivity);
+  micSensRef.current = micSensitivity;
+  const gyroSensitivity = useRippleStore((s) => s.gyroSensitivity);
+  const gyroSensRef = useRef(gyroSensitivity);
+  gyroSensRef.current = gyroSensitivity;
   const clearToken = useRippleStore((s) => s.clearToken);
   const nextWorld = useRippleStore((s) => s.nextWorld);
   const prevWorld = useRippleStore((s) => s.prevWorld);
@@ -58,6 +90,16 @@ export function RippleCanvas({
     if (r) return r.end;
     return PALETTES[s.worldId]?.defaultRange[1] ?? 1;
   });
+  const colorPairKey = useRippleStore((s) => {
+    const pair = s.colorPairs[s.worldId];
+    const p = PALETTES[s.worldId] ?? PALETTES.lens;
+    return `${pair?.key ?? p.key}|${pair?.shadow ?? p.shadow}`;
+  });
+  const colorStopsSig = useRippleStore((s) => {
+    const stops = s.colorStops[s.worldId];
+    if (!stops?.length) return "";
+    return stops.map((x) => `${x.id}:${x.color}:${x.t.toFixed(3)}:${x.alpha ?? 1}`).join("|");
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,15 +112,25 @@ export function RippleCanvas({
       const message = err instanceof Error ? err.message : String(err);
       console.error(err);
       webglError?.(message);
+      onReadyRef.current?.();
       return;
     }
     engineRef.current = engine;
+    engine.onFirstFrame(() => onReadyRef.current?.());
     engine.resize();
     engine.start();
 
     const painter = painterRef.current;
-    const b0 = getBrush(brushId);
-    painter.setBrush(b0.radius, b0.force, b0.kind);
+    const brush = getBrush(brushId);
+    painter.setBrush(
+      brushDiameter / 2,
+      brush.force,
+      brush.kind,
+      brush.spread ?? 1.8,
+      brush.grains ?? 4,
+      brush.feel ?? "steady",
+      brush.nib ?? Math.PI / 4,
+    );
     const swipe = createStrokeTracker();
 
     const onSplatFrame = (splats: Splat[]) => {
@@ -139,28 +191,45 @@ export function RippleCanvas({
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    const palette = PALETTES[worldId] ?? PALETTES.abyss;
     engine.setParams({
       viscosity,
       waveStrength,
-      colors: palette.colors,
+      colors: useRippleStore.getState().getActiveColors(),
+      stops: useRippleStore.getState().getActiveStops(),
       rangeStart,
       rangeEnd,
-      cameraMix:
-        sensors.cameraOn || cameraSource
-          ? Math.max(0.55, Math.min(1, (palette.cameraMix ?? 0.55) * 1.15 + 0.2))
-          : 0,
-      // Strokes pull and warp the feed; high default so faces/objects ride the mark
-      cameraInteract: sensors.cameraOn || cameraSource ? 0.9 : 0,
+      cameraMix: sensors.cameraOn || cameraSource ? 0.85 : 0,
+      cameraInteract,
+      brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
+      fxOpacity: brushFxOpacity,
     });
-  }, [worldId, viscosity, waveStrength, rangeStart, rangeEnd, sensors.cameraOn, cameraSource]);
+  }, [
+    worldId,
+    viscosity,
+    waveStrength,
+    rangeStart,
+    rangeEnd,
+    sensors.cameraOn,
+    cameraSource,
+    cameraInteract,
+    colorPairKey,
+    colorStopsSig,
+    brushFxSig,
+    brushFxOpacity,
+  ]);
 
   useEffect(() => {
-    const b = getBrush(brushId);
-    // Wave strength slightly scales weight so lively worlds still bite
-    const force = b.force * (0.85 + waveStrength * 0.2);
-    painterRef.current.setBrush(b.radius, force, b.kind);
-  }, [brushId, brushDiameter, waveStrength]);
+    const brush = getBrush(brushId);
+    painterRef.current.setBrush(
+      brushDiameter / 2,
+      brush.force,
+      brush.kind,
+      brush.spread ?? 1.8,
+      brush.grains ?? 4,
+      brush.feel ?? "steady",
+      brush.nib ?? Math.PI / 4,
+    );
+  }, [brushDiameter, brushId]);
 
   useEffect(() => {
     if (clearToken > 0) engineRef.current?.clear();
@@ -179,7 +248,6 @@ export function RippleCanvas({
       engine.setCamera(cameraSource, {
         angle: orientationAngle,
         mirror: false,
-        mix: Math.max(0.6, Math.min(1, ((PALETTES[worldId] ?? PALETTES.abyss).cameraMix ?? 0.55) * 1.15 + 0.2)),
       });
       return;
     }
@@ -214,7 +282,6 @@ export function RippleCanvas({
     engine.setCamera(video, {
       angle: orientationAngle,
       mirror: sensors.facingMode === "user",
-      mix: Math.max(0.6, Math.min(1, ((PALETTES[worldId] ?? PALETTES.abyss).cameraMix ?? 0.55) * 1.15 + 0.2)),
     });
 
     return () => {
@@ -234,86 +301,105 @@ export function RippleCanvas({
   }, [orientationAngle]);
 
   useEffect(() => {
-    if (!sensors.gyroOn) return;
+    const engine = engineRef.current;
+    if (!engine) return;
+    const mode = sensors.gyroMode ?? (sensors.gyroOn ? "on" : "off");
+    const localOn = mode !== "off";
+    const axis = mode === "horizontal" || mode === "vertical" ? mode : "on";
+    let rest: { x: number; y: number } | null = null;
+    let restFrames = 0;
+    let gotDevice = false;
+    let lastAngle = orientationAngle;
 
-    let lastT = 0;
-    const onOrient = (e: DeviceOrientationEvent) => {
-      const engine = engineRef.current;
-      if (!engine) return;
-      const now = performance.now();
-      if (now - lastT < 50) return;
-      lastT = now;
-
-      const beta = e.beta ?? 0;
-      const gamma = e.gamma ?? 0;
-      const nx = 0.5 + Math.max(-0.35, Math.min(0.35, gamma / 45));
-      const ny = 0.5 + Math.max(-0.35, Math.min(0.35, beta / 60));
-      const mag = Math.min(1, Math.hypot(gamma / 45, beta / 60));
-      if (mag < 0.06) return;
-
-      engine.applySplats([
-        {
-          x: nx,
-          y: ny,
-          radius: 0.12 + mag * 0.1,
-          force: 0.012 + mag * 0.035,
-        },
-      ]);
+    const applyScreen = (sx: number, sy: number, fromDevice: boolean) => {
+      if (fromDevice) gotDevice = true;
+      const g = tiltToGravity(sx, sy, axis, gyroSensRef.current);
+      engine.setGravity(g.gx, g.gy);
     };
 
-    window.addEventListener("deviceorientation", onOrient);
-    return () => window.removeEventListener("deviceorientation", onOrient);
-  }, [sensors.gyroOn]);
+    const applyDevice = (beta: number, gamma: number, ang: ScreenAngle) => {
+      if (ang !== lastAngle) {
+        rest = null;
+        restFrames = 0;
+        lastAngle = ang;
+      }
+      const screen = mapTiltToScreen(beta, gamma, ang);
+      if (!rest || restFrames < 10) {
+        rest = screen;
+        restFrames++;
+        engine.setGravity(0, 0);
+        return;
+      }
+      rest = {
+        x: rest.x * 0.97 + screen.x * 0.03,
+        y: rest.y * 0.97 + screen.y * 0.03,
+      };
+      applyScreen(screen.x - rest.x, screen.y - rest.y, true);
+    };
+
+    const onOrient = (e: DeviceOrientationEvent) => {
+      applyDevice(e.beta ?? 0, e.gamma ?? 0, orientationAngle);
+    };
+
+    const onMouse = (e: MouseEvent) => {
+      if (gotDevice) return;
+      const nx = (e.clientX / Math.max(1, window.innerWidth) - 0.5) * 2;
+      const ny = -(e.clientY / Math.max(1, window.innerHeight) - 0.5) * 2;
+      applyScreen(nx * 18, ny * 18, false);
+    };
+
+    if (localOn) window.addEventListener("deviceorientation", onOrient);
+    if (localOn) window.addEventListener("mousemove", onMouse);
+
+    let raf = 0;
+    const tickRemote = () => {
+      raf = requestAnimationFrame(tickRemote);
+      const remote = remoteGyroRef.current;
+      if (!remote) return;
+      applyDevice(remote.beta, remote.gamma, remote.angle ?? 0);
+    };
+    tickRemote();
+
+    return () => {
+      window.removeEventListener("deviceorientation", onOrient);
+      window.removeEventListener("mousemove", onMouse);
+      if (raf) cancelAnimationFrame(raf);
+      engine.setGravity(0, 0);
+    };
+  }, [sensors.gyroOn, sensors.gyroMode, orientationAngle]);
 
   useEffect(() => {
-    const stream = sensors.micOn ? sensors.micStream : null;
     const engine = engineRef.current;
     if (!engine) return;
 
-    if (!stream && remoteMicLevel <= 0.08) return;
-
-    let ctx: AudioContext | null = null;
-    let raf = 0;
-    const palette = PALETTES[worldId] ?? PALETTES.abyss;
-    const drive = palette.micDrive ?? 0.4;
-
-    const splatFromLevel = (level: number) => {
-      if (level < 0.1) return;
-      engine.applySplats([
-        {
-          x: 0.5,
-          y: 0.52,
-          radius: 0.07 + level * 0.14,
-          force: level * drive * 0.09,
-        },
-      ]);
-    };
-
+    const stream = sensors.micOn ? sensors.micStream : null;
+    let monitor: ReturnType<typeof createMicMonitor> | null = null;
     if (stream) {
-      ctx = new AudioContext();
-      const src = ctx.createMediaStreamSource(stream);
-      const analyser = ctx.createAnalyser();
-      analyser.fftSize = 256;
-      src.connect(analyser);
-      const data = new Uint8Array(analyser.frequencyBinCount);
-      const tick = () => {
-        raf = requestAnimationFrame(tick);
-        analyser.getByteFrequencyData(data);
-        let sum = 0;
-        const n = Math.min(24, data.length);
-        for (let i = 0; i < n; i++) sum += data[i]!;
-        splatFromLevel(sum / (n * 255));
-      };
-      tick();
-    } else {
-      splatFromLevel(remoteMicLevel);
+      try {
+        monitor = createMicMonitor(stream);
+      } catch {
+        engine.setMicPulse(0);
+      }
     }
+
+    let raf = 0;
+    let env: MicFrame = { ...SILENT_MIC };
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const raw = monitor
+        ? monitor.read()
+        : micFromRemote(remoteMicRef.current, remoteBandsRef.current);
+      env = tickMicEnvelope(env, raw, micSensRef.current);
+      engine.setMicPulse(env);
+    };
+    tick();
 
     return () => {
       if (raf) cancelAnimationFrame(raf);
-      void ctx?.close();
+      monitor?.stop();
+      engine.setMicPulse(0);
     };
-  }, [sensors.micOn, sensors.micStream, worldId, remoteMicLevel]);
+  }, [sensors.micOn, sensors.micStream]);
 
   useEffect(() => {
     return () => {
