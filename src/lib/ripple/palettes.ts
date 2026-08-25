@@ -134,6 +134,7 @@ function world(
     shadow: normalizeHex(shadow),
     colors: colors ?? rampFromPair(shadow, key),
     ...feel,
+    gyroDrive: Math.max(0, Math.min(1.5, feel.gyroDrive * 0.25)),
   };
 }
 
@@ -602,4 +603,10 @@ export function defaultStopsFor(palette: Palette, override?: ColorPair | null): 
     return palette.stops;
   }
   return stopsFromColors(resolveColors(palette, override), palette.id);
+}
+
+export function flipStops(stops: ColorStop[]): ColorStop[] {
+  return stops
+    .map((s) => ({ ...s, t: 1 - s.t }))
+    .sort((a, b) => a.t - b.t);
 }

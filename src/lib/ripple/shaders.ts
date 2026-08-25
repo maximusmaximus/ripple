@@ -60,11 +60,33 @@ uniform sampler2D u_prev;
 uniform vec2 u_point;
 uniform float u_force;
 uniform float u_radius;
+uniform sampler2D u_stamp;
+uniform float u_useStamp;
+uniform float u_angle;
+uniform float u_aspect;
+
+float stampMask() {
+  vec2 d = v_uv - u_point;
+  d.x *= max(0.2, u_aspect);
+  float c = cos(u_angle);
+  float s = sin(u_angle);
+  vec2 p = vec2(c * d.x + s * d.y, -s * d.x + c * d.y);
+  float sR = max(1e-5, u_radius * 2.2);
+  vec2 suv = p / sR + 0.5;
+  if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) return 0.0;
+  return clamp(texture(u_stamp, suv).a, 0.0, 1.0);
+}
+
 void main() {
   vec4 c = texture(u_prev, v_uv);
-  vec2 d = v_uv - u_point;
-  float dist = length(d);
-  float influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
+  float influence;
+  if (u_useStamp > 0.5) {
+    influence = stampMask();
+  } else {
+    vec2 d = v_uv - u_point;
+    float dist = length(d);
+    influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
+  }
   c.r += u_force * influence;
   fragColor = c;
 }
@@ -80,12 +102,35 @@ uniform float u_force;
 uniform float u_radius;
 uniform float u_t;
 uniform float u_colorA;
+uniform sampler2D u_stamp;
+uniform float u_useStamp;
+uniform float u_angle;
+uniform float u_aspect;
+
+float stampMask() {
+  vec2 d = v_uv - u_point;
+  d.x *= max(0.2, u_aspect);
+  float c = cos(u_angle);
+  float s = sin(u_angle);
+  vec2 p = vec2(c * d.x + s * d.y, -s * d.x + c * d.y);
+  float sR = max(1e-5, u_radius * 2.2);
+  vec2 suv = p / sR + 0.5;
+  if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) return 0.0;
+  return clamp(texture(u_stamp, suv).a, 0.0, 1.0);
+}
+
 void main() {
   vec4 prev = texture(u_prev, v_uv);
-  vec2 d = v_uv - u_point;
-  float dist = length(d);
-  float influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
-  float m = clamp(influence * max(0.35, abs(u_force)) * 3.2, 0.0, 1.0);
+  float influence;
+  if (u_useStamp > 0.5) {
+    influence = stampMask();
+  } else {
+    vec2 d = v_uv - u_point;
+    float dist = length(d);
+    influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
+  }
+  float gain = u_useStamp > 0.5 ? 1.8 : 3.2;
+  float m = clamp(influence * max(0.35, abs(u_force)) * gain, 0.0, 1.0);
   if (m < 0.004) { fragColor = prev; return; }
   float a = clamp(max(prev.a, m * max(0.2, u_colorA)), 0.0, 1.0);
   float t = prev.a > 0.04 ? mix(prev.r, u_t, m) : u_t;

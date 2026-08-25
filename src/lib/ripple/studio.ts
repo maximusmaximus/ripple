@@ -1,4 +1,4 @@
-import type { BrushId } from "@/lib/ripple/brushes";
+import type { BrushId, CustomBrush } from "@/lib/ripple/brushes";
 import type { BrushFxId, FxLayerId } from "@/lib/ripple/blend";
 import type { ColorPair, ColorStop, PaletteId } from "@/lib/ripple/palettes";
 import type { TextureId } from "@/lib/ripple/textures";
@@ -12,6 +12,8 @@ export type CustomTexture = {
   height: number;
 };
 
+export type { CustomBrush };
+
 export type StudioSnapshot = {
   worldId: PaletteId;
   colorRanges: Partial<Record<PaletteId, { start: number; end: number }>>;
@@ -20,8 +22,8 @@ export type StudioSnapshot = {
   viscosity: number;
   waveStrength: number;
   brushDiameter: number;
-  brushId: BrushId;
-  brushFx: Partial<Record<BrushId, BrushFxId | BrushFxId[]>>;
+  brushId: BrushId | string;
+  brushFx: Partial<Record<string, BrushFxId | BrushFxId[]>>;
   brushFxOpacity: number;
   fxLayers: FxLayerId[];
   shadowOn: boolean;
@@ -31,9 +33,19 @@ export type StudioSnapshot = {
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
+  /** 0 = original photo, 1 = hard threshold. Optional on older snapshots. */
+  textureLevels?: number;
+  /** Invert texture luminance. Optional on older snapshots. */
+  textureInvert?: boolean;
+  /** Reverse the color ramp. Optional on older snapshots. */
+  gradientFlip?: boolean;
   cameraInteract: number;
   micSensitivity: number;
   gyroSensitivity: number;
+  /** Optional on older snapshots — defaults to 0.55. */
+  gyroZoom?: number;
+  /** User PNG stamps. Optional on older snapshots. */
+  customBrushes?: CustomBrush[];
 };
 
 export type NamedPreset = {
@@ -79,9 +91,14 @@ export function easySnapshot(): StudioSnapshot {
     textureId: "none",
     textureFit: "cover",
     customTexture: null,
+    textureLevels: 0,
+    textureInvert: false,
+    gradientFlip: false,
     cameraInteract: 0.85,
     micSensitivity: 0.4,
-    gyroSensitivity: 0.5,
+    gyroSensitivity: 0.125,
+    gyroZoom: 0.55,
+    customBrushes: [],
   };
 }
 

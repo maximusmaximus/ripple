@@ -4,7 +4,7 @@ import { PointerPainter, bindPainter, type Splat } from "@/lib/ripple/pointer";
 import { createStrokeTracker } from "@/lib/ripple/gestures";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES } from "@/lib/ripple/palettes";
-import { getBrush } from "@/lib/ripple/brushes";
+import { getBrush, getCustomBrush, isCustomBrushId } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, fxMask, fxLayerMask } from "@/lib/ripple/blend";
 import { getTexture } from "@/lib/ripple/textures";
 import { fitCode } from "@/lib/ripple/studio";
@@ -71,6 +71,10 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const brushId = useRippleStore((s) => s.brushId);
+  const customBrushes = useRippleStore((s) => s.customBrushes);
+  const customBrushSig = customBrushes
+    .map((c) => `${c.id}:${c.angle}:${c.spin}:${c.dataUrl.length}`)
+    .join("|");
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
   const fxLayerSig = useRippleStore((s) => asFxLayers(s.fxLayers).join(","));
@@ -80,6 +84,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
   const textureId = useRippleStore((s) => s.textureId);
   const textureFit = useRippleStore((s) => s.textureFit);
+  const textureLevels = useRippleStore((s) => s.textureLevels);
+  const textureInvert = useRippleStore((s) => s.textureInvert);
+  const gradientFlip = useRippleStore((s) => s.gradientFlip);
   const customTexture = useRippleStore((s) => s.customTexture);
   const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
@@ -89,6 +96,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const gyroSensitivity = useRippleStore((s) => s.gyroSensitivity);
   const gyroSensRef = useRef(gyroSensitivity);
   gyroSensRef.current = gyroSensitivity;
+  const gyroZoom = useRippleStore((s) => s.gyroZoom);
   const clearToken = useRippleStore((s) => s.clearToken);
   const nextWorld = useRippleStore((s) => s.nextWorld);
   const prevWorld = useRippleStore((s) => s.prevWorld);
@@ -133,7 +141,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     engine.start();
 
     const painter = painterRef.current;
-    const brush = getBrush(brushId);
+    const customs = useRippleStore.getState().customBrushes;
+    const brush = getBrush(brushId, customs);
+    const custom = getCustomBrush(brushId, customs);
     painter.setBrush(
       brushDiameter / 2,
       brush.force,
@@ -142,6 +152,8 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brush.grains ?? 4,
       brush.feel ?? "steady",
       brush.nib ?? Math.PI / 4,
+      custom?.angle ?? 0,
+      custom?.spin ?? 0,
     );
     const swipe = createStrokeTracker();
 
@@ -155,6 +167,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       onDown: () => {
         onPaintStartRef.current?.();
       },
+      mapUv: (x, y) => engine.screenToSim(x, y),
     });
 
     const onPointerDown = (e: PointerEvent) => {
@@ -215,13 +228,17 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
       fxOpacity: brushFxOpacity,
       fxLayers: fxLayerMask(asFxLayers(useRippleStore.getState().getActiveFxLayers())),
-      shadowOn,
+      shadowOn: shadowOn || asFxLayers(useRippleStore.getState().getActiveFxLayers()).includes("shadow"),
       shadowColor,
       shadowAngle,
       shadowOpacity,
       shadowDist: 0.01 + brushDiameter * 0.18,
       texId: getTexture(textureId).code,
       texFit: fitCode(textureFit),
+      texLevels: textureLevels,
+      texInvert: textureInvert,
+      micZoom: micSensitivity,
+      gyroZoom,
     });
   }, [
     worldId,
@@ -244,6 +261,11 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     shadowOpacity,
     textureId,
     textureFit,
+    textureLevels,
+    textureInvert,
+    gradientFlip,
+    micSensitivity,
+    gyroZoom,
   ]);
 
   useEffect(() => {
@@ -265,7 +287,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   }, [textureId, customTexture, customLiveUrl]);
 
   useEffect(() => {
-    const brush = getBrush(brushId);
+    const customs = useRippleStore.getState().customBrushes;
+    const brush = getBrush(brushId, customs);
+    const custom = getCustomBrush(brushId, customs);
     painterRef.current.setBrush(
       brushDiameter / 2,
       brush.force,
@@ -274,8 +298,28 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brush.grains ?? 4,
       brush.feel ?? "steady",
       brush.nib ?? Math.PI / 4,
+      custom?.angle ?? 0,
+      custom?.spin ?? 0,
     );
-  }, [brushDiameter, brushId]);
+  }, [brushDiameter, brushId, customBrushSig]);
+
+  useEffect(() => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    const custom = getCustomBrush(brushId, useRippleStore.getState().customBrushes);
+    if (!custom || !isCustomBrushId(brushId)) {
+      engine.setStampTexture(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => engine.setStampTexture(img);
+    img.onerror = () => engine.setStampTexture(null);
+    img.src = custom.dataUrl;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [brushId, customBrushSig]);
 
   useEffect(() => {
     if (clearToken > 0) engineRef.current?.clear();
@@ -437,6 +481,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
         : micFromRemote(remoteMicRef.current, remoteBandsRef.current);
       env = tickMicEnvelope(env, raw, micSensRef.current);
       engine.setMicPulse(env);
+      engine.setMicRaw(raw);
     };
     tick();
 

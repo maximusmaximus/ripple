@@ -7,14 +7,18 @@ import { ControlsDock } from "./controls-dock";
 import { SensorsBar } from "./sensors-bar";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
+import { PairOverlay } from "./pair-overlay";
 import type { SensorsState } from "@/lib/ripple/media";
 import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
+import { useDesktopHost } from "@/hooks/use-desktop";
+import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { StudioSync } from "./studio-sync";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
+import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
 
 export function RippleApp() {
   const search = useSearch({ from: "/" });
@@ -30,6 +34,10 @@ export function RippleApp() {
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
+  const setViscosity = useRippleStore((s) => s.setViscosity);
+  const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
+  const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
+  const setWorld = useRippleStore((s) => s.setWorld);
   const { angle, isImmersive } = useOrientation();
   const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +45,105 @@ export function RippleApp() {
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
+  const isDesktop = useDesktopHost();
+  const [pairDismissed, setPairDismissed] = useState(false);
+  const [pairForced, setPairForced] = useState(false);
+  const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
+  const [injectKey, setInjectKey] = useState(0);
+  const [remoteMic, setRemoteMic] = useState(0);
+  const [remoteMicBands, setRemoteMicBands] = useState<number[] | null>(null);
+  const [remoteGyro, setRemoteGyro] = useState<{
+    beta: number;
+    gamma: number;
+    angle?: 0 | 90 | 180 | 270;
+  } | null>(null);
+  const [camSource, setCamSource] = useState<HTMLCanvasElement | null>(null);
+  const camCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastBmp = useRef<ImageBitmap | null>(null);
+
+  const mode = useMemo(() => {
+    if (search.mode === "pad" && search.c) return "pad" as const;
+    if (search.mode === "wall") return "wall" as const;
+    return "local" as const;
+  }, [search]);
+
+  const onCamFrame = useCallback(async (frame: RemoteFrame) => {
+    try {
+      if (!camCanvasRef.current) camCanvasRef.current = document.createElement("canvas");
+      const canvas = camCanvasRef.current;
+      const blob = new Blob([frame.jpeg], { type: "image/jpeg" });
+      const bmp = await createImageBitmap(blob);
+      if (canvas.width !== bmp.width || canvas.height !== bmp.height) {
+        canvas.width = bmp.width;
+        canvas.height = bmp.height;
+      }
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(bmp, 0, 0);
+      lastBmp.current?.close();
+      lastBmp.current = bmp;
+      setCamSource(canvas);
+    } catch {
+      /* drop frame */
+    }
+  }, []);
+
+  const onRemoteInput = useCallback(
+    (input: RemoteInput) => {
+      if (input.splats?.length) {
+        setInjectSplats(input.splats);
+        setInjectKey((n) => n + 1);
+      }
+      if (input.ptr?.down) {
+        setInjectSplats([{ x: input.ptr.x, y: input.ptr.y, force: 0.55, radius: 0.03 }]);
+        setInjectKey((n) => n + 1);
+      }
+      if (input.worldId && input.worldId in PALETTES) setWorld(input.worldId as PaletteId);
+      if (input.feel) {
+        setViscosity(input.feel.viscosity);
+        setWaveStrength(input.feel.waveStrength);
+        setBrushDiameter(input.feel.brushDiameter);
+      }
+      if (input.mic) {
+        setRemoteMic(input.mic.level);
+        setRemoteMicBands(input.mic.bands ?? null);
+      }
+      if (input.gyro) {
+        setRemoteGyro({
+          beta: input.gyro.beta,
+          gamma: input.gyro.gamma,
+          angle: input.gyro.angle,
+        });
+      }
+    },
+    [setWorld, setViscosity, setWaveStrength, setBrushDiameter],
+  );
+
+  const host = useCastHost({
+    stayOnPage: true,
+    enabled: isDesktop && mode === "local",
+    onCamFrame,
+    onRemoteInput,
+  });
+
+  const openPair = useCallback(() => {
+    setPairForced(true);
+    setPairDismissed(false);
+    setDockOpen(false);
+  }, [setDockOpen]);
+
+  useEffect(() => () => lastBmp.current?.close(), []);
+
+  useEffect(() => {
+    if (host.state === "reconnecting") {
+      setPairDismissed(false);
+      setCamSource(null);
+      setRemoteGyro(null);
+      setRemoteMic(0);
+      setRemoteMicBands(null);
+    }
+    if (host.isLive) setPairForced(false);
+  }, [host.state, host.isLive]);
 
   useEffect(() => {
     if (isImmersive) setDockOpen(false);
@@ -80,13 +187,13 @@ export function RippleApp() {
     setHint(false);
   }, [setDockOpen]);
 
-  const mode = useMemo(() => {
-    if (search.mode === "pad" && search.c) return "pad" as const;
-    if (search.mode === "wall") return "wall" as const;
-    return "local" as const;
-  }, [search]);
-
   const showChrome = !isImmersive;
+  const showPairOverlay = pairForced || (!pairDismissed && !host.isLive);
+  const linkState: "off" | "waiting" | "live" = host.isLive
+    ? "live"
+    : host.state === "waiting" || host.state === "reconnecting"
+      ? "waiting"
+      : "off";
 
   if (mode === "pad" && search.c) {
     return (
@@ -130,6 +237,12 @@ export function RippleApp() {
         onPaintStart={onPaintStart}
         webglError={setGlError}
         onReady={splash.markReady}
+        injectSplats={injectSplats}
+        injectKey={injectKey}
+        cameraSource={camSource}
+        remoteMicLevel={remoteMic}
+        remoteMicBands={remoteMicBands}
+        remoteGyro={remoteGyro}
       />
 
       {glError && (
@@ -141,7 +254,7 @@ export function RippleApp() {
         </div>
       )}
 
-      {hint && showChrome && (
+      {hint && showChrome && !(showPairOverlay && isDesktop) && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <p className="rounded-full border border-line bg-ink/50 px-4 py-2 text-sm text-fg/80 backdrop-blur-md">
             Drag to paint
@@ -165,6 +278,8 @@ export function RippleApp() {
           recording={record.state === "recording"}
           onToggleRecord={record.toggle}
           recordStartedAt={record.startedAt}
+          linkState={linkState}
+          onToggleLink={openPair}
         />
       )}
 
@@ -186,7 +301,7 @@ export function RippleApp() {
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
-            <ControlsDock />
+            <ControlsDock onShowPair={openPair} showPairButton />
           </div>
         </div>
       )}
@@ -204,6 +319,16 @@ export function RippleApp() {
             Menu
           </button>
         </div>
+      )}
+
+      {showPairOverlay && (
+        <PairOverlay
+          host={host}
+          onDismiss={() => {
+            setPairDismissed(true);
+            setPairForced(false);
+          }}
+        />
       )}
 
       {splash.show && <RippleSplash fading={splash.fading} />}

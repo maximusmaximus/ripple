@@ -11,6 +11,11 @@ export function TexturePicker() {
   const setTextureId = useRippleStore((s) => s.setTextureId);
   const textureFit = useRippleStore((s) => s.textureFit);
   const setTextureFit = useRippleStore((s) => s.setTextureFit);
+  const textureLevels = useRippleStore((s) => s.textureLevels);
+  const setTextureLevels = useRippleStore((s) => s.setTextureLevels);
+  const textureInvert = useRippleStore((s) => s.textureInvert);
+  const setTextureInvert = useRippleStore((s) => s.setTextureInvert);
+  const resetCustomImage = useRippleStore((s) => s.resetCustomImage);
   const customTexture = useRippleStore((s) => s.customTexture);
   const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
   const setCustomTexture = useRippleStore((s) => s.setCustomTexture);
@@ -123,11 +128,39 @@ export function TexturePicker() {
           (busy
             ? "Reading image…"
             : textureId === "custom"
-              ? "Your image rides the fluid. Crop it on the canvas below."
+              ? "Your image rides the fluid. Crop, threshold, or refresh it below."
               : active.hint)}
       </p>
+      <div className="flex items-center justify-between gap-2 rounded-lg px-0.5 py-1 text-[12px] text-muted">
+        <span className={textureId === "none" ? "text-fg/40" : "text-fg/90"}>Invert color</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={textureInvert}
+          disabled={textureId === "none"}
+          onClick={() => setTextureInvert(!textureInvert)}
+          className={
+            "relative h-7 w-12 shrink-0 rounded-full border transition disabled:opacity-30 " +
+            (textureInvert ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
+          }
+        >
+          <span
+            className={
+              "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
+              (textureInvert ? "translate-x-6" : "translate-x-0.5")
+            }
+          />
+        </button>
+      </div>
       {textureId === "custom" && previewSrc && (
-        <TextureCrop src={previewSrc} fit={textureFit} onFit={setTextureFit} />
+        <TextureCrop
+          src={previewSrc}
+          fit={textureFit}
+          onFit={setTextureFit}
+          levels={textureLevels}
+          onLevels={setTextureLevels}
+          onReset={resetCustomImage}
+        />
       )}
     </div>
   );

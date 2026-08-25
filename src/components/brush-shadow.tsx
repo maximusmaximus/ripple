@@ -1,6 +1,6 @@
 import { useRippleStore } from "@/store/ripple";
 
-export function BrushShadow() {
+export function BrushShadow({ nested = false }: { nested?: boolean }) {
   const on = useRippleStore((s) => s.shadowOn);
   const color = useRippleStore((s) => s.shadowColor);
   const angle = useRippleStore((s) => s.shadowAngle);
@@ -9,20 +9,28 @@ export function BrushShadow() {
   const setColor = useRippleStore((s) => s.setBrushShadowColor);
   const setAngle = useRippleStore((s) => s.setShadowAngle);
   const setOpacity = useRippleStore((s) => s.setShadowOpacity);
+  const show = nested || on;
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted">
-        <input
-          type="checkbox"
-          checked={on}
-          onChange={(e) => setOn(e.target.checked)}
-          className="size-3.5 accent-fg"
-        />
-        <span className="font-medium text-fg/90">Brush shadow</span>
-      </label>
-      {on && (
-        <div className="flex flex-col gap-2 pl-5">
+      {!nested && (
+        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted">
+          <input
+            type="checkbox"
+            checked={on}
+            onChange={(e) => setOn(e.target.checked)}
+            className="size-3.5 accent-fg"
+          />
+          <span className="font-medium text-fg/90">Brush shadow</span>
+        </label>
+      )}
+      {nested && (
+        <p className="text-[10px] leading-snug text-subtle">
+          FX checkboxes mix into this cast. Color, angle, and opacity stay on the shadow itself.
+        </p>
+      )}
+      {show && (
+        <div className={"flex flex-col gap-2 " + (nested ? "" : "pl-5")}>
           <label className="flex items-center justify-between gap-2 text-[12px] text-muted">
             <span>Color</span>
             <input

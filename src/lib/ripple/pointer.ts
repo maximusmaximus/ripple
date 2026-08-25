@@ -1,7 +1,7 @@
 import type { BrushFeel, BrushKind } from "./brushes"
 
-export type Splat = { x: number; y: number; force: number; radius: number }
-type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number }
+export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; stamp?: boolean }
+type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number; rot: number }
 
 const MAX_SPLATS_PER_MOVE = 128
 const MIN_STEP = 0.002
@@ -18,6 +18,8 @@ export class PointerPainter {
   private nib = Math.PI / 4
   private spread = 1.8
   private grains = 4
+  private stampAngle = 0
+  private stampSpin = 0
 
   setBrush(
     radius: number,
@@ -27,6 +29,8 @@ export class PointerPainter {
     grains = 4,
     feel: BrushFeel = "steady",
     nib = Math.PI / 4,
+    stampAngle = 0,
+    stampSpin = 0,
   ) {
     this.radius = Math.max(0.005, radius)
     this.force = Math.max(0.18, force)
@@ -35,12 +39,15 @@ export class PointerPainter {
     this.grains = Math.max(2, Math.min(10, Math.round(grains)))
     this.feel = feel
     this.nib = nib
+    this.stampAngle = stampAngle
+    this.stampSpin = Math.max(0, stampSpin)
   }
 
   down(id: number, x: number, y: number, t = performance.now(), input: StrokeInput = {}) {
     const w = this.dynScale(0, input.pressure ?? 0.5, 0, t)
-    this.tracks.set(id, { x, y, down: true, t, w, heading: this.nib })
-    this.emit(x, y, this.force, w, this.nib)
+    const rot = (this.stampAngle * Math.PI) / 180
+    this.tracks.set(id, { x, y, down: true, t, w, heading: this.nib, rot })
+    this.emit(x, y, this.force, w, this.nib, rot)
   }
 
   move(id: number, x: number, y: number, t = performance.now(), input: StrokeInput = {}) {
@@ -55,14 +62,20 @@ export class PointerPainter {
     const heading = dist > 1e-6 ? Math.atan2(dy, dx) : last.heading
     const target = this.dynScale(speed, input.pressure ?? 0.5, heading, t)
     const w = last.w * 0.62 + target * 0.38
+    const rot = last.rot + this.stampSpin * dist * 10
 
     if (dist < 1e-7) {
-      this.emit(x, y, this.force * 0.55, w * 0.9, heading)
-      this.tracks.set(id, { x, y, down: true, t, w, heading })
+      this.emit(x, y, this.force * 0.55, w * 0.9, heading, rot)
+      this.tracks.set(id, { x, y, down: true, t, w, heading, rot })
       return
     }
 
-    const step = this.kind === "scatter" ? MIN_STEP * 1.6 : MIN_STEP
+    const step =
+      this.kind === "stamp"
+        ? Math.max(this.radius * 0.38, MIN_STEP * 4)
+        : this.kind === "scatter"
+          ? MIN_STEP * 1.6
+          : MIN_STEP
     const steps = Math.max(1, Math.ceil(dist / step))
     const useSteps = Math.min(MAX_SPLATS_PER_MOVE, steps)
     const inv = 1 / useSteps
@@ -70,9 +83,10 @@ export class PointerPainter {
     for (let i = 1; i <= useSteps; i++) {
       const u = i * inv
       const ww = last.w + (w - last.w) * u
-      this.emit(last.x + dx * u, last.y + dy * u, this.force, ww, heading)
+      const rr = last.rot + (rot - last.rot) * u
+      this.emit(last.x + dx * u, last.y + dy * u, this.force, ww, heading, rr)
     }
-    this.tracks.set(id, { x, y, down: true, t, w, heading })
+    this.tracks.set(id, { x, y, down: true, t, w, heading, rot })
   }
 
   up(id: number, x?: number, y?: number) {
@@ -118,8 +132,19 @@ export class PointerPainter {
     }
   }
 
-  private emit(x: number, y: number, force: number, scale: number, heading: number) {
+  private emit(x: number, y: number, force: number, scale: number, heading: number, rot = 0) {
     const r = this.radius * scale
+    if (this.kind === "stamp") {
+      this.queue.push({
+        x: clamp01(x),
+        y: clamp01(y),
+        force,
+        radius: r,
+        angle: rot,
+        stamp: true,
+      })
+      return
+    }
     if (this.kind === "scatter") {
       const n = this.grains
       for (let i = 0; i < n; i++) {
@@ -186,6 +211,7 @@ export function bindPainter(
   opts?: {
     onSplatFrame?: (splats: Splat[]) => void
     onDown?: () => void
+    mapUv?: (x: number, y: number) => { x: number; y: number }
   },
 ): () => void {
   el.style.touchAction = 'none'
@@ -203,6 +229,10 @@ export function bindPainter(
     }
   }
 
+  const uvAt = (clientX: number, clientY: number) => {
+    const p = norm(clientX, clientY)
+    return opts?.mapUv ? opts.mapUv(p.x, p.y) : p
+  }
   let usedPointer = false
   let usedPointerUntil = 0
 
@@ -212,7 +242,7 @@ export function bindPainter(
     usedPointer = true
     usedPointerUntil = performance.now() + 1500
     try { el.setPointerCapture(e.pointerId) } catch {}
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.down(e.pointerId, x, y, e.timeStamp, { pressure: pointerPressure(e) })
     opts?.onDown?.()
     e.preventDefault()
@@ -221,13 +251,13 @@ export function bindPainter(
 
   const onPointerMove = (e: PointerEvent) => {
     if (!painter.isDown) return
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.move(e.pointerId, x, y, e.timeStamp, { pressure: pointerPressure(e) })
     e.preventDefault()
   }
 
   const onPointerUp = (e: PointerEvent) => {
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.up(e.pointerId, x, y)
     try { el.releasePointerCapture(e.pointerId) } catch {}
   }
@@ -238,7 +268,7 @@ export function bindPainter(
     e.preventDefault()
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i]!
-      const { x, y } = norm(t.clientX, t.clientY)
+      const { x, y } = uvAt(t.clientX, t.clientY)
       painter.down(1_000_000 + t.identifier, x, y, e.timeStamp, { pressure: t.force || 0.55 })
     }
     if (e.changedTouches.length) opts?.onDown?.()
@@ -249,14 +279,14 @@ export function bindPainter(
     e.preventDefault()
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i]!
-      const { x, y } = norm(t.clientX, t.clientY)
+      const { x, y } = uvAt(t.clientX, t.clientY)
       painter.move(1_000_000 + t.identifier, x, y, e.timeStamp, { pressure: t.force || 0.55 })
     }
   }
   const onTouchEnd = (e: TouchEvent) => {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i]!
-      const { x, y } = norm(t.clientX, t.clientY)
+      const { x, y } = uvAt(t.clientX, t.clientY)
       painter.up(1_000_000 + t.identifier, x, y)
     }
   }
@@ -265,7 +295,7 @@ export function bindPainter(
     if (e.button !== 0) return
     if (eventFromChrome(e)) return
     if (usedPointer && performance.now() < usedPointerUntil) return
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.down(-1, x, y, e.timeStamp, { pressure: 0.55 })
     opts?.onDown?.()
     e.preventDefault()
@@ -273,11 +303,11 @@ export function bindPainter(
   const onMouseMove = (e: MouseEvent) => {
     if (!painter.isDown) return
     if (usedPointer && performance.now() < usedPointerUntil) return
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.move(-1, x, y, e.timeStamp, { pressure: 0.55 })
   }
   const onMouseUp = (e: MouseEvent) => {
-    const { x, y } = norm(e.clientX, e.clientY)
+    const { x, y } = uvAt(e.clientX, e.clientY)
     painter.up(-1, x, y)
   }
 

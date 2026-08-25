@@ -1,11 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
-import { MAX_STUDIO_PRESETS, type NamedPreset, type StudioSnapshot } from "./studio";
+import { EASY_PRESET_ID, MAX_STUDIO_PRESETS, type NamedPreset, type StudioSnapshot } from "./studio";
 
 const SESSION_ID = "live";
 
-const snapshotSchema = z.object({
+const snapshotSchema = z
+  .object({
   worldId: z.string(),
   colorRanges: z.record(z.string(), z.unknown()).optional(),
   colorPairs: z.record(z.string(), z.unknown()).optional(),
@@ -31,10 +32,29 @@ const snapshotSchema = z.object({
       height: z.number(),
     })
     .nullable(),
+  textureLevels: z.number().optional(),
+  textureInvert: z.boolean().optional(),
+  gradientFlip: z.boolean().optional(),
   cameraInteract: z.number(),
   micSensitivity: z.number(),
   gyroSensitivity: z.number(),
-});
+  gyroZoom: z.number().optional(),
+  customBrushes: z
+    .array(
+      z.object({
+        id: z.string().min(3).max(48),
+        name: z.string().min(1).max(24),
+        mime: z.string(),
+        dataUrl: z.string().max(180_000),
+        width: z.number(),
+        height: z.number(),
+        angle: z.number(),
+        spin: z.number(),
+      }),
+    )
+    .max(16)
+    .optional(),
+}).passthrough();
 
 async function writeHomebaseFile(preset: NamedPreset): Promise<void> {
   try {
@@ -53,7 +73,13 @@ async function writeHomebaseFile(preset: NamedPreset): Promise<void> {
     } catch {
       /* first write */
     }
-    const slim: NamedPreset = { ...preset };
+    const slim: NamedPreset = {
+      ...preset,
+      snapshot: {
+        ...preset.snapshot,
+        customBrushes: (preset.snapshot.customBrushes ?? []).slice(0, 16),
+      },
+    };
     const dataUrl = slim.snapshot.customTexture?.dataUrl;
     if (dataUrl && dataUrl.length > 240_000) {
       slim.snapshot = { ...slim.snapshot, customTexture: null, textureId: slim.snapshot.textureId === "custom" ? "none" : slim.snapshot.textureId };
@@ -128,6 +154,16 @@ export const saveStudioPreset = createServerFn({ method: "POST" })
   .validator((data: unknown) => saveSchema.parse(data))
   .handler(async ({ data }) => {
     const sql = await getSql();
+    const label = data.name.trim().toLowerCase();
+    if (label === "easy") {
+      throw new Error("That label is already in use — pick another.");
+    }
+    const taken = await sql<{ id: string }>`
+      select id from studio_presets where lower(name) = ${label} limit 1
+    `;
+    if (taken[0] && taken[0].id !== data.id) {
+      throw new Error("That label is already in use — pick another.");
+    }
     const countRows = await sql<{ n: number }>`select count(*)::int as n from studio_presets`;
     const n = countRows[0]?.n ?? 0;
     const exists = await sql<{ id: string }>`select id from studio_presets where id = ${data.id} limit 1`;
@@ -150,4 +186,45 @@ export const saveStudioPreset = createServerFn({ method: "POST" })
     };
     await writeHomebaseFile(preset);
     return { ok: true as const, id: data.id };
+  });
+
+async function removeHomebasePreset(id: string): Promise<void> {
+  try {
+    const { readFile, writeFile } = await import("node:fs/promises");
+    const path = await import("node:path");
+    const file = path.join(process.cwd(), "public/studio/presets.json");
+    const current = JSON.parse(await readFile(file, "utf8")) as { version: number; note?: string; presets: NamedPreset[] };
+    if (!Array.isArray(current.presets)) return;
+    current.presets = current.presets.filter((p) => p.id !== id);
+    await writeFile(file, JSON.stringify(current, null, 2));
+  } catch {
+    /* read-only */
+  }
+}
+
+export const deleteStudioPreset = createServerFn({ method: "POST" })
+  .validator((data: unknown) => z.object({ id: z.string().min(3).max(48) }).parse(data))
+  .handler(async ({ data }) => {
+    if (data.id === EASY_PRESET_ID) throw new Error("Easy is the starter mix — it stays.");
+    const sql = await getSql();
+    await sql.query(`delete from studio_presets where id = $1`, [data.id]);
+    await removeHomebasePreset(data.id);
+    return { ok: true as const };
+  });
+
+const feedbackSchema = z.object({
+  kind: z.enum(["feature", "bug"]),
+  body: z.string().min(8).max(2000),
+});
+
+export const submitStudioFeedback = createServerFn({ method: "POST" })
+  .validator((data: unknown) => feedbackSchema.parse(data))
+  .handler(async ({ data }) => {
+    const sql = await getSql();
+    const id = `f_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    await sql.query(
+      `insert into studio_feedback (id, kind, body, created_at) values ($1, $2, $3, now())`,
+      [id, data.kind, data.body.trim()],
+    );
+    return { ok: true as const };
   });

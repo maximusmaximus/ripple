@@ -109,6 +109,10 @@ export type SplatU = {
   point: WebGLUniformLocation | null;
   force: WebGLUniformLocation | null;
   radius: WebGLUniformLocation | null;
+  stamp: WebGLUniformLocation | null;
+  useStamp: WebGLUniformLocation | null;
+  angle: WebGLUniformLocation | null;
+  aspect: WebGLUniformLocation | null;
 };
 
 export type InkU = {
@@ -118,6 +122,10 @@ export type InkU = {
   radius: WebGLUniformLocation | null;
   t: WebGLUniformLocation | null;
   colorA: WebGLUniformLocation | null;
+  stamp: WebGLUniformLocation | null;
+  useStamp: WebGLUniformLocation | null;
+  angle: WebGLUniformLocation | null;
+  aspect: WebGLUniformLocation | null;
 };
 
 export type DispU = {
@@ -157,6 +165,11 @@ export type DispU = {
   texHasMap: WebGLUniformLocation | null;
   texFit: WebGLUniformLocation | null;
   texSize: WebGLUniformLocation | null;
+  texLevels: WebGLUniformLocation | null;
+  texInvert: WebGLUniformLocation | null;
+  viewZoom: WebGLUniformLocation | null;
+  micZoom: WebGLUniformLocation | null;
+  gyroZoom: WebGLUniformLocation | null;
 };
 
 export function mix01(a: number, b: number, t: number) {
@@ -185,4 +198,31 @@ export function sourceSize(src: TexImageSource | null): { w: number; h: number }
     return { w: src.naturalWidth, h: src.naturalHeight };
   }
   return { w: 0, h: 0 };
+}
+
+export function computePunchView(opts: {
+  pulse: number;
+  bass: number;
+  high: number;
+  micZoom: number;
+  gx: number;
+  gy: number;
+  gyroZoom: number;
+  time: number;
+}): { zoom: number; sloshX: number; sloshY: number } {
+  const mz = Math.max(0, Math.min(1.5, opts.micZoom));
+  const gz = Math.max(0, Math.min(1.5, opts.gyroZoom));
+  const punch = Math.pow(
+    Math.max(0, Math.min(1.6, opts.pulse * 0.78 + opts.bass * 0.42)),
+    0.68,
+  );
+  const micGain = mz * 1.1;
+  const wobble = Math.sin(opts.time * 8.5) * opts.high * 0.05 * mz;
+  const tilt = Math.min(0.85, Math.hypot(opts.gx, opts.gy) * 5.5 * gz);
+  const zoom = Math.min(2.35, Math.max(1, 1 + punch * micGain + tilt + wobble));
+  return {
+    zoom,
+    sloshX: opts.gx * 12,
+    sloshY: opts.gy * 12,
+  };
 }

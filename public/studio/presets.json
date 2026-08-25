@@ -3,6 +3,127 @@
   "note": "Homebase presets. Shipped with the repo and pulled from GitHub after restarts or updates.",
   "presets": [
     {
+      "id": "p_mt81r6na_ohaytr",
+      "name": "Marisol",
+      "createdAt": "2026-08-25T02:29:35.808Z",
+      "snapshot": {
+        "worldId": "halo",
+        "colorRanges": {},
+        "colorPairs": {
+          "halo": {
+            "key": "#000000",
+            "shadow": "#1a1008"
+          }
+        },
+        "colorStops": {
+          "halo": [
+            {
+              "t": 0,
+              "id": "halo-0",
+              "color": "#0c0804"
+            },
+            {
+              "t": 0.2,
+              "id": "halo-1",
+              "color": "#1a1008"
+            },
+            {
+              "t": 0.4,
+              "id": "halo-2",
+              "alpha": 1,
+              "color": "#fbff00"
+            },
+            {
+              "t": 0.6,
+              "id": "halo-3",
+              "alpha": 0,
+              "color": "#d4a04a"
+            },
+            {
+              "t": 0.7820895522388059,
+              "id": "halo-4",
+              "alpha": 1,
+              "color": "#000000"
+            },
+            {
+              "t": 1,
+              "id": "halo-5",
+              "color": "#fff8e8"
+            }
+          ]
+        },
+        "viscosity": 0.905,
+        "waveStrength": 0.25,
+        "brushDiameter": 0.076,
+        "brushId": "grit",
+        "brushFx": {
+          "ink": [
+            "darken",
+            "multiply"
+          ],
+          "grit": [
+            "normal"
+          ],
+          "soft": [
+            "screen",
+            "color"
+          ],
+          "wash": [
+            "multiply"
+          ],
+          "cloud": [
+            "color"
+          ],
+          "flood": [
+            "normal"
+          ],
+          "pulse": [
+            "overlay"
+          ],
+          "sable": [
+            "screen",
+            "overlay"
+          ],
+          "spark": [
+            "component",
+            "overlay"
+          ],
+          "spray": [
+            "screen",
+            "overlay"
+          ],
+          "stamp": [
+            "multiply",
+            "contrast"
+          ],
+          "ribbon": [
+            "color",
+            "overlay"
+          ]
+        },
+        "brushFxOpacity": 0.5,
+        "fxLayers": [
+          "brush",
+          "camera",
+          "texture"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "none",
+        "textureFit": "stretch",
+        "customTexture": null,
+        "textureLevels": 0.95,
+        "cameraInteract": 0.29,
+        "micSensitivity": 1.06,
+        "gyroSensitivity": 0.28,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
+    },
+    {
       "id": "home_easy",
       "name": "Easy",
       "createdAt": "2026-08-24T00:00:00.000Z",
@@ -15,9 +136,15 @@
         "waveStrength": 0.7,
         "brushDiameter": 0.04,
         "brushId": "ink",
-        "brushFx": { "ink": ["normal"] },
+        "brushFx": {
+          "ink": [
+            "normal"
+          ]
+        },
         "brushFxOpacity": 0.7,
-        "fxLayers": ["brush"],
+        "fxLayers": [
+          "brush"
+        ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
         "shadowAngle": 135,
@@ -27,7 +154,8 @@
         "customTexture": null,
         "cameraInteract": 0.85,
         "micSensitivity": 0.4,
-        "gyroSensitivity": 0.5
+        "gyroSensitivity": 0.5,
+        "gyroZoom": 0.55
       }
     },
     {
@@ -43,9 +171,17 @@
         "waveStrength": 0.85,
         "brushDiameter": 0.04,
         "brushId": "ink",
-        "brushFx": { "ink": ["multiply", "overlay"] },
+        "brushFx": {
+          "ink": [
+            "multiply",
+            "overlay"
+          ]
+        },
         "brushFxOpacity": 0.8,
-        "fxLayers": ["brush", "texture"],
+        "fxLayers": [
+          "brush",
+          "texture"
+        ],
         "shadowOn": true,
         "shadowColor": "#0a0810",
         "shadowAngle": 135,
@@ -71,9 +207,17 @@
         "waveStrength": 1.05,
         "brushDiameter": 0.05,
         "brushId": "soft",
-        "brushFx": { "soft": ["screen", "color"] },
+        "brushFx": {
+          "soft": [
+            "screen",
+            "color"
+          ]
+        },
         "brushFxOpacity": 0.7,
-        "fxLayers": ["brush", "camera"],
+        "fxLayers": [
+          "brush",
+          "camera"
+        ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
         "shadowAngle": 135,

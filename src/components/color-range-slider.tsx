@@ -32,6 +32,8 @@ export function ColorRangeSlider() {
   const addColorStop = useRippleStore((s) => s.addColorStop);
   const removeColorStop = useRippleStore((s) => s.removeColorStop);
   const updateColorStop = useRippleStore((s) => s.updateColorStop);
+  const gradientFlip = useRippleStore((s) => s.gradientFlip);
+  const setGradientFlip = useRippleStore((s) => s.setGradientFlip);
 
   const def = palette.defaultRange;
   const start = storedRange ? Math.min(storedRange.start, storedRange.end) : def[0];
@@ -171,9 +173,29 @@ export function ColorRangeSlider() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <ColorSwatch label="Key" value={pair.key} onChange={setKeyColor} />
         <ColorSwatch label="Shadow" value={pair.shadow} onChange={setShadowColor} />
+        <label className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1 pb-0.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted">Flip Gradient</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={gradientFlip}
+            onClick={() => setGradientFlip(!gradientFlip)}
+            className={
+              "relative h-7 w-12 rounded-full border transition " +
+              (gradientFlip ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
+            }
+          >
+            <span
+              className={
+                "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
+                (gradientFlip ? "translate-x-6" : "translate-x-0.5")
+              }
+            />
+          </button>
+        </label>
       </div>
 
       <div

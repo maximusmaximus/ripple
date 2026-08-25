@@ -119,7 +119,15 @@ export function useCastPad(opts: UseCastPadOptions) {
         if (live) setState("connected");
         else if (failed) {
           setState("error");
-          setError("Could not reach the wall — same Wi-Fi helps");
+          setError("Could not reach the display — same Wi-Fi helps");
+        } else if (p2pRef.current) {
+          setState((prev) => {
+            if (prev === "connected") {
+              setError("Display lost — tap to reconnect");
+              return "idle";
+            }
+            return prev;
+          });
         }
       },
       onMessage: (_from, data) => {

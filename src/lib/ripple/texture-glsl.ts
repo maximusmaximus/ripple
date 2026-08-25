@@ -45,12 +45,25 @@ vec2 fluidDomain(vec2 uv, float h, float vel, vec2 slope, vec2 g, float pulse, v
   return p;
 }
 
-vec4 mediaField(int id, vec2 p, float time, float h, float vel) {
+vec3 applyTexLevels(vec3 c, float amt) {
+  amt = clamp(amt, 0.0, 1.0);
+  if (amt < 0.001) return c;
+  float gain = 1.0 + amt * 3.8;
+  float L = dot(c, vec3(0.299, 0.587, 0.114));
+  float contrasted = clamp((L - 0.5) * gain + 0.5, 0.0, 1.0);
+  vec3 cc = clamp((c - 0.5) * gain + 0.5, 0.0, 1.0);
+  vec3 mixed = mix(c, mix(cc, vec3(contrasted), amt * 0.45), min(1.0, amt * 1.25));
+  float k = smoothstep(0.62, 1.0, amt);
+  return mix(mixed, vec3(step(0.5, contrasted)), k);
+}
+
+vec4 mediaFieldRaw(int id, vec2 p, float time, float h, float vel) {
   if (id <= 0) return vec4(0.5, 0.0, 0.0, 0.0);
   if (id == 12) {
     if (u_texHasMap < 0.5) return vec4(0.45, 0.0, 0.0, 0.0);
     vec2 tuv = texMapUv(p);
     vec4 s = texture(u_texMap, clamp(tuv, 0.0, 1.0));
+    s.rgb = applyTexLevels(s.rgb, u_texLevels);
     float L = dot(s.rgb, vec3(0.299, 0.587, 0.114));
     vec2 w = (s.rg - 0.5) * 0.55;
     return vec4(L, w, s.b * 0.35);
@@ -140,5 +153,14 @@ vec4 mediaField(int id, vec2 p, float time, float h, float vel) {
   float snow = hash21(vec2(p.x * 90.0, floor(p.y * 90.0 + t * 12.0)));
   vec2 w = vec2((snow - 0.5) * 0.4, 0.2 * sin(vel * 6.0));
   return vec4(mix(0.25, 0.9, lines * roll), w, snow * 0.45);
+}
+
+vec4 mediaField(int id, vec2 p, float time, float h, float vel) {
+  vec4 field = mediaFieldRaw(id, p, time, h, vel);
+  if (u_texInvert > 0.5) {
+    field.x = 1.0 - field.x;
+    field.w = 1.0 - field.w;
+  }
+  return field;
 }
 `;

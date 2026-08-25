@@ -13,6 +13,8 @@ export class RippleEngine extends RippleEngineBase {
     for (const s of splats) {
       const ux = s.x;
       const uy = 1 - s.y;
+      const useStamp = Boolean(s.stamp);
+      const ang = s.angle ?? 0;
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.ping.tex);
@@ -20,6 +22,7 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform2f(this.splatU.point, ux, uy);
       gl.uniform1f(this.splatU.force, s.force);
       gl.uniform1f(this.splatU.radius, Math.max(0.004, s.radius));
+      this.bindStamp(this.splatU.stamp, this.splatU.useStamp, this.splatU.angle, this.splatU.aspect, useStamp, ang);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const tmp = this.ping;
       this.ping = this.pong;
@@ -35,6 +38,7 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform1f(this.inkU.radius, Math.max(0.004, s.radius));
       gl.uniform1f(this.inkU.t, this.strokeT(s.force));
       gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.force));
+      this.bindStamp(this.inkU.stamp, this.inkU.useStamp, this.inkU.angle, this.inkU.aspect, useStamp, ang);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const inkTmp = this.inkPing;
       this.inkPing = this.inkPong;
@@ -106,6 +110,8 @@ export class RippleEngine extends RippleEngineBase {
       this.inkFlowU.texFit,
       this.inkFlowU.texSize,
       this.inkFlowU.viewSize,
+      this.inkFlowU.texLevels,
+      this.inkFlowU.texInvert,
     );
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     const inkTmp = this.inkPing;
@@ -160,6 +166,8 @@ export class RippleEngine extends RippleEngineBase {
     fit: WebGLUniformLocation | null,
     size: WebGLUniformLocation | null,
     view: WebGLUniformLocation | null,
+    levels: WebGLUniformLocation | null,
+    invert: WebGLUniformLocation | null,
   ) {
     const gl = this.gl;
     gl.activeTexture(gl.TEXTURE0 + unit);
@@ -171,6 +179,8 @@ export class RippleEngine extends RippleEngineBase {
     const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
     const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
     gl.uniform2f(view, viewW, viewH);
+    gl.uniform1f(levels, this.texLevels);
+    gl.uniform1f(invert, this.texInvert);
   }
 
   private drawDisplay() {
@@ -232,6 +242,8 @@ export class RippleEngine extends RippleEngineBase {
       this.dispU.texFit,
       this.dispU.texSize,
       this.dispU.viewSize,
+      this.dispU.texLevels,
+      this.dispU.texInvert,
     );
     const viewW = Math.max(1, this.canvas.clientWidth || this.canvas.width);
     const viewH = Math.max(1, this.canvas.clientHeight || this.canvas.height);
@@ -241,6 +253,9 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.dispU.camMirror, this.camMirror ? 1 : 0);
     gl.uniform2f(this.dispU.camSize, Math.max(1, cam.w), Math.max(1, cam.h));
     gl.uniform2f(this.dispU.viewSize, viewW, viewH);
+    gl.uniform1f(this.dispU.viewZoom, this.viewZoom);
+    gl.uniform1f(this.dispU.micZoom, this.micZoom);
+    gl.uniform1f(this.dispU.gyroZoom, this.gyroZoom);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
@@ -250,6 +265,7 @@ export class RippleEngine extends RippleEngineBase {
     if (document.hidden) return;
     const dt = this.lastT ? (t - this.lastT) / 1000 : 0.016;
     this.lastT = t;
+    this.tickZoomEnv();
     this.step(dt);
     this.drawDisplay();
     if (this.firstFrameCb) {
@@ -300,6 +316,8 @@ export class RippleEngine extends RippleEngineBase {
     this.deleteFBO(this.inkPong);
     if (this.camTex) gl.deleteTexture(this.camTex);
     if (this.customTex) gl.deleteTexture(this.customTex);
+    if (this.stampTex) gl.deleteTexture(this.stampTex);
+    if (this.stampDummy) gl.deleteTexture(this.stampDummy);
     gl.deleteBuffer(this.quad);
     gl.deleteVertexArray(this.vao);
     this.camSource = null;

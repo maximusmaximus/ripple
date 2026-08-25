@@ -30,6 +30,9 @@ export type UseCastHostOptions = {
   preferredCode?: string | null;
   onCamFrame?: (frame: RemoteFrame) => void;
   onRemoteInput?: (input: RemoteInput) => void;
+  /** Stay on this page when minting a new code (desktop overlay). */
+  stayOnPage?: boolean;
+  enabled?: boolean;
 };
 
 function makePeerId(prefix: string) {
@@ -44,6 +47,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   const p2pRef = useRef<P2PRoom | null>(null);
   const optsRef = useRef(opts);
   optsRef.current = opts;
+  const wasLive = useRef(false);
 
   useEffect(() => {
     if (!code) setCode(makeCastCode());
@@ -60,6 +64,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
 
   useEffect(() => {
     if (!code) return;
+    if (opts.enabled === false) return;
     const selfId = makePeerId("w");
     const p2p = new P2PRoom({
       room: roomIdFor(code),
@@ -71,12 +76,17 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
           (p) => p.connectionState === "connecting" || p.connectionState === "new",
         );
         if (live) {
+          wasLive.current = true;
           setState("connected");
           setLastError(null);
+        } else if (wasLive.current) {
+          wasLive.current = false;
+          setState("reconnecting");
+          setLastError("Phone dropped — scan again to take over");
         } else if (waiting) {
           setState("waiting");
         } else {
-          setState("idle");
+          setState((prev) => (prev === "reconnecting" ? prev : "idle"));
         }
       },
       onMessage: (_from, data) => {
@@ -92,11 +102,18 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       p2pRef.current = null;
       p2p.close();
     };
-  }, [code]);
+  }, [code, opts.enabled]);
 
   const regenerateCode = useCallback(() => {
     if (typeof window === "undefined") return;
     const next = makeCastCode();
+    if (optsRef.current.stayOnPage) {
+      wasLive.current = false;
+      setLastError(null);
+      setState("idle");
+      setCode(next);
+      return;
+    }
     const u = new URL(window.location.href);
     u.searchParams.set("mode", "wall");
     u.searchParams.set("c", next);
@@ -109,6 +126,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     } catch {
       /* ignore */
     }
+    wasLive.current = false;
     p2pRef.current?.close();
     setState("idle");
   }, []);

@@ -53,7 +53,7 @@ export function PadGate({ code, children }: Props) {
       <div className="max-w-sm space-y-2">
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">Phone pad</p>
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
-          Stream to the big screen
+          {pad.error && pad.state === "idle" ? "Display lost" : "Control the studio"}
         </h1>
         <p className="text-sm text-muted">
           Code <span className="font-mono tracking-widest text-fg/80">{code}</span>
@@ -70,11 +70,11 @@ export function PadGate({ code, children }: Props) {
         disabled={pad.state === "connecting"}
         className="rounded-full bg-fg px-8 py-3.5 text-sm font-semibold text-ink transition active:scale-95 disabled:opacity-50"
       >
-        {pad.state === "connecting" ? "Connecting…" : "Start streaming"}
+        {pad.state === "connecting" ? "Connecting…" : pad.error ? "Reconnect" : "Start streaming"}
       </button>
 
       <p className="max-w-xs text-xs text-pretty text-subtle">
-        Touch, tilt, and camera stream to the wall. Nothing is uploaded.
+        Touch, tilt, and camera stream to the desktop. If the link drops, this screen comes back so you can reconnect.
       </p>
     </div>
   );

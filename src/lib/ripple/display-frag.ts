@@ -46,6 +46,11 @@ uniform sampler2D u_texMap;
 uniform float u_texHasMap;
 uniform float u_texFit;
 uniform vec2 u_texSize;
+uniform float u_texLevels;
+uniform float u_texInvert;
+uniform float u_viewZoom;
+uniform float u_micZoom;
+uniform float u_gyroZoom;
 ` +
   TEXTURE_GLSL +
   `
@@ -124,8 +129,9 @@ vec3 applyBrushFx(vec3 bed, vec3 stroke, int mask) {
 }
 
 void main() {
+  float zoom = clamp(u_viewZoom, 1.0, 2.4);
   vec2 slosh = u_gravity * 12.0;
-  vec2 uv = clamp(v_uv + slosh, 0.0, 1.0);
+  vec2 uv = clamp((v_uv - 0.5) / zoom + 0.5 + slosh, 0.0, 1.0);
   float h = texture(u_height, uv).r;
   float vel = texture(u_height, uv).g;
   float hx = texture(u_height, uv + vec2(u_texel.x, 0.0)).r - texture(u_height, uv - vec2(u_texel.x, 0.0)).r;
@@ -213,8 +219,14 @@ void main() {
     float shA = texture(u_ink, clamp(inkUv - shDir, 0.0, 1.0)).a;
     shA = max(shA, 0.55 * texture(u_ink, clamp(inkUv - shDir * 1.7, 0.0, 1.0)).a);
     float sh = smoothstep(0.015, 0.22, shA) * (1.0 - inkMark * 0.82);
-    surface = mix(surface, u_shadowColor, clamp(sh * u_shadowOpacity, 0.0, 0.92));
-    camLit = mix(camLit, u_shadowColor, clamp(sh * u_shadowOpacity * 0.7, 0.0, 0.85));
+    float shW = clamp(sh * u_shadowOpacity, 0.0, 0.92);
+    vec3 shCol = u_shadowColor;
+    if ((u_fxLayers & 16) != 0) {
+      vec3 shFx = applyBrushFx(surface, u_shadowColor, u_brushFx);
+      shCol = mix(u_shadowColor, shFx, clamp(u_fxOpacity, 0.0, 1.0));
+    }
+    surface = mix(surface, shCol, shW);
+    camLit = mix(camLit, shCol, shW * 0.7);
   }
   vec3 bed = mix(rest, camLit, u_camMix);
   float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);

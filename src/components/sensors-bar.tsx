@@ -9,6 +9,7 @@ import {
   MoveVertical,
   Circle,
   Square,
+  Lightbulb,
 } from "lucide-react";
 import type { GyroMode, SensorsState } from "@/lib/ripple/media";
 import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
@@ -19,6 +20,8 @@ type Props = {
   recording?: boolean;
   onToggleRecord?: () => void;
   recordStartedAt?: number | null;
+  linkState?: "off" | "waiting" | "live";
+  onToggleLink?: () => void;
 };
 
 async function openCamera(facing: "user" | "environment"): Promise<MediaStream> {
@@ -41,7 +44,15 @@ function formatElapsed(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export function SensorsBar({ sensors, onChange, recording = false, onToggleRecord, recordStartedAt }: Props) {
+export function SensorsBar({
+  sensors,
+  onChange,
+  recording = false,
+  onToggleRecord,
+  recordStartedAt,
+  linkState,
+  onToggleLink,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -295,6 +306,54 @@ export function SensorsBar({ sensors, onChange, recording = false, onToggleRecor
           {sensors.error}
         </div>
       )}
+      <div className="flex items-center gap-2">
+      {onToggleLink && (
+        <button
+          type="button"
+          className={
+            "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-95 max-md:hidden " +
+            (linkState === "live"
+              ? "border-emerald-400/80 bg-emerald-500/25 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.45)]"
+              : linkState === "waiting"
+                ? "border-amber-400/70 bg-amber-500/15 text-amber-100"
+                : "border-line bg-ink/50 text-fg/55 hover:bg-ink/70 hover:text-fg")
+          }
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleLink();
+          }}
+          aria-label={
+            linkState === "live"
+              ? "Phone connected — show link"
+              : linkState === "waiting"
+                ? "Waiting for a phone"
+                : "Connect a secondary device"
+          }
+          title={
+            linkState === "live"
+              ? "Phone connected"
+              : linkState === "waiting"
+                ? "Waiting for a phone"
+                : "No secondary device"
+          }
+        >
+          <Lightbulb
+            className={"size-4 " + (linkState === "live" ? "fill-current" : "")}
+            strokeWidth={1.75}
+          />
+          {linkState === "waiting" && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-amber-200">
+              …
+            </span>
+          )}
+          {linkState === "live" && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-emerald-200">
+              ON
+            </span>
+          )}
+        </button>
+      )}
       {onToggleRecord && (
         <button
           type="button"
@@ -328,6 +387,7 @@ export function SensorsBar({ sensors, onChange, recording = false, onToggleRecor
           </span>
         </button>
       )}
+      </div>
     </div>
   );
 }

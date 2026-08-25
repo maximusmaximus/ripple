@@ -1,28 +1,34 @@
-import { ChevronDown, ChevronLeft, ChevronRight, Cast } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { ChevronDown, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import { ColorRangeSlider } from "./color-range-slider";
 import { TexturePicker } from "./texture-picker";
 import { BrushPicker } from "./brush-picker";
 import { LayerFxPicker } from "./brush-fx";
-import { BrushShadow } from "./brush-shadow";
 import { PresetStrip } from "./preset-strip";
+import { FeedbackFooter } from "./feedback-form";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTE_ORDER } from "@/lib/ripple/palettes";
 
-export function ControlsDock() {
-  const navigate = useNavigate({ from: "/" });
+export function ControlsDock({
+  onShowPair,
+  showPairButton = false,
+}: {
+  onShowPair?: () => void;
+  showPairButton?: boolean;
+}) {
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
   const micSensitivity = useRippleStore((s) => s.micSensitivity);
   const gyroSensitivity = useRippleStore((s) => s.gyroSensitivity);
+  const gyroZoom = useRippleStore((s) => s.gyroZoom);
   const setViscosity = useRippleStore((s) => s.setViscosity);
   const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
   const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
   const setCameraInteract = useRippleStore((s) => s.setCameraInteract);
   const setMicSensitivity = useRippleStore((s) => s.setMicSensitivity);
   const setGyroSensitivity = useRippleStore((s) => s.setGyroSensitivity);
+  const setGyroZoom = useRippleStore((s) => s.setGyroZoom);
   const clearSurface = useRippleStore((s) => s.clearSurface);
   const cleanSession = useRippleStore((s) => s.cleanSession);
   const worldId = useRippleStore((s) => s.worldId);
@@ -77,7 +83,6 @@ export function ControlsDock() {
       </div>
 
       <section className="flex flex-col gap-2.5">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Brush</h3>
         <BrushPicker />
         <label className="flex flex-col gap-2">
           <div className="flex justify-between text-[12px] text-muted">
@@ -95,7 +100,6 @@ export function ControlsDock() {
             suppressHydrationWarning
           />
         </label>
-        <BrushShadow />
         <LayerFxPicker />
       </section>
 
@@ -189,6 +193,22 @@ export function ControlsDock() {
             suppressHydrationWarning
           />
         </label>
+        <label className="flex flex-col gap-2">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>Gyro zoom</span>
+            <span className="font-mono tabular-nums text-fg">{Math.round(gyroZoom * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1.5}
+            step={0.01}
+            value={gyroZoom}
+            onChange={(e) => setGyroZoom(parseFloat(e.target.value))}
+            className="w-full"
+            suppressHydrationWarning
+          />
+        </label>
       </section>
 
       <button
@@ -208,14 +228,17 @@ export function ControlsDock() {
       <p className="-mt-2 text-[10px] leading-snug text-subtle">
         Resets the live mix for the next person. Saved presets stay.
       </p>
-      <button
-        type="button"
-        onClick={() => navigate({ search: { mode: "wall" } })}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
-      >
-        <Cast className="size-4" />
-        Cast to a second display
-      </button>
+      {showPairButton && (
+        <button
+          type="button"
+          onClick={() => onShowPair?.()}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg max-md:hidden"
+        >
+          <Smartphone className="size-4" />
+          Control With Secondary Device
+        </button>
+      )}
+      <FeedbackFooter />
     </div>
   );
 }

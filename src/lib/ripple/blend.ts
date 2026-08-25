@@ -146,13 +146,14 @@ export function fxConflictsWith(active: BrushFxId[], id: BrushFxId): boolean {
   return false;
 }
 
-export type FxLayerId = "camera" | "mic" | "brush" | "texture";
+export type FxLayerId = "camera" | "mic" | "brush" | "texture" | "shadow";
 
 export const FX_LAYERS: { id: FxLayerId; name: string; hint: string; bit: number }[] = [
   { id: "camera", name: "Camera", hint: "Mix the live feed.", bit: 1 },
   { id: "mic", name: "Mic", hint: "Mix volume and frequency.", bit: 2 },
   { id: "brush", name: "Brush", hint: "Mix the stroke with the bed.", bit: 4 },
   { id: "texture", name: "Texture", hint: "Mix the medium grain.", bit: 8 },
+  { id: "shadow", name: "Brush Shadow", hint: "Cast a brush shadow and mix the FX stack into it.", bit: 16 },
 ];
 
 export const DEFAULT_FX_LAYERS: FxLayerId[] = ["brush"];

@@ -18,6 +18,8 @@ uniform float u_texHasMap;
 uniform float u_texFit;
 uniform vec2 u_texSize;
 uniform vec2 u_viewSize;
+uniform float u_texLevels;
+uniform float u_texInvert;
 ` +
   TEXTURE_GLSL +
   `

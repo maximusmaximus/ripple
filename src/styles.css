@@ -215,3 +215,37 @@
     animation: none;
   }
 }
+
+.voidride-mark {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #5dff9a;
+  text-shadow:
+    0 0 6px rgb(34 255 136 / 0.85),
+    0 0 18px rgb(22 199 90 / 0.55);
+  animation: voidride-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes voidride-pulse {
+  0%,
+  100% {
+    color: #5dff9a;
+    text-shadow:
+      0 0 6px rgb(34 255 136 / 0.85),
+      0 0 16px rgb(22 199 90 / 0.5);
+    opacity: 1;
+  }
+  50% {
+    color: #b6ffd4;
+    text-shadow:
+      0 0 14px rgb(124 255 178 / 0.95),
+      0 0 28px rgb(34 255 136 / 0.7);
+    opacity: 0.88;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voidride-mark {
+    animation: none;
+  }
+}

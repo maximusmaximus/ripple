@@ -5,18 +5,18 @@ import {
   PALETTE_ORDER,
   resolveColors,
   resolvePair,
-  stopsFromColors,
   addStop as addStopHelper,
   removeStop as removeStopHelper,
   updateStop as updateStopHelper,
   resampleStops,
   defaultStopsFor,
+  flipStops,
   MAX_COLOR_STOPS,
   type PaletteId,
   type ColorPair,
   type ColorStop,
 } from "@/lib/ripple/palettes";
-import { getBrush, type BrushId } from "@/lib/ripple/brushes";
+import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, type CustomBrush } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 import type { CustomTexture, StudioSnapshot, TextureFit } from "@/lib/ripple/studio";
@@ -39,10 +39,10 @@ interface RippleState {
   waveStrength: number;
   /** Brush diameter in normalized units (0.01 – 0.12). */
   brushDiameter: number;
-  /** Active brush preset. */
-  brushId: BrushId;
+  /** Active brush preset (builtin id or cb_*). */
+  brushId: string;
   /** Per-brush mix with bed + camera. One or more compatible modes. */
-  brushFx: Partial<Record<BrushId, BrushFxId | BrushFxId[]>>;
+  brushFx: Partial<Record<string, BrushFxId | BrushFxId[]>>;
   /** 0–1 strength of the selected Brush FX. */
   brushFxOpacity: number;
   /** Which layers inherit the FX stack. Empty = collapsed / idle. */
@@ -56,12 +56,19 @@ interface RippleState {
   customTexture: CustomTexture | null;
   /** Object URL for an animated GIF while this session is open. Not persisted. */
   customLiveUrl: string | null;
+  customBrushes: CustomBrush[];
+  /** 0 = original photo, 1 = hard black/white threshold. Image-only. */
+  textureLevels: number;
+  textureInvert: boolean;
+  gradientFlip: boolean;
   /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
   /** 0–1.5 — how hard the mic throbs painted marks. */
   micSensitivity: number;
-  /** 0–1.5 — gyro slosh. Default is hot. */
+  /** 0–1.5 — gyro slosh. Defaults are 75% quieter than the original mix. */
   gyroSensitivity: number;
+  /** 0–1.5 — how hard tilt punches the camera in. Independent of slosh. */
+  gyroZoom: number;
   clearToken: number;
   castPinned: boolean;
   dockOpen: boolean;
@@ -81,7 +88,10 @@ interface RippleState {
   setViscosity: (v: number) => void;
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
-  setBrushId: (id: BrushId) => void;
+  setBrushId: (id: string) => void;
+  addCustomBrush: (brush: CustomBrush) => void;
+  updateCustomBrush: (id: string, patch: Partial<Pick<CustomBrush, "name" | "angle" | "spin">>) => void;
+  removeCustomBrush: (id: string) => void;
   setBrushFx: (id: BrushFxId) => void;
   getActiveBrushFx: () => BrushFxId[];
   setBrushFxOpacity: (v: number) => void;
@@ -93,13 +103,18 @@ interface RippleState {
   setShadowOpacity: (v: number) => void;
   setTextureId: (id: TextureId) => void;
   setTextureFit: (fit: TextureFit) => void;
+  setTextureLevels: (v: number) => void;
+  setTextureInvert: (v: boolean) => void;
+  setGradientFlip: (v: boolean) => void;
   setCustomTexture: (tex: CustomTexture | null, liveUrl?: string | null) => void;
+  resetCustomImage: () => void;
   takeSnapshot: () => StudioSnapshot;
   applySnapshot: (snap: StudioSnapshot) => void;
   cleanSession: () => void;
   setCameraInteract: (v: number) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
+  setGyroZoom: (v: number) => void;
   clearSurface: () => void;
   setCastPinned: (v: boolean) => void;
   setDockOpen: (v: boolean) => void;
@@ -181,9 +196,14 @@ export const useRippleStore = create<RippleState>()(
       textureFit: "cover",
       customTexture: null,
       customLiveUrl: null,
+      customBrushes: [],
+      textureLevels: 0,
+      textureInvert: false,
+      gradientFlip: false,
       cameraInteract: PALETTES.lens.cameraMix,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
+      gyroZoom: 0.55,
       clearToken: 0,
       castPinned: false,
       dockOpen: true,
@@ -254,7 +274,7 @@ export const useRippleStore = create<RippleState>()(
         delete nextRanges[worldId];
         delete nextPairs[worldId];
         delete nextStops[worldId];
-        set({ colorRanges: nextRanges, colorPairs: nextPairs, colorStops: nextStops });
+        set({ colorRanges: nextRanges, colorPairs: nextPairs, colorStops: nextStops, gradientFlip: false });
       },
 
       getActiveStops: () => {
@@ -266,8 +286,10 @@ export const useRippleStore = create<RippleState>()(
       },
 
       addColorStop: () => {
-        const { worldId, colorStops } = get();
-        const current = get().getActiveStops();
+        const { worldId, colorStops, colorPairs } = get();
+        const saved = colorStops[worldId];
+        const current =
+          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
         if (current.length >= MAX_COLOR_STOPS) return;
         set({
           colorStops: {
@@ -278,8 +300,10 @@ export const useRippleStore = create<RippleState>()(
       },
 
       removeColorStop: (id) => {
-        const { worldId, colorStops } = get();
-        const current = get().getActiveStops();
+        const { worldId, colorStops, colorPairs } = get();
+        const saved = colorStops[worldId];
+        const current =
+          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
         set({
           colorStops: {
             ...colorStops,
@@ -289,8 +313,10 @@ export const useRippleStore = create<RippleState>()(
       },
 
       updateColorStop: (id, patch) => {
-        const { worldId, colorStops } = get();
-        const current = get().getActiveStops();
+        const { worldId, colorStops, colorPairs } = get();
+        const saved = colorStops[worldId];
+        const current =
+          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
         set({
           colorStops: {
             ...colorStops,
@@ -310,8 +336,26 @@ export const useRippleStore = create<RippleState>()(
       setWaveStrength: (v) => set({ waveStrength: Math.max(0.1, Math.min(1.5, v)) }),
       setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
       setBrushId: (id) => {
-        const b = getBrush(id);
-        set({ brushId: b.id, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
+        const customs = get().customBrushes;
+        const b = getBrush(id, customs);
+        const nextId = isCustomBrushId(id) && customs.some((c) => c.id === id) ? id : b.id;
+        set({ brushId: nextId, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
+      },
+      addCustomBrush: (brush) => {
+        const list = get().customBrushes;
+        if (list.length >= MAX_CUSTOM_BRUSHES) return;
+        if (list.some((c) => c.id === brush.id)) return;
+        set({ customBrushes: [...list, brush], brushId: brush.id, brushDiameter: Math.max(0.01, Math.min(0.12, 0.06)) });
+      },
+      updateCustomBrush: (id, patch) => {
+        set({
+          customBrushes: get().customBrushes.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+        });
+      },
+      removeCustomBrush: (id) => {
+        const next = get().customBrushes.filter((c) => c.id !== id);
+        const brushId = get().brushId === id ? getBrush(undefined).id : get().brushId;
+        set({ customBrushes: next, brushId });
       },
       setBrushFx: (fx) => {
         const { brushId, brushFx } = get();
@@ -330,7 +374,11 @@ export const useRippleStore = create<RippleState>()(
       setBrushFxOpacity: (v) => set({ brushFxOpacity: Math.max(0, Math.min(1, v)) }),
       toggleFxLayer: (id) => {
         const current = asFxLayers(get().fxLayers);
-        set({ fxLayers: toggleFxLayerHelper(current, id) });
+        const next = toggleFxLayerHelper(current, id);
+        set({
+          fxLayers: next,
+          shadowOn: id === "shadow" ? next.includes("shadow") : get().shadowOn,
+        });
       },
       getActiveFxLayers: () => asFxLayers(get().fxLayers),
       setShadowOn: (v) => set({ shadowOn: v }),
@@ -344,6 +392,27 @@ export const useRippleStore = create<RippleState>()(
           return { textureId: next };
         }),
       setTextureFit: (fit) => set({ textureFit: fit }),
+      setTextureLevels: (v) => set({ textureLevels: Math.max(0, Math.min(1, v)) }),
+      setTextureInvert: (v) => set({ textureInvert: v }),
+      setGradientFlip: (v) =>
+        set((s) => {
+          if (s.gradientFlip === v) return s;
+          const palette = PALETTES[s.worldId] ?? PALETTES.lens;
+          const saved = s.colorStops[s.worldId];
+          const current =
+            saved && saved.length >= 2 ? saved : defaultStopsFor(palette, s.colorPairs[s.worldId]);
+          const range = s.colorRanges[s.worldId];
+          const start = range ? range.start : palette.defaultRange[0];
+          const end = range ? range.end : palette.defaultRange[1];
+          return {
+            gradientFlip: v,
+            colorStops: { ...s.colorStops, [s.worldId]: flipStops(current) },
+            colorRanges: {
+              ...s.colorRanges,
+              [s.worldId]: { start: 1 - end, end: 1 - start },
+            },
+          };
+        }),
       setCustomTexture: (tex, liveUrl) =>
         set((s) => {
           if (s.customLiveUrl && s.customLiveUrl !== liveUrl) {
@@ -357,8 +426,11 @@ export const useRippleStore = create<RippleState>()(
             customTexture: tex,
             customLiveUrl: tex ? (liveUrl ?? null) : null,
             textureId: tex ? "custom" : DEFAULT_TEXTURE_ID,
+            textureFit: tex ? "cover" : s.textureFit,
+            textureLevels: 0,
           };
         }),
+      resetCustomImage: () => set({ textureFit: "cover", textureLevels: 0 }),
       takeSnapshot: () => {
         const s = get();
         return {
@@ -380,13 +452,26 @@ export const useRippleStore = create<RippleState>()(
           textureId: s.textureId,
           textureFit: s.textureFit,
           customTexture: s.customTexture,
+          textureLevels: s.textureLevels,
+          textureInvert: s.textureInvert,
+          gradientFlip: s.gradientFlip,
           cameraInteract: s.cameraInteract,
           micSensitivity: s.micSensitivity,
           gyroSensitivity: s.gyroSensitivity,
+          gyroZoom: s.gyroZoom,
+          customBrushes: s.customBrushes.map((c) => ({
+            ...c,
+            name: c.name.trim() || "Stamp",
+          })),
         };
       },
       applySnapshot: (snap) => {
-        const brush = getBrush(snap.brushId);
+        const incoming = Array.isArray(snap.customBrushes) ? snap.customBrushes : [];
+        const byId = new Map(get().customBrushes.map((c) => [c.id, c]));
+        for (const c of incoming) byId.set(c.id, c);
+        const customs = [...byId.values()].slice(0, MAX_CUSTOM_BRUSHES);
+        const brush = getBrush(snap.brushId, customs);
+        const keepCustom = isCustomBrushId(snap.brushId) && customs.some((c) => c.id === snap.brushId);
         const prevLive = get().customLiveUrl;
         if (prevLive) {
           try {
@@ -405,11 +490,15 @@ export const useRippleStore = create<RippleState>()(
           viscosity: snap.viscosity,
           waveStrength: snap.waveStrength,
           brushDiameter: snap.brushDiameter ?? Math.max(0.01, Math.min(0.12, brush.radius * 2)),
-          brushId: brush.id,
+          brushId: keepCustom ? snap.brushId : brush.id,
           brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
           brushFxOpacity: snap.brushFxOpacity,
-          fxLayers: asFxLayers(snap.fxLayers),
-          shadowOn: snap.shadowOn,
+          fxLayers: (() => {
+            const layers = asFxLayers(snap.fxLayers);
+            if (snap.shadowOn && !layers.includes("shadow")) return [...layers, "shadow"];
+            return layers;
+          })(),
+          shadowOn: snap.shadowOn || asFxLayers(snap.fxLayers).includes("shadow"),
           shadowColor: snap.shadowColor,
           shadowAngle: snap.shadowAngle,
           shadowOpacity: snap.shadowOpacity,
@@ -417,9 +506,14 @@ export const useRippleStore = create<RippleState>()(
           textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
           customTexture: custom,
           customLiveUrl: null,
+          textureLevels: Math.max(0, Math.min(1, snap.textureLevels ?? 0)),
+          textureInvert: Boolean(snap.textureInvert),
+          gradientFlip: Boolean(snap.gradientFlip),
           cameraInteract: snap.cameraInteract,
           micSensitivity: snap.micSensitivity,
           gyroSensitivity: snap.gyroSensitivity,
+          gyroZoom: snap.gyroZoom ?? 0.55,
+          customBrushes: customs,
         });
       },
       cleanSession: () => {
@@ -453,9 +547,13 @@ export const useRippleStore = create<RippleState>()(
           textureFit: "cover",
           customTexture: null,
           customLiveUrl: null,
+          textureLevels: 0,
+          textureInvert: false,
+          gradientFlip: false,
           cameraInteract: p.cameraMix,
           micSensitivity: p.micDrive,
           gyroSensitivity: p.gyroDrive,
+          gyroZoom: 0.55,
           dockOpen: true,
           clearToken: get().clearToken + 1,
         });
@@ -463,6 +561,7 @@ export const useRippleStore = create<RippleState>()(
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
+      setGyroZoom: (v) => set({ gyroZoom: Math.max(0, Math.min(1.5, v)) }),
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
       setDockOpen: (v) => set({ dockOpen: v }),
@@ -482,10 +581,10 @@ export const useRippleStore = create<RippleState>()(
       },
 
       getActiveColors: () => {
-        const { worldId, colorPairs, colorStops } = get();
+        const stops = get().getActiveStops();
+        if (stops.length >= 2) return resampleStops(stops, 6);
+        const { worldId, colorPairs } = get();
         const palette = PALETTES[worldId] ?? PALETTES.lens;
-        const saved = colorStops[worldId];
-        if (saved && saved.length >= 2) return resampleStops(saved, 6);
         return resolveColors(palette, colorPairs[worldId]);
       },
 
@@ -516,10 +615,34 @@ export const useRippleStore = create<RippleState>()(
         textureId: s.textureId,
         textureFit: s.textureFit,
         customTexture: s.customTexture,
+        textureLevels: s.textureLevels,
+        textureInvert: s.textureInvert,
+        gradientFlip: s.gradientFlip,
         cameraInteract: s.cameraInteract,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,
+        gyroCalibrated: true as const,
+        gyroZoom: s.gyroZoom,
+        customBrushes: s.customBrushes,
       }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean };
+        const fxLayers = asFxLayers(p.fxLayers ?? current.fxLayers);
+        const shadowOn = Boolean(p.shadowOn);
+        let gyroSensitivity = typeof p.gyroSensitivity === "number" ? p.gyroSensitivity : current.gyroSensitivity;
+        if (!p.gyroCalibrated && typeof p.gyroSensitivity === "number") {
+          gyroSensitivity = Math.max(0, Math.min(1.5, p.gyroSensitivity * 0.25));
+        }
+        return {
+          ...current,
+          ...p,
+          gyroSensitivity,
+          textureInvert: Boolean(p.textureInvert),
+          gradientFlip: Boolean(p.gradientFlip),
+          fxLayers: shadowOn && !fxLayers.includes("shadow") ? [...fxLayers, "shadow"] : fxLayers,
+          customBrushes: Array.isArray(p.customBrushes) ? p.customBrushes : current.customBrushes,
+        };
+      },
     },
   ),
 );

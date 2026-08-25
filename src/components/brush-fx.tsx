@@ -9,6 +9,7 @@ import {
   type FxLayerId,
 } from "@/lib/ripple/blend";
 import { useRippleStore } from "@/store/ripple";
+import { BrushShadow } from "./brush-shadow";
 
 export function LayerFxPicker() {
   const fxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
@@ -23,6 +24,7 @@ export function LayerFxPicker() {
   const hints = active.map((id) => getBrushFx(id).hint);
   const layerNames = layers.map((id) => FX_LAYERS.find((l) => l.id === id)?.name).filter(Boolean);
   const open = layers.length > 0;
+  const shadowOpen = layers.includes("shadow");
 
   return (
     <div className="flex flex-col gap-2">
@@ -34,7 +36,7 @@ export function LayerFxPicker() {
       </div>
       <p className="text-[10px] leading-snug text-subtle">
         {open
-          ? "Modes below inherit onto every selected layer."
+          ? "Modes below inherit onto every selected layer — including Brush Shadow."
           : "Pick a layer to open the mix. None selected — FX is idle."}
       </p>
       <div className="grid grid-cols-4 gap-1" role="group" aria-label="FX layers">
@@ -59,6 +61,11 @@ export function LayerFxPicker() {
           );
         })}
       </div>
+      {shadowOpen && (
+        <div className="rounded-lg border border-line bg-fg/5 p-2">
+          <BrushShadow nested />
+        </div>
+      )}
       {open && (
         <>
           <p className="text-[10px] leading-snug text-subtle">

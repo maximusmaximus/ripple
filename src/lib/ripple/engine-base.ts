@@ -9,6 +9,7 @@ import {
   sampleStopsA,
   resampleRgb,
   mix01,
+  computePunchView,
   type FBO,
   type SimU,
   type SplatU,
@@ -50,6 +51,8 @@ export class RippleEngineBase {
     texFit: WebGLUniformLocation | null;
     texSize: WebGLUniformLocation | null;
     viewSize: WebGLUniformLocation | null;
+    texLevels: WebGLUniformLocation | null;
+    texInvert: WebGLUniformLocation | null;
   };
   protected dispU!: DispU;
   protected damping = 0.985;
@@ -100,8 +103,23 @@ export class RippleEngineBase {
   protected customSource: TexImageSource | null = null;
   protected customSize: [number, number] = [1, 1];
   protected texFit = 0;
+  protected texLevels = 0;
+  protected texInvert = 0;
   protected customReady = false;
+  protected stampDummy: WebGLTexture | null = null;
+  protected stampTex: WebGLTexture | null = null;
+  protected stampSource: TexImageSource | null = null;
+  protected stampReady = false;
   protected firstFrameCb: (() => void) | null = null;
+  protected micZoom = 0.4;
+  protected gyroZoom = 0.55;
+  protected viewZoom = 1;
+  protected sloshX = 0;
+  protected sloshY = 0;
+  protected micRaw: MicFrame = { ...SILENT_MIC };
+  protected zoomLevel = 0;
+  protected zoomBass = 0;
+  protected zoomHigh = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -204,6 +222,10 @@ export class RippleEngineBase {
       point: gl.getUniformLocation(this.splatProg, "u_point"),
       force: gl.getUniformLocation(this.splatProg, "u_force"),
       radius: gl.getUniformLocation(this.splatProg, "u_radius"),
+      stamp: gl.getUniformLocation(this.splatProg, "u_stamp"),
+      useStamp: gl.getUniformLocation(this.splatProg, "u_useStamp"),
+      angle: gl.getUniformLocation(this.splatProg, "u_angle"),
+      aspect: gl.getUniformLocation(this.splatProg, "u_aspect"),
     };
     this.inkU = {
       prev: gl.getUniformLocation(this.inkProg, "u_prev"),
@@ -212,6 +234,10 @@ export class RippleEngineBase {
       radius: gl.getUniformLocation(this.inkProg, "u_radius"),
       t: gl.getUniformLocation(this.inkProg, "u_t"),
       colorA: gl.getUniformLocation(this.inkProg, "u_colorA"),
+      stamp: gl.getUniformLocation(this.inkProg, "u_stamp"),
+      useStamp: gl.getUniformLocation(this.inkProg, "u_useStamp"),
+      angle: gl.getUniformLocation(this.inkProg, "u_angle"),
+      aspect: gl.getUniformLocation(this.inkProg, "u_aspect"),
     };
     this.inkFlowU = {
       prev: gl.getUniformLocation(this.inkFlowProg, "u_prev"),
@@ -227,6 +253,8 @@ export class RippleEngineBase {
       texFit: gl.getUniformLocation(this.inkFlowProg, "u_texFit"),
       texSize: gl.getUniformLocation(this.inkFlowProg, "u_texSize"),
       viewSize: gl.getUniformLocation(this.inkFlowProg, "u_viewSize"),
+      texLevels: gl.getUniformLocation(this.inkFlowProg, "u_texLevels"),
+      texInvert: gl.getUniformLocation(this.inkFlowProg, "u_texInvert"),
     };
     this.dispU = {
       height: gl.getUniformLocation(this.displayProg, "u_height"),
@@ -271,6 +299,11 @@ export class RippleEngineBase {
       texHasMap: gl.getUniformLocation(this.displayProg, "u_texHasMap"),
       texFit: gl.getUniformLocation(this.displayProg, "u_texFit"),
       texSize: gl.getUniformLocation(this.displayProg, "u_texSize"),
+      texLevels: gl.getUniformLocation(this.displayProg, "u_texLevels"),
+      texInvert: gl.getUniformLocation(this.displayProg, "u_texInvert"),
+      viewZoom: gl.getUniformLocation(this.displayProg, "u_viewZoom"),
+      micZoom: gl.getUniformLocation(this.displayProg, "u_micZoom"),
+      gyroZoom: gl.getUniformLocation(this.displayProg, "u_gyroZoom"),
     };
 
     this.quad = gl.createBuffer()!;
@@ -280,6 +313,14 @@ export class RippleEngineBase {
     gl.bindVertexArray(this.vao);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+
+    this.stampDummy = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, this.stampDummy);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]));
 
     const cssW = Math.max(1, this.canvas.clientWidth || window.innerWidth);
     const cssH = Math.max(1, this.canvas.clientHeight || window.innerHeight);
@@ -329,6 +370,10 @@ export class RippleEngineBase {
     shadowDist?: number;
     texId?: number;
     texFit?: number;
+    texLevels?: number;
+    texInvert?: boolean;
+    micZoom?: number;
+    gyroZoom?: number;
   }) {
     if (opts.viscosity != null) this.damping = 0.996 - (1 - opts.viscosity) * 0.078;
     if (opts.waveStrength != null) this.speed = Math.max(0.05, Math.min(0.35, opts.waveStrength * 0.22));
@@ -362,12 +407,61 @@ export class RippleEngineBase {
     if (opts.shadowDist != null) this.shadowDist = Math.max(0.002, Math.min(0.08, opts.shadowDist));
     if (opts.texId != null) this.texId = opts.texId | 0;
     if (opts.texFit != null) this.texFit = opts.texFit;
+    if (opts.texLevels != null) this.texLevels = Math.max(0, Math.min(1, opts.texLevels));
+    if (opts.texInvert != null) this.texInvert = opts.texInvert ? 1 : 0;
+    if (opts.micZoom != null) this.micZoom = Math.max(0, Math.min(1.5, opts.micZoom));
+    if (opts.gyroZoom != null) this.gyroZoom = Math.max(0, Math.min(1.5, opts.gyroZoom));
   }
 
   setCustomTexture(source: TexImageSource | null, size?: { w: number; h: number }) {
     this.customSource = source;
     this.customReady = false;
     if (size) this.customSize = [Math.max(1, size.w), Math.max(1, size.h)];
+  }
+
+  setStampTexture(source: TexImageSource | null) {
+    this.stampSource = source;
+    this.stampReady = false;
+    if (source) this.uploadStamp();
+  }
+
+  protected uploadStamp() {
+    const gl = this.gl;
+    const src = this.stampSource;
+    if (!src) {
+      this.stampReady = false;
+      return;
+    }
+    if (!this.stampTex) {
+      this.stampTex = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.stampTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    }
+    gl.bindTexture(gl.TEXTURE_2D, this.stampTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+    this.stampReady = true;
+  }
+
+  protected bindStamp(
+    stampLoc: WebGLUniformLocation | null,
+    useLoc: WebGLUniformLocation | null,
+    angleLoc: WebGLUniformLocation | null,
+    aspectLoc: WebGLUniformLocation | null,
+    use: boolean,
+    angle: number,
+  ) {
+    const gl = this.gl;
+    const tex = use && this.stampReady && this.stampTex ? this.stampTex : this.stampDummy;
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(stampLoc, 1);
+    gl.uniform1f(useLoc, use && this.stampReady ? 1 : 0);
+    gl.uniform1f(angleLoc, angle);
+    gl.uniform1f(aspectLoc, this.simW / Math.max(1, this.simH));
   }
 
   setGravity(x: number, y: number) {
@@ -379,6 +473,7 @@ export class RippleEngineBase {
     if (typeof frame === "number") {
       const n = Math.max(0, Math.min(1.5, frame));
       this.mic = n <= 0.001 ? { ...SILENT_MIC } : { level: n, bass: n * 0.4, mid: n * 0.35, high: n * 0.25 };
+      if (n <= 0.001) this.micRaw = { ...SILENT_MIC };
       return;
     }
     this.mic = {
@@ -387,6 +482,49 @@ export class RippleEngineBase {
       mid: Math.max(0, Math.min(1.5, frame.mid)),
       high: Math.max(0, Math.min(1.5, frame.high)),
     };
+  }
+
+  setMicRaw(frame: MicFrame) {
+    this.micRaw = {
+      level: Math.max(0, Math.min(1.5, frame.level)),
+      bass: Math.max(0, Math.min(1.5, frame.bass)),
+      mid: Math.max(0, Math.min(1.5, frame.mid)),
+      high: Math.max(0, Math.min(1.5, frame.high)),
+    };
+  }
+
+  screenToSim(x: number, y: number): { x: number; y: number } {
+    this.refreshViewZoom();
+    const z = Math.max(1, this.viewZoom);
+    return {
+      x: Math.max(0, Math.min(1, (x - 0.5) / z + 0.5 + this.sloshX)),
+      y: Math.max(0, Math.min(1, (y - 0.5) / z + 0.5 - this.sloshY)),
+    };
+  }
+
+  protected tickZoomEnv() {
+    const follow = (prev: number, next: number) =>
+      next > prev ? prev + (next - prev) * 0.48 : prev * 0.82;
+    this.zoomLevel = follow(this.zoomLevel, this.micRaw.level);
+    this.zoomBass = follow(this.zoomBass, this.micRaw.bass);
+    this.zoomHigh = follow(this.zoomHigh, this.micRaw.high);
+    this.refreshViewZoom();
+  }
+
+  protected refreshViewZoom() {
+    const view = computePunchView({
+      pulse: this.zoomLevel,
+      bass: this.zoomBass,
+      high: this.zoomHigh,
+      micZoom: this.micZoom,
+      gx: this.gx,
+      gy: this.gy,
+      gyroZoom: this.gyroZoom,
+      time: this.lastT / 1000,
+    });
+    this.viewZoom = view.zoom;
+    this.sloshX = view.sloshX;
+    this.sloshY = view.sloshY;
   }
 
   setCamera(
