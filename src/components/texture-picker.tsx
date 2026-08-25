@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { TEXTURE_ROWS, getTexture, type TextureId } from "@/lib/ripple/textures";
-import { TEXTURE_FITS } from "@/lib/ripple/studio";
+import { MAX_UPLOAD_BYTES } from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
 import { useRippleStore } from "@/store/ripple";
+import { TextureCrop } from "./texture-crop";
 
 export function TexturePicker() {
   const textureId = useRippleStore((s) => s.textureId);
@@ -11,14 +12,21 @@ export function TexturePicker() {
   const textureFit = useRippleStore((s) => s.textureFit);
   const setTextureFit = useRippleStore((s) => s.setTextureFit);
   const customTexture = useRippleStore((s) => s.customTexture);
+  const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
   const setCustomTexture = useRippleStore((s) => s.setCustomTexture);
   const active = getTexture(textureId);
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const previewSrc = customLiveUrl || customTexture?.dataUrl || null;
+
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setErr("Max 10 MB — try a smaller file.");
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
@@ -39,7 +47,7 @@ export function TexturePicker() {
           {textureId === "custom" ? "Upload" : active.name}
         </span>
       </div>
-      <div className="relative flex flex-col gap-1">
+      <div className="relative flex flex-col gap-1 pb-3 pr-3">
         {TEXTURE_ROWS.map((row, i) => (
           <div key={i} className="grid grid-cols-6 gap-1" role="listbox" aria-label={i === 0 ? "Texture" : "Texture more"}>
             {row.map((t) => {
@@ -70,29 +78,38 @@ export function TexturePicker() {
             })}
           </div>
         ))}
-        <button
-          type="button"
-          title="Upload a JPG, PNG, or GIF — max 10 MB, 4K"
-          onClick={() => fileRef.current?.click()}
-          disabled={busy}
-          className={
-            "absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center overflow-hidden rounded-md border border-fg/40 bg-ink/80 text-fg shadow-lg backdrop-blur-sm transition hover:bg-ink " +
-            (textureId === "custom" ? "ring-1 ring-fg" : "")
-          }
-        >
-          {customTexture ? (
-            <span
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${customTexture.dataUrl})` }}
-              aria-hidden
-            />
-          ) : null}
-          <Plus className="relative size-4 drop-shadow" strokeWidth={2.25} />
-        </button>
+        <div className="absolute bottom-0 right-0 z-10">
+          <button
+            type="button"
+            title={customTexture ? "Your upload — tap to replace (JPG, PNG, GIF · max 10 MB, 4K)" : "Upload a JPG, PNG, or GIF — max 10 MB, 4K"}
+            onClick={() => {
+              if (customTexture && textureId !== "custom") {
+                setTextureId("custom");
+                return;
+              }
+              fileRef.current?.click();
+            }}
+            disabled={busy}
+            className={
+              "relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border bg-ink/90 text-fg shadow-lg backdrop-blur-sm transition hover:bg-ink " +
+              (textureId === "custom" ? "border-fg ring-1 ring-fg" : "border-fg/50")
+            }
+          >
+            {previewSrc ? (
+              <span
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url(${previewSrc})` }}
+                aria-hidden
+              />
+            ) : null}
+            <span className="absolute inset-0 bg-ink/35" aria-hidden />
+            <Plus className="relative size-4 drop-shadow" strokeWidth={2.4} />
+          </button>
+        </div>
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
+          accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -101,29 +118,16 @@ export function TexturePicker() {
           }}
         />
       </div>
-      <p className="truncate text-[10px] leading-snug text-subtle">
-        {err ?? (textureId === "custom" ? "Your image rides the fluid. Pick how it crops." : active.hint)}
+      <p className="truncate pr-8 text-[10px] leading-snug text-subtle">
+        {err ??
+          (busy
+            ? "Reading image…"
+            : textureId === "custom"
+              ? "Your image rides the fluid. Crop it on the canvas below."
+              : active.hint)}
       </p>
-      {textureId === "custom" && customTexture && (
-        <div className="grid grid-cols-3 gap-1" role="group" aria-label="Crop">
-          {TEXTURE_FITS.map((f) => {
-            const on = textureFit === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                title={f.hint}
-                onClick={() => setTextureFit(f.id)}
-                className={
-                  "rounded-md border px-1 py-1 text-[10px] font-medium " +
-                  (on ? "border-fg/70 bg-fg/15 text-fg" : "border-line/60 text-muted hover:border-fg/40")
-                }
-              >
-                {f.name}
-              </button>
-            );
-          })}
-        </div>
+      {textureId === "custom" && previewSrc && (
+        <TextureCrop src={previewSrc} fit={textureFit} onFit={setTextureFit} />
       )}
     </div>
   );

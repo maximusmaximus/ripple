@@ -35,6 +35,12 @@ async function openCamera(facing: "user" | "environment"): Promise<MediaStream> 
   }
 }
 
+function formatElapsed(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export function SensorsBar({ sensors, onChange, recording = false, onToggleRecord, recordStartedAt }: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -44,7 +50,6 @@ export function SensorsBar({ sensors, onChange, recording = false, onToggleRecor
     return () => window.clearInterval(id);
   }, [recording]);
   const elapsed = recording && recordStartedAt ? Math.max(0, Math.floor((now - recordStartedAt) / 1000)) : 0;
-  const recLabel = recording ? `REC ${elapsed}s` : "REC";
 
   /** Cycle: off → rear → front → off. One top-left button. */
   const cycleCamera = useCallback(async () => {
@@ -286,7 +291,7 @@ export function SensorsBar({ sensors, onChange, recording = false, onToggleRecor
         </button>
       </div>
       {sensors.error && (
-        <div className="pointer-events-auto max-w-[60%] rounded-lg bg-ink/70 px-3 py-1.5 text-xs text-amber-200 backdrop-blur">
+        <div className="pointer-events-auto max-w-[40%] rounded-lg bg-ink/70 px-3 py-1.5 text-xs text-amber-200 backdrop-blur">
           {sensors.error}
         </div>
       )}
@@ -294,33 +299,32 @@ export function SensorsBar({ sensors, onChange, recording = false, onToggleRecor
         <button
           type="button"
           className={
-            btn +
+            "pointer-events-auto relative flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border backdrop-blur-md transition active:scale-95 " +
             (recording
-              ? " border-red-500/80 bg-red-600 text-white shadow-[0_0_16px_rgba(220,38,38,0.55)]"
-              : "")
+              ? "rec-live border-red-400 bg-red-600 px-3 text-white shadow-[0_0_18px_rgba(220,38,38,0.55)]"
+              : "border-line bg-ink/50 px-2.5 text-fg/85 hover:bg-ink/70 hover:text-fg")
           }
-          style={{ opacity: recording ? 1 : 0.7 }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onToggleRecord();
           }}
           aria-pressed={recording}
-          aria-label={recording ? "Stop recording" : "Start recording"}
+          aria-label={recording ? "Stop recording and save" : "Start recording"}
           title={recording ? "Recording — tap to stop and save" : "Record the canvas"}
         >
           {recording ? (
             <Square className="size-3.5 fill-current" strokeWidth={2} />
           ) : (
-            <Circle className="size-4 text-red-400" strokeWidth={2.25} />
+            <Circle className="size-4 text-red-500" strokeWidth={2.5} fill="currentColor" />
           )}
           <span
             className={
-              "absolute -bottom-0.5 rounded-full px-1 text-[8px] font-semibold tracking-wide " +
-              (recording ? "bg-red-700 text-white" : "bg-ink/80 text-fg/80")
+              "font-mono text-[10px] font-semibold tracking-wide tabular-nums " +
+              (recording ? "text-white" : "text-fg/80")
             }
           >
-            {recLabel}
+            {recording ? formatElapsed(elapsed) : "REC"}
           </span>
         </button>
       )}

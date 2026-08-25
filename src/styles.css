@@ -176,6 +176,20 @@
   }
 }
 
+.rec-live {
+  animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rec-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(220 38 38 / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgb(220 38 38 / 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ripple-splash-rings span,
   .ripple-splash-sub {
@@ -196,5 +210,8 @@
   .ripple-splash-rings span:nth-child(3) {
     transform: scale(1.05);
     opacity: 0.14;
+  }
+  .rec-live {
+    animation: none;
   }
 }

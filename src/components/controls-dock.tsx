@@ -76,8 +76,6 @@ export function ControlsDock() {
         </div>
       </div>
 
-      <PresetStrip />
-
       <section className="flex flex-col gap-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Brush</h3>
         <BrushPicker />
@@ -100,6 +98,8 @@ export function ControlsDock() {
         <BrushShadow />
         <LayerFxPicker />
       </section>
+
+      <PresetStrip />
 
       <section className="flex flex-col gap-2.5">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Surface</h3>
@@ -206,7 +206,7 @@ export function ControlsDock() {
         Clean Session
       </button>
       <p className="-mt-2 text-[10px] leading-snug text-subtle">
-        Resets the live mix. Saved presets stay.
+        Resets the live mix for the next person. Saved presets stay.
       </p>
       <button
         type="button"

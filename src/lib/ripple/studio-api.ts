@@ -36,6 +36,46 @@ const snapshotSchema = z.object({
   gyroSensitivity: z.number(),
 });
 
+async function writeHomebaseFile(preset: NamedPreset): Promise<void> {
+  try {
+    const { mkdir, readFile, writeFile } = await import("node:fs/promises");
+    const path = await import("node:path");
+    const dir = path.join(process.cwd(), "public/studio");
+    const file = path.join(dir, "presets.json");
+    await mkdir(dir, { recursive: true });
+    let current: { version: number; note?: string; presets: NamedPreset[] } = {
+      version: 1,
+      presets: [],
+    };
+    try {
+      current = JSON.parse(await readFile(file, "utf8")) as typeof current;
+      if (!Array.isArray(current.presets)) current.presets = [];
+    } catch {
+      /* first write */
+    }
+    const slim: NamedPreset = { ...preset };
+    const dataUrl = slim.snapshot.customTexture?.dataUrl;
+    if (dataUrl && dataUrl.length > 240_000) {
+      slim.snapshot = { ...slim.snapshot, customTexture: null, textureId: slim.snapshot.textureId === "custom" ? "none" : slim.snapshot.textureId };
+    }
+    const next = [slim, ...current.presets.filter((p) => p.id !== slim.id)].slice(0, MAX_STUDIO_PRESETS);
+    await writeFile(
+      file,
+      JSON.stringify(
+        {
+          version: 1,
+          note: "Homebase presets. Shipped with the repo and pulled from GitHub after restarts or updates.",
+          presets: next,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    /* Vercel / read-only — database is the live store */
+  }
+}
+
 export const getStudioSession = createServerFn({ method: "GET" }).handler(async () => {
   const sql = await getSql();
   const rows = await sql<{ payload: StudioSnapshot | string; updated_at: string }>`
@@ -90,7 +130,8 @@ export const saveStudioPreset = createServerFn({ method: "POST" })
     const sql = await getSql();
     const countRows = await sql<{ n: number }>`select count(*)::int as n from studio_presets`;
     const n = countRows[0]?.n ?? 0;
-    if (n >= MAX_STUDIO_PRESETS) {
+    const exists = await sql<{ id: string }>`select id from studio_presets where id = ${data.id} limit 1`;
+    if (n >= MAX_STUDIO_PRESETS && !exists[0]) {
       throw new Error(`Studio is full (${MAX_STUDIO_PRESETS} presets).`);
     }
     const payload = JSON.stringify(data.snapshot);
@@ -100,5 +141,13 @@ export const saveStudioPreset = createServerFn({ method: "POST" })
        on conflict (id) do update set name = excluded.name, payload = excluded.payload, updated_at = now()`,
       [data.id, data.name, payload],
     );
+    const preset: NamedPreset = {
+      id: data.id,
+      name: data.name,
+      createdAt: new Date().toISOString(),
+      snapshot: data.snapshot as StudioSnapshot,
+      source: "studio",
+    };
+    await writeHomebaseFile(preset);
     return { ok: true as const, id: data.id };
   });

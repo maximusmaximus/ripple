@@ -337,7 +337,12 @@ export const useRippleStore = create<RippleState>()(
       setBrushShadowColor: (hex) => set({ shadowColor: hex }),
       setShadowAngle: (deg) => set({ shadowAngle: ((deg % 360) + 360) % 360 }),
       setShadowOpacity: (v) => set({ shadowOpacity: Math.max(0, Math.min(1, v)) }),
-      setTextureId: (id) => set({ textureId: getTexture(id).id }),
+      setTextureId: (id) =>
+        set((s) => {
+          const next = getTexture(id).id;
+          if (next === "custom" && !s.customTexture) return s;
+          return { textureId: next };
+        }),
       setTextureFit: (fit) => set({ textureFit: fit }),
       setCustomTexture: (tex, liveUrl) =>
         set((s) => {
@@ -382,6 +387,16 @@ export const useRippleStore = create<RippleState>()(
       },
       applySnapshot: (snap) => {
         const brush = getBrush(snap.brushId);
+        const prevLive = get().customLiveUrl;
+        if (prevLive) {
+          try {
+            URL.revokeObjectURL(prevLive);
+          } catch {
+            /* ignore */
+          }
+        }
+        const custom = snap.customTexture ?? null;
+        const texId = custom ? getTexture(snap.textureId).id : getTexture(snap.textureId === "custom" ? DEFAULT_TEXTURE_ID : snap.textureId).id;
         set({
           worldId: snap.worldId,
           colorRanges: snap.colorRanges ?? {},
@@ -398,9 +413,9 @@ export const useRippleStore = create<RippleState>()(
           shadowColor: snap.shadowColor,
           shadowAngle: snap.shadowAngle,
           shadowOpacity: snap.shadowOpacity,
-          textureId: getTexture(snap.textureId).id,
+          textureId: texId === "custom" && !custom ? DEFAULT_TEXTURE_ID : texId,
           textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
-          customTexture: snap.customTexture ?? null,
+          customTexture: custom,
           customLiveUrl: null,
           cameraInteract: snap.cameraInteract,
           micSensitivity: snap.micSensitivity,
@@ -410,6 +425,14 @@ export const useRippleStore = create<RippleState>()(
       cleanSession: () => {
         const p = PALETTES.lens;
         const brush = getBrush(p.brushId);
+        const prevLive = get().customLiveUrl;
+        if (prevLive) {
+          try {
+            URL.revokeObjectURL(prevLive);
+          } catch {
+            /* ignore */
+          }
+        }
         set({
           worldId: p.id,
           colorRanges: {},

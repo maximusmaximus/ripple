@@ -149,6 +149,15 @@ export function RippleApp() {
         </div>
       )}
 
+      {showChrome && record.state === "recording" && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))]">
+          <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
+            <span className="inline-block size-2 rounded-full bg-white" />
+            Recording — tap REC to stop and save
+          </div>
+        </div>
+      )}
+
       {showChrome && (
         <SensorsBar
           sensors={sensors}

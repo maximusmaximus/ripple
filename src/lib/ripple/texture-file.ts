@@ -5,6 +5,22 @@ import {
   type CustomTexture,
 } from "./studio";
 
+const EXT_TYPE: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+};
+
+function sniffType(file: File): string {
+  const raw = (file.type || "").toLowerCase();
+  if (raw === "image/jpg") return "image/jpeg";
+  if (ALLOWED_TEXTURE_TYPES.has(raw)) return raw;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_TYPE[ext] ?? "";
+}
+
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -24,7 +40,6 @@ function drawFit(img: CanvasImageSource, w: number, h: number): HTMLCanvasElemen
   return canvas;
 }
 
-/** Still JPEG for persistence (GIFs keep a first-frame still). */
 function persistStill(img: HTMLImageElement): CustomTexture {
   const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(img.naturalWidth, img.naturalHeight, 1));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
@@ -36,7 +51,22 @@ function persistStill(img: HTMLImageElement): CustomTexture {
     quality -= 0.08;
     dataUrl = canvas.toDataURL("image/jpeg", quality);
   }
+  if (dataUrl.length > 1_550_000) {
+    throw new Error("Image is too heavy after compress — try a smaller file.");
+  }
   return { mime: "image/jpeg", dataUrl, width: w, height: h };
+}
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Could not read that file."));
+    };
+    reader.onerror = () => reject(new Error("Could not read that file."));
+    reader.readAsDataURL(file);
+  });
 }
 
 export type LoadedTexture = {
@@ -46,27 +76,44 @@ export type LoadedTexture = {
 };
 
 export async function readTextureFile(file: File): Promise<LoadedTexture> {
-  if (!ALLOWED_TEXTURE_TYPES.has(file.type)) {
-    throw new Error("Use a JPG, PNG, GIF, or WebP.");
+  if (file.size <= 0) {
+    throw new Error("That file is empty.");
   }
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("Max 10 MB — try a smaller file.");
   }
+  const mime = sniffType(file);
+  if (!mime || !ALLOWED_TEXTURE_TYPES.has(mime)) {
+    throw new Error("Use a JPG, PNG, or GIF (WebP is ok too).");
+  }
+
   const liveUrl = URL.createObjectURL(file);
   try {
     const img = await loadImage(liveUrl);
     const w = img.naturalWidth;
     const h = img.naturalHeight;
     if (w < 8 || h < 8) {
-      URL.revokeObjectURL(liveUrl);
       throw new Error("Image is too small.");
     }
-    if ((w > MAX_IMAGE_DIM || h > MAX_IMAGE_DIM) && file.type === "image/gif") {
-      URL.revokeObjectURL(liveUrl);
+    const animated = mime === "image/gif";
+    if ((w > MAX_IMAGE_DIM || h > MAX_IMAGE_DIM) && animated) {
       throw new Error("GIFs must be 4K (4096px) or smaller.");
     }
+
+    if (animated && file.size <= 900_000) {
+      const dataUrl = await fileToDataUrl(file);
+      if (dataUrl.length > 1_550_000) {
+        const still = persistStill(img);
+        return { still, liveUrl, animated: true };
+      }
+      return {
+        still: { mime, dataUrl, width: w, height: h },
+        liveUrl,
+        animated: true,
+      };
+    }
+
     const still = persistStill(img);
-    const animated = file.type === "image/gif";
     if (!animated) {
       URL.revokeObjectURL(liveUrl);
       return { still, liveUrl: still.dataUrl, animated: false };

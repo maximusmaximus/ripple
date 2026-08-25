@@ -27,23 +27,23 @@ export type BrushFxGroup = {
 };
 
 export const BRUSH_FX: BrushFx[] = [
-  { id: "normal", code: 0, name: "Normal", hint: "Stroke covers the bed and camera." },
-  { id: "darken", code: 1, name: "Darken", hint: "Keeps whichever is darker — paint or feed." },
-  { id: "multiply", code: 6, name: "Multiply", hint: "Stroke stains the camera like wet ink." },
+  { id: "normal", code: 0, name: "Normal", hint: "Layer covers — no extra mix." },
+  { id: "darken", code: 1, name: "Darken", hint: "Keeps whichever is darker." },
+  { id: "multiply", code: 6, name: "Multiply", hint: "Stains the bed like wet ink." },
   { id: "lighten", code: 2, name: "Lighten", hint: "Keeps whichever is brighter." },
-  { id: "screen", code: 7, name: "Screen", hint: "Stroke bleaches the feed — like a projector." },
-  { id: "overlay", code: 8, name: "Overlay", hint: "Camera contrast, tinted by the stroke." },
-  { id: "contrast", code: 3, name: "Contrast", hint: "Hard light — paint sculpts bright and dark." },
-  { id: "inversion", code: 4, name: "Inversion", hint: "Stroke subtracts the camera (difference)." },
-  { id: "color", code: 9, name: "Color", hint: "Paint hue on the camera’s brightness." },
-  { id: "component", code: 5, name: "Component", hint: "Paint remaps the camera’s RGB channels." },
+  { id: "screen", code: 7, name: "Screen", hint: "Bleaches the bed — like a projector." },
+  { id: "overlay", code: 8, name: "Overlay", hint: "Bed contrast, tinted by the layer." },
+  { id: "contrast", code: 3, name: "Contrast", hint: "Hard light — the layer sculpts bright and dark." },
+  { id: "inversion", code: 4, name: "Inversion", hint: "Layer subtracts the bed (difference)." },
+  { id: "color", code: 9, name: "Color", hint: "Layer hue on the bed’s brightness." },
+  { id: "component", code: 5, name: "Component", hint: "Layer remaps the bed’s RGB channels." },
 ];
 
 export const BRUSH_FX_GROUPS: BrushFxGroup[] = [
   {
     id: "cover",
     label: "Cover",
-    blurb: "Reset the stack — stroke just covers.",
+    blurb: "Reset the stack — the layer just covers.",
     modes: BRUSH_FX.filter((m) => m.id === "normal"),
   },
   {
@@ -145,4 +145,47 @@ export function fxConflictsWith(active: BrushFxId[], id: BrushFxId): boolean {
   if (LIGHT_FAMILY.has(id) && cur.some((x) => DARK_FAMILY.has(x))) return true;
   return false;
 }
+
+export type FxLayerId = "camera" | "mic" | "brush" | "texture";
+
+export const FX_LAYERS: { id: FxLayerId; name: string; hint: string; bit: number }[] = [
+  { id: "camera", name: "Camera", hint: "Mix the live feed.", bit: 1 },
+  { id: "mic", name: "Mic", hint: "Mix volume and frequency.", bit: 2 },
+  { id: "brush", name: "Brush", hint: "Mix the stroke with the bed.", bit: 4 },
+  { id: "texture", name: "Texture", hint: "Mix the medium grain.", bit: 8 },
+];
+
+export const DEFAULT_FX_LAYERS: FxLayerId[] = ["brush"];
+
+function isLayerId(id: string): id is FxLayerId {
+  return FX_LAYERS.some((l) => l.id === id);
+}
+
+export function asFxLayers(v: FxLayerId[] | string[] | undefined | null): FxLayerId[] {
+  if (v == null) return [...DEFAULT_FX_LAYERS];
+  const raw = Array.isArray(v) ? v : [];
+  const next = raw.filter((x): x is FxLayerId => typeof x === "string" && isLayerId(x));
+  const seen = new Set<FxLayerId>();
+  return next.filter((id) => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+export function toggleFxLayer(current: FxLayerId[], id: FxLayerId): FxLayerId[] {
+  const cur = asFxLayers(current);
+  if (cur.includes(id)) return cur.filter((x) => x !== id);
+  return [...cur, id];
+}
+
+export function fxLayerMask(ids: FxLayerId[]): number {
+  let m = 0;
+  for (const id of asFxLayers(ids)) {
+    const bit = FX_LAYERS.find((l) => l.id === id)?.bit ?? 0;
+    m |= bit;
+  }
+  return m;
+}
+
 
