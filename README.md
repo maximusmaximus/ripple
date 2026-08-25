@@ -2,7 +2,7 @@
 
 Full-screen interactive fluid surface. Drag to paint waves; switch worlds; layer camera, mic, and gyro; cast from a phone to a second display via a real QR code.
 
-**Intended live URL:** [https://drawing.grok.me](https://drawing.grok.me)
+**`drawing.grok.me` is released.** This project no longer claims that subdomain.
 
 ## Run
 
@@ -41,8 +41,3 @@ React 19 · TanStack Start · Vite · Zustand · Tailwind v4 · WebGL2 height-fi
 Connect this repo to Vercel. Build command: `npm run build`.
 
 Cast signaling uses Postgres when `DATABASE_URL` is set, and an in-memory roster otherwise (fine for a single-instance preview). Camera / mic never leave the device.
-
-## Notes
-
-- Same Wi-Fi is the reliable path for phone-to-wall. Strict NATs can still fail without a TURN relay.
-- Keyboard: `←` `→` or `[` `]` change worlds. Shift+Backspace clears the surface.
