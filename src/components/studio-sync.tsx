@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useRippleStore } from "@/store/ripple";
+import { hydrateSnapshotMedia, type StudioSnapshot } from "@/lib/ripple/studio";
 import { getStudioSession, putStudioSession } from "@/lib/ripple/studio-api";
 
 /** Hydrate from the shared studio row, then keep it in sync for the next visitor. */
@@ -17,22 +18,34 @@ export function StudioSync() {
 
   useEffect(() => {
     let live = true;
+    const persist = useRippleStore.persist;
     const run = async () => {
       try {
         const row = await getStudioSession();
         if (!live) return;
-        if (row?.snapshot) applySnapshot(row.snapshot);
+        if (row?.snapshot) {
+          applySnapshot(await hydrateSnapshotMedia(row.snapshot));
+          return;
+        }
+        const file = await fetch("/studio/session.json", { cache: "no-store" });
+        if (!live || !file.ok) return;
+        const data = (await file.json()) as { snapshot?: StudioSnapshot };
+        if (data?.snapshot) applySnapshot(await hydrateSnapshotMedia(data.snapshot));
       } catch {
         /* preview without schema yet — local persist still applies */
       } finally {
         hydrated.current = true;
       }
     };
-    const persist = useRippleStore.persist;
-    if (persist.hasHydrated()) void run();
-    const unsub = persist.onFinishHydration(() => {
+    void persist.rehydrate();
+    let started = false;
+    const kick = () => {
+      if (started || !live) return;
+      started = true;
       void run();
-    });
+    };
+    if (persist.hasHydrated()) kick();
+    const unsub = persist.onFinishHydration(kick);
     return () => {
       live = false;
       unsub();

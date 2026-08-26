@@ -1,7 +1,7 @@
 import type { BrushFeel, BrushKind } from "./brushes"
 
 export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; stamp?: boolean }
-type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number; rot: number }
+type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number; rot: number; path: number }
 
 const MAX_SPLATS_PER_MOVE = 128
 const MIN_STEP = 0.002
@@ -11,6 +11,8 @@ export type StrokeInput = { pressure?: number }
 export class PointerPainter {
   private tracks = new Map<number, Track>()
   private queue: Splat[] = []
+  private minR = 0.012
+  private maxR = 0.03
   private radius = 0.03
   private force = 0.7
   private kind: BrushKind = "round"
@@ -22,7 +24,8 @@ export class PointerPainter {
   private stampSpin = 0
 
   setBrush(
-    radius: number,
+    minRadius: number,
+    maxRadius: number,
     force: number,
     kind: BrushKind = "round",
     spread = 1.8,
@@ -32,7 +35,11 @@ export class PointerPainter {
     stampAngle = 0,
     stampSpin = 0,
   ) {
-    this.radius = Math.max(0.005, radius)
+    const lo = Math.max(0.003, Math.min(minRadius, maxRadius))
+    const hi = Math.max(lo + 0.002, Math.max(minRadius, maxRadius))
+    this.minR = lo
+    this.maxR = Math.min(0.08, hi)
+    this.radius = this.maxR
     this.force = Math.max(0.18, force)
     this.kind = kind
     this.spread = Math.max(0.3, spread)
@@ -44,9 +51,9 @@ export class PointerPainter {
   }
 
   down(id: number, x: number, y: number, t = performance.now(), input: StrokeInput = {}) {
-    const w = this.dynScale(0, input.pressure ?? 0.5, 0, t)
+    const w = this.dynT(0, input.pressure ?? 0.5, 0, t, 0)
     const rot = (this.stampAngle * Math.PI) / 180
-    this.tracks.set(id, { x, y, down: true, t, w, heading: this.nib, rot })
+    this.tracks.set(id, { x, y, down: true, t, w, heading: this.nib, rot, path: 0 })
     this.emit(x, y, this.force, w, this.nib, rot)
   }
 
@@ -60,19 +67,20 @@ export class PointerPainter {
     const dt = Math.max(1, t - last.t)
     const speed = dist / dt
     const heading = dist > 1e-6 ? Math.atan2(dy, dx) : last.heading
-    const target = this.dynScale(speed, input.pressure ?? 0.5, heading, t)
-    const w = last.w * 0.62 + target * 0.38
+    const path = last.path + dist
+    const target = this.dynT(speed, input.pressure ?? 0.5, heading, t, path)
+    const w = last.w * 0.55 + target * 0.45
     const rot = last.rot + this.stampSpin * dist * 10
 
     if (dist < 1e-7) {
       this.emit(x, y, this.force * 0.55, w * 0.9, heading, rot)
-      this.tracks.set(id, { x, y, down: true, t, w, heading, rot })
+      this.tracks.set(id, { x, y, down: true, t, w, heading, rot, path })
       return
     }
 
     const step =
       this.kind === "stamp"
-        ? Math.max(this.radius * 0.38, MIN_STEP * 4)
+        ? Math.max(this.maxR * 0.38, MIN_STEP * 4)
         : this.kind === "scatter"
           ? MIN_STEP * 1.6
           : MIN_STEP
@@ -86,7 +94,7 @@ export class PointerPainter {
       const rr = last.rot + (rot - last.rot) * u
       this.emit(last.x + dx * u, last.y + dy * u, this.force, ww, heading, rr)
     }
-    this.tracks.set(id, { x, y, down: true, t, w, heading, rot })
+    this.tracks.set(id, { x, y, down: true, t, w, heading, rot, path })
   }
 
   up(id: number, x?: number, y?: number) {
@@ -112,28 +120,35 @@ export class PointerPainter {
     this.queue.length = 0
   }
 
-  private dynScale(speed: number, pressure: number, heading: number, t: number): number {
+  /** 0 = smallest dimension, 1 = largest. Tail eases toward small along the stroke. */
+  private dynT(speed: number, pressure: number, heading: number, t: number, path: number): number {
     const p = pressure > 0.02 ? Math.max(0.08, Math.min(1, pressure)) : 0.55
+    let feel = 1
     switch (this.feel) {
       case "press":
-        return 0.28 + p * 1.55
+        feel = p
+        break
       case "taper":
-        return mix(1.65, 0.22, clamp01(speed / 0.012))
+        feel = 1 - clamp01(speed / 0.012)
+        break
       case "swell":
-        return mix(0.32, 1.75, clamp01(speed / 0.01))
-      case "nib": {
-        const w = Math.abs(Math.sin(heading - this.nib))
-        return 0.22 + w * 1.55
-      }
+        feel = clamp01(speed / 0.01)
+        break
+      case "nib":
+        feel = Math.abs(Math.sin(heading - this.nib))
+        break
       case "pulse":
-        return 0.45 + 0.85 * (0.5 + 0.5 * Math.sin(t * 0.014))
+        feel = 0.5 + 0.5 * Math.sin(t * 0.014)
+        break
       default:
-        return 1
+        feel = 1
     }
+    const tail = 1 - Math.exp(-path / 0.14)
+    return mix(feel, 0, tail * 0.86)
   }
 
   private emit(x: number, y: number, force: number, scale: number, heading: number, rot = 0) {
-    const r = this.radius * scale
+    const r = mix(this.minR, this.maxR, clamp01(scale))
     if (this.kind === "stamp") {
       this.queue.push({
         x: clamp01(x),

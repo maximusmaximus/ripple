@@ -4,7 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { P2PRoom } from "@/lib/multiplayer";
 import { encodeCamB64, parseCastMsg, roomIdFor, type CastMsg } from "@/lib/ripple/cast";
+import { createRecInbox, offerDownload, type PendingClip } from "@/lib/ripple/record";
 import type { Splat } from "@/lib/ripple/pointer";
+import type { StudioSnapshot } from "@/lib/ripple/studio";
 
 export type PadConnectionState = "idle" | "connecting" | "connected" | "error";
 
@@ -30,6 +32,14 @@ export function useCastPad(opts: UseCastPadOptions) {
   const rafRef = useRef(0);
   const encodingRef = useRef(false);
   const lastFrameAt = useRef(0);
+  const recInbox = useRef(createRecInbox());
+  const [recOn, setRecOn] = useState(false);
+  const [recStartedAt, setRecStartedAt] = useState<number | null>(null);
+  const [recLimitMs, setRecLimitMs] = useState(8_000);
+  const [recRemainingMs, setRecRemainingMs] = useState(0);
+  const [recSaving, setRecSaving] = useState(false);
+  const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
+  const [recNote, setRecNote] = useState<string | null>(null);
 
   const sendJson = useCallback((msg: CastMsg, reliable = true) => {
     const p2p = p2pRef.current;
@@ -132,9 +142,44 @@ export function useCastPad(opts: UseCastPadOptions) {
       },
       onMessage: (_from, data) => {
         const msg = parseCastMsg(data);
-        if (msg?.t === "bye") {
+        if (!msg) return;
+        if (msg.t === "bye") {
           cleanup();
           setState("idle");
+          return;
+        }
+        if (msg.t === "rec-state") {
+          setRecOn(msg.on);
+          setRecStartedAt(msg.on ? msg.startedAt : null);
+          setRecLimitMs(msg.limitMs);
+          setRecRemainingMs(msg.on ? msg.limitMs : 0);
+          setRecSaving(false);
+          if (msg.on) setRecNote(null);
+          return;
+        }
+        if (msg.t === "rec-meta") {
+          recInbox.current.reset(msg);
+          setRecSaving(true);
+          return;
+        }
+        if (msg.t === "rec-chunk") {
+          recInbox.current.add(msg.i, msg.b64);
+          return;
+        }
+        if (msg.t === "rec-done") {
+          const file = recInbox.current.assemble();
+          setRecSaving(false);
+          setRecOn(false);
+          if (file) {
+            setPendingClip(offerDownload(file.blob, file.name));
+            setRecNote("Clip ready on this phone and the wall");
+          }
+          return;
+        }
+        if (msg.t === "rec-skip") {
+          setRecSaving(false);
+          setRecOn(false);
+          setRecNote("Clip saved on the wall — too large to send here");
         }
       },
       onConnected: () => {
@@ -182,6 +227,30 @@ export function useCastPad(opts: UseCastPadOptions) {
     },
     [sendJson],
   );
+  const sendStudio = useCallback(
+    (snap: StudioSnapshot) => {
+      sendJson({ t: "studio", snap }, true);
+    },
+    [sendJson],
+  );
+  const sendClear = useCallback(() => {
+    sendJson({ t: "clear" }, true);
+  }, [sendJson]);
+
+  const sendRec = useCallback(
+    (on: boolean) => {
+      sendJson({ t: "rec", on }, true);
+    },
+    [sendJson],
+  );
+
+  useEffect(() => {
+    if (!recOn || !recStartedAt) return;
+    const tick = () => setRecRemainingMs(Math.max(0, recLimitMs - (Date.now() - recStartedAt)));
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [recOn, recStartedAt, recLimitMs]);
 
   const disconnect = useCallback(() => {
     sendJson({ t: "bye" }, true);
@@ -203,6 +272,17 @@ export function useCastPad(opts: UseCastPadOptions) {
     sendMic,
     sendWorld,
     sendFeel,
+    sendStudio,
+    sendClear,
+    sendRec,
+    recOn,
+    recStartedAt,
+    recLimitMs,
+    recRemainingMs,
+    recSaving,
+    pendingClip,
+    recNote,
+    clearPendingClip: () => setPendingClip(null),
     startCameraLoop,
     stopMedia,
   };

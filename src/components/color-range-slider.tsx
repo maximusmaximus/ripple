@@ -6,7 +6,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus } from "lucide-react";
 import {
   gradientFromStops,
   sampleFromStops,
@@ -18,6 +18,8 @@ import {
   stopAlpha,
 } from "@/lib/ripple/palettes";
 import { useRippleStore } from "@/store/ripple";
+import { TipMark } from "./tip-mark";
+import { ColorSwatchButton } from "./color-wheel";
 
 export function ColorRangeSlider() {
   const worldId = useRippleStore((s) => s.worldId);
@@ -125,13 +127,18 @@ export function ColorRangeSlider() {
   const onTrackPointerDown = (e: ReactPointerEvent) => {
     const target = e.target as HTMLElement;
     if (target.dataset.handle || target.dataset.stop) return;
+    e.preventDefault();
     const t = clientXToT(e.clientX);
-    if (Math.abs(t - start) <= Math.abs(t - end)) {
-      setColorRange({ start: t, end });
-      dragging.current = "start";
-    } else {
-      setColorRange({ start, end: t });
-      dragging.current = "end";
+    if (!canAdd) return;
+    const id = addColorStop(t);
+    if (!id) return;
+    setSelectedId(id);
+    dragging.current = "stop";
+    dragStopId.current = id;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
     }
   };
 
@@ -150,7 +157,10 @@ export function ColorRangeSlider() {
   return (
     <div className="flex flex-col gap-2 select-none" key={worldId}>
       <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">
-        <span>Color</span>
+        <span className="inline-flex items-center gap-1">
+          Color
+          <TipMark id="gradient" />
+        </span>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -160,22 +170,24 @@ export function ColorRangeSlider() {
           >
             Reset
           </button>
-          <button
-            type="button"
-            disabled={!canAdd}
-            onClick={() => addColorStop()}
-            className="inline-flex items-center gap-0.5 rounded-md bg-fg/10 px-1.5 py-0.5 text-[10px] normal-case tracking-normal text-fg/90 hover:bg-fg/20 disabled:opacity-30"
-            title={canAdd ? `Add stop (${stops.length}/${MAX_COLOR_STOPS})` : "Maximum stops reached"}
-          >
-            <Plus className="size-3" strokeWidth={2.25} />
-            Stop
-          </button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <ColorSwatch label="Key" value={pair.key} onChange={setKeyColor} />
-        <ColorSwatch label="Shadow" value={pair.shadow} onChange={setShadowColor} />
+        <div className="flex items-center gap-2" title="Key color">
+          <ColorSwatchButton value={pair.key} onChange={setKeyColor} label="Key" />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">Key</span>
+            <span className="font-mono text-[9px] tabular-nums text-muted">{pair.key}</span>
+          </span>
+        </div>
+        <div className="flex items-center gap-2" title="Shadow color">
+          <ColorSwatchButton value={pair.shadow} onChange={setShadowColor} label="Shadow" />
+          <span className="flex min-w-0 flex-col leading-tight">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">Shadow</span>
+            <span className="font-mono text-[9px] tabular-nums text-muted">{pair.shadow}</span>
+          </span>
+        </div>
         <label className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1 pb-0.5">
           <span className="text-[10px] uppercase tracking-wider text-muted">Flip Gradient</span>
           <button
@@ -201,7 +213,8 @@ export function ColorRangeSlider() {
       <div
         ref={trackRef}
         onPointerDown={onTrackPointerDown}
-        className="relative mb-3 w-full cursor-pointer touch-none rounded-full"
+        className="relative mb-3 w-full cursor-copy touch-none rounded-full"
+        title={canAdd ? "Click to add a stop" : "Maximum stops reached"}
         style={{
           height: 44,
           minHeight: 44,
@@ -292,24 +305,12 @@ export function ColorRangeSlider() {
 
       {selected && (
         <div className="flex items-center gap-2 rounded-xl border border-line bg-ink/40 px-2.5 py-2">
-          <label className="relative flex h-8 w-8 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-line shadow-inner">
-            <span
-              className="absolute inset-0"
-              style={{
-                background:
-                  stopAlpha(selected) < 0.08
-                    ? "repeating-conic-gradient(#d0d0d0 0% 25%, #555 0% 50%) 50% / 8px 8px"
-                    : selected.color,
-              }}
-            />
-            <input
-              type="color"
-              value={selected.color}
-              onChange={(e) => updateColorStop(selected.id, { color: e.target.value, alpha: 1 })}
-              className="absolute inset-0 cursor-pointer opacity-0"
-              aria-label="Stop color"
-            />
-          </label>
+          <ColorSwatchButton
+            value={selected.color}
+            onChange={(hex) => updateColorStop(selected.id, { color: hex, alpha: 1 })}
+            label="Stop color"
+            className="size-8 rounded-lg"
+          />
           <div className="min-w-0 flex-1">
             <div className="truncate text-[11px] font-medium text-fg/90">Stop selected</div>
             <div className="font-mono text-[10px] tabular-nums text-muted">
@@ -350,7 +351,7 @@ export function ColorRangeSlider() {
           <span className="normal-case tracking-normal">
             {stops.length} stops
             {extraCount > 0 ? ` · +${extraCount} extra` : ""}
-            {canAdd ? ` · +${MAX_COLOR_STOPS - stops.length} more` : ""}
+            {canAdd ? " · click ramp to add" : ""}
           </span>
           <span>
             {(start * 100).toFixed(0)}–{(end * 100).toFixed(0)}%
@@ -358,36 +359,5 @@ export function ColorRangeSlider() {
         </div>
       )}
     </div>
-  );
-}
-
-function ColorSwatch({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (hex: string) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center gap-2" title={`${label} color`}>
-      <span
-        className="relative size-8 shrink-0 overflow-hidden rounded-full border-2 border-fg/85 shadow-md"
-        style={{ backgroundColor: value }}
-      >
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="color-swatch-input absolute inset-0 size-full cursor-pointer opacity-0"
-          aria-label={label}
-        />
-      </span>
-      <span className="flex min-w-0 flex-col leading-tight">
-        <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">{label}</span>
-        <span className="font-mono text-[9px] tabular-nums text-muted">{value}</span>
-      </span>
-    </label>
   );
 }

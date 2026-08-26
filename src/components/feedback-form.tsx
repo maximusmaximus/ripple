@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Bug, Lightbulb, Heart } from "lucide-react";
 import { submitStudioFeedback } from "@/lib/ripple/studio-api";
 
+const ISSUES_URL = "https://github.com/maximusmaximus/ripple/issues";
+
 export function FeedbackFooter() {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"feature" | "bug">("feature");
@@ -17,10 +19,15 @@ export function FeedbackFooter() {
     setBusy(true);
     setMsg(null);
     try {
-      await submitStudioFeedback({ data: { kind, body: body.trim() } });
-      setBody("");
-      setMsg("Got it — thank you.");
-      setOpen(false);
+      await submitStudioFeedback({ data: { kind, body: body.trim() } }).then((res) => {
+        setBody("");
+        setOpen(false);
+        if (res.issue?.url) {
+          setMsg(`Got it — opened as #${res.issue.number}.`);
+        } else {
+          setMsg("Got it — thank you.");
+        }
+      });
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Could not send.");
     } finally {
@@ -41,6 +48,14 @@ export function FeedbackFooter() {
         <Bug className="size-3.5" />
         Feature Request + Bug Submission
       </button>
+      <a
+        href={ISSUES_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-center text-[10px] text-subtle underline-offset-2 hover:text-muted hover:underline"
+      >
+        List lives on GitHub
+      </a>
       {open && (
         <div className="flex flex-col gap-2 rounded-xl border border-line bg-fg/5 p-2">
           <div className="grid grid-cols-2 gap-1">
@@ -85,7 +100,19 @@ export function FeedbackFooter() {
           </button>
         </div>
       )}
-      {msg && <p className="text-[10px] text-muted">{msg}</p>}
+      {msg && (
+        <p className="text-[10px] text-muted">
+          {msg}{" "}
+          <a
+            href={ISSUES_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-fg/80 underline-offset-2 hover:text-fg hover:underline"
+          >
+            View list
+          </a>
+        </p>
+      )}
       <p className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-center text-[10px] leading-snug text-subtle">
         Made with
         <Heart className="inline size-3 fill-rose-400 text-rose-400" strokeWidth={0} aria-hidden />

@@ -1,6 +1,7 @@
 import { BRUSHES, SCRIPT_BRUSHES, getBrush, type BrushId, type BrushKind, type BrushFeel } from "@/lib/ripple/brushes";
 import { useRippleStore } from "@/store/ripple";
 import { CustomBrushMenu } from "./custom-brushes";
+import { TipMark } from "./tip-mark";
 
 function Mark({
   kind,
@@ -143,6 +144,7 @@ export function BrushPicker() {
       <div className="flex items-baseline justify-between text-[12px] text-muted">
         <span className="inline-flex items-center gap-1.5">
           Brushes
+          <TipMark id="brushes" />
           <span
             className="inline-block size-2.5 rounded-full border border-line"
             style={{ background: color }}

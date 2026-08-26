@@ -1,7 +1,7 @@
 /**
- * Wall host — QR pair, then receive pad pointer / gyro / mic / camera / world.
+ * Wall host — QR pair, then receive pad pointer / gyro / mic / camera / world / studio.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { P2PRoom } from "@/lib/multiplayer";
 import {
   decodeCamB64,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/ripple/cast";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { PaletteId } from "@/lib/ripple/palettes";
+import type { StudioSnapshot } from "@/lib/ripple/studio";
 
 export type HostConnectionState = "idle" | "waiting" | "connected" | "reconnecting";
 
@@ -22,6 +23,8 @@ export type RemoteInput = {
   mic?: { level: number; bands?: number[] };
   worldId?: PaletteId | string;
   feel?: { viscosity: number; waveStrength: number; brushDiameter: number };
+  snapshot?: StudioSnapshot;
+  clear?: boolean;
 };
 
 export type RemoteFrame = { jpeg: ArrayBuffer; receivedAt: number };
@@ -33,10 +36,20 @@ export type UseCastHostOptions = {
   /** Stay on this page when minting a new code (desktop overlay). */
   stayOnPage?: boolean;
   enabled?: boolean;
+  onRecToggle?: (on: boolean) => void;
 };
 
 function makePeerId(prefix: string) {
   return `${prefix}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function pairUrlFor(code: string): string {
+  if (typeof window === "undefined" || !code) return "";
+  const u = new URL(window.location.href);
+  u.search = "";
+  u.searchParams.set("mode", "pad");
+  u.searchParams.set("c", code);
+  return u.toString();
 }
 
 export function useCastHost(opts: UseCastHostOptions = {}) {
@@ -49,17 +62,10 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   optsRef.current = opts;
   const wasLive = useRef(false);
 
-  useEffect(() => {
-    if (!code) setCode(makeCastCode());
-  }, [code]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !code) return;
-    const u = new URL(window.location.href);
-    u.search = "";
-    u.searchParams.set("mode", "pad");
-    u.searchParams.set("c", code);
-    setPairUrl(u.toString());
+  useLayoutEffect(() => {
+    const next = code || makeCastCode();
+    if (!code) setCode(next);
+    setPairUrl(pairUrlFor(next));
   }, [code]);
 
   useEffect(() => {
@@ -84,7 +90,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
           setState("reconnecting");
           setLastError("Phone dropped — scan again to take over");
         } else if (waiting) {
-          setState("waiting");
+          setState((prev) => (prev === "reconnecting" ? prev : "waiting"));
         } else {
           setState((prev) => (prev === "reconnecting" ? prev : "idle"));
         }
@@ -92,6 +98,12 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       onMessage: (_from, data) => {
         const msg = parseCastMsg(data);
         if (!msg) return;
+        if (msg.t === "bye") {
+          wasLive.current = false;
+          setState("reconnecting");
+          setLastError("Phone dropped — scan again to take over");
+          return;
+        }
         handleMsg(msg, optsRef.current);
       },
       onConnected: () => setState((s) => (s === "idle" ? "idle" : s)),
@@ -112,6 +124,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       setLastError(null);
       setState("idle");
       setCode(next);
+      setPairUrl(pairUrlFor(next));
       return;
     }
     const u = new URL(window.location.href);
@@ -131,6 +144,14 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     setState("idle");
   }, []);
 
+  const send = useCallback((msg: CastMsg) => {
+    try {
+      p2pRef.current?.send(msg);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   return {
     code,
     pairUrl,
@@ -140,11 +161,16 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     lastError,
     regenerateCode,
     disconnect,
+    send,
   };
 }
 
 function handleMsg(msg: CastMsg, opts: UseCastHostOptions) {
   if (msg.t === "bye") return;
+  if (msg.t === "rec") {
+    opts.onRecToggle?.(msg.on);
+    return;
+  }
   if (msg.t === "cam") {
     const jpeg = decodeCamB64(msg.b64);
     if (jpeg) opts.onCamFrame?.({ jpeg, receivedAt: Date.now() });
@@ -153,10 +179,11 @@ function handleMsg(msg: CastMsg, opts: UseCastHostOptions) {
   const input: RemoteInput = {};
   if (msg.t === "splats") input.splats = msg.s;
   if (msg.t === "ptr") input.ptr = { x: msg.x, y: msg.y, down: msg.down };
-  if (msg.t === "gyro")
-    input.gyro = { alpha: msg.alpha, beta: msg.beta, gamma: msg.gamma, angle: msg.ang };
+  if (msg.t === "gyro") input.gyro = { alpha: msg.alpha, beta: msg.beta, gamma: msg.gamma, angle: msg.ang };
   if (msg.t === "mic") input.mic = { level: msg.level, bands: msg.bands };
   if (msg.t === "world") input.worldId = msg.id;
   if (msg.t === "feel") input.feel = msg;
+  if (msg.t === "studio" && msg.snap && typeof msg.snap === "object") input.snapshot = msg.snap;
+  if (msg.t === "clear") input.clear = true;
   if (Object.keys(input).length) opts.onRemoteInput?.(input);
 }

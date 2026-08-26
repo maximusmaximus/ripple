@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { TEXTURE_ROWS, getTexture, type TextureId } from "@/lib/ripple/textures";
-import { MAX_UPLOAD_BYTES } from "@/lib/ripple/studio";
+import { MAX_UPLOAD_BYTES, mediaSrc } from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
 import { useRippleStore } from "@/store/ripple";
 import { TextureCrop } from "./texture-crop";
+import { TipMark } from "./tip-mark";
 
 export function TexturePicker() {
   const textureId = useRippleStore((s) => s.textureId);
@@ -24,7 +25,7 @@ export function TexturePicker() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const previewSrc = customLiveUrl || customTexture?.dataUrl || null;
+  const previewSrc = customLiveUrl || mediaSrc(customTexture);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -47,7 +48,10 @@ export function TexturePicker() {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between text-[11px] uppercase tracking-wider text-muted">
-        <span>Texture</span>
+        <span className="inline-flex items-center gap-1">
+          Texture
+          <TipMark id="texture" />
+        </span>
         <span className="max-w-[70%] truncate text-right text-[11px] font-medium normal-case tracking-normal text-fg/80">
           {textureId === "custom" ? "Upload" : active.name}
         </span>

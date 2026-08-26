@@ -1,6 +1,8 @@
-import { useCallback, useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useCastPad } from "@/hooks/use-cast-pad";
 import type { Splat } from "@/lib/ripple/pointer";
+import type { StudioSnapshot } from "@/lib/ripple/studio";
+import type { PendingClip } from "@/lib/ripple/record";
 
 export type PadHandle = {
   isLive: boolean;
@@ -9,6 +11,17 @@ export type PadHandle = {
   sendFeel: (viscosity: number, waveStrength: number, brushDiameter: number) => void;
   sendGyro: (alpha: number, beta: number, gamma: number, ang?: 0 | 90 | 180 | 270) => void;
   sendMic: (level: number, bands?: number[]) => void;
+  sendStudio: (snap: StudioSnapshot) => void;
+  sendClear: () => void;
+  sendRec: (on: boolean) => void;
+  recOn: boolean;
+  recStartedAt: number | null;
+  recLimitMs: number;
+  recRemainingMs: number;
+  recSaving: boolean;
+  pendingClip: PendingClip | null;
+  recNote: string | null;
+  clearPendingClip: () => void;
   startCameraLoop: () => Promise<void>;
 };
 
@@ -21,12 +34,19 @@ export function PadGate({ code, children }: Props) {
   const pad = useCastPad({ code });
   const connect = pad.connect;
   const startCameraLoop = pad.startCameraLoop;
+  const autoStarted = useRef(false);
 
   const handleConnect = useCallback(async () => {
     await connect();
     // Request camera in the same tap so iOS/Safari grants getUserMedia.
     void startCameraLoop();
   }, [connect, startCameraLoop]);
+
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    void handleConnect();
+  }, [handleConnect]);
 
   useEffect(() => {
     if (pad.isLive) void startCameraLoop();
@@ -42,6 +62,17 @@ export function PadGate({ code, children }: Props) {
           sendFeel: pad.sendFeel,
           sendGyro: pad.sendGyro,
           sendMic: pad.sendMic,
+          sendStudio: pad.sendStudio,
+          sendClear: pad.sendClear,
+          sendRec: pad.sendRec,
+          recOn: pad.recOn,
+          recStartedAt: pad.recStartedAt,
+          recLimitMs: pad.recLimitMs,
+          recRemainingMs: pad.recRemainingMs,
+          recSaving: pad.recSaving,
+          pendingClip: pad.pendingClip,
+          recNote: pad.recNote,
+          clearPendingClip: pad.clearPendingClip,
           startCameraLoop: pad.startCameraLoop,
         })}
       </>
@@ -70,11 +101,12 @@ export function PadGate({ code, children }: Props) {
         disabled={pad.state === "connecting"}
         className="rounded-full bg-fg px-8 py-3.5 text-sm font-semibold text-ink transition active:scale-95 disabled:opacity-50"
       >
-        {pad.state === "connecting" ? "Connecting…" : pad.error ? "Reconnect" : "Start streaming"}
+        {pad.state === "connecting" ? "Connecting…" : pad.error ? "Reconnect" : "Take control"}
       </button>
 
       <p className="max-w-xs text-xs text-pretty text-subtle">
-        Touch, tilt, and camera stream to the desktop. If the link drops, this screen comes back so you can reconnect.
+        The menu lives on this phone. The wall hides its chrome while you are linked. If the link
+        drops, the pairing card comes back on the display.
       </p>
     </div>
   );

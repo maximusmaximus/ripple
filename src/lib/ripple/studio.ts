@@ -1,7 +1,8 @@
-import type { BrushId, CustomBrush } from "@/lib/ripple/brushes";
+import type { BrushId, BrushSpan, CustomBrush } from "@/lib/ripple/brushes";
 import type { BrushFxId, FxLayerId } from "@/lib/ripple/blend";
 import type { ColorPair, ColorStop, PaletteId } from "@/lib/ripple/palettes";
 import type { TextureId } from "@/lib/ripple/textures";
+import { expandShortcodes } from "@/lib/ripple/emoji";
 
 export type TextureFit = "cover" | "contain" | "stretch";
 
@@ -10,6 +11,8 @@ export type CustomTexture = {
   dataUrl: string;
   width: number;
   height: number;
+  /** Repo-relative public path after persist (`/studio/media/...`). */
+  path?: string;
 };
 
 export type { CustomBrush };
@@ -22,6 +25,7 @@ export type StudioSnapshot = {
   viscosity: number;
   waveStrength: number;
   brushDiameter: number;
+  brushSpan?: Partial<Record<string, BrushSpan>>;
   brushId: BrushId | string;
   brushFx: Partial<Record<string, BrushFxId | BrushFxId[]>>;
   brushFxOpacity: number;
@@ -33,18 +37,13 @@ export type StudioSnapshot = {
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
-  /** 0 = original photo, 1 = hard threshold. Optional on older snapshots. */
   textureLevels?: number;
-  /** Invert texture luminance. Optional on older snapshots. */
   textureInvert?: boolean;
-  /** Reverse the color ramp. Optional on older snapshots. */
   gradientFlip?: boolean;
   cameraInteract: number;
   micSensitivity: number;
   gyroSensitivity: number;
-  /** Optional on older snapshots — defaults to 0.55. */
   gyroZoom?: number;
-  /** User PNG stamps. Optional on older snapshots. */
   customBrushes?: CustomBrush[];
 };
 
@@ -59,7 +58,7 @@ export type NamedPreset = {
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_DIM = 4096;
 export const MAX_PRESET_NAME = 32;
-export const MAX_STUDIO_PRESETS = 40;
+export const MAX_STUDIO_PRESETS = 100;
 export const ALLOWED_TEXTURE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 export const EASY_PRESET_ID = "home_easy";
 export const GITHUB_HOMEBASE_URL =
@@ -80,6 +79,7 @@ export function easySnapshot(): StudioSnapshot {
     viscosity: 0.96,
     waveStrength: 0.7,
     brushDiameter: 0.04,
+    brushSpan: { ink: { min: 0.014, max: 0.04 } },
     brushId: "ink",
     brushFx: { ink: ["normal"] },
     brushFxOpacity: 0.7,
@@ -123,7 +123,31 @@ export function newPresetId(): string {
 }
 
 export function sanitizePresetName(name: string): string {
-  return name.replace(/\s+/g, " ").trim().slice(0, MAX_PRESET_NAME);
+  return expandShortcodes(name).replace(/\s+/g, " ").trim().slice(0, MAX_PRESET_NAME);
+}
+
+export function uniquePresetName(desired: string, taken: string[]): string {
+  const root = sanitizePresetName(desired) || "Mix";
+  const used = new Set(taken.map((n) => n.trim().toLowerCase()));
+  if (!used.has(root.toLowerCase())) return root;
+  for (let i = 2; i < 99; i++) {
+    const next = sanitizePresetName(`${root} ${i}`);
+    if (!used.has(next.toLowerCase())) return next;
+  }
+  return sanitizePresetName(`${root} ${Date.now().toString(36)}`);
+}
+
+export function mediaSrc(item?: { dataUrl?: string; path?: string } | null): string | null {
+  if (!item) return null;
+  const url = item.dataUrl ?? "";
+  if (url.length > 16 && (url.startsWith("data:") || url.startsWith("blob:") || url.startsWith("http"))) return url;
+  if (item.path) return item.path;
+  if (url.length > 16) return url;
+  return null;
+}
+
+export function hasMediaPayload(item?: { dataUrl?: string; path?: string } | null): boolean {
+  return mediaSrc(item) != null;
 }
 
 function asPresets(data: unknown): NamedPreset[] {
@@ -137,7 +161,7 @@ function asPresets(data: unknown): NamedPreset[] {
 
 async function fetchPresetList(url: string): Promise<NamedPreset[]> {
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(2500) });
     if (!r.ok) return [];
     return asPresets(await r.json());
   } catch {
@@ -145,18 +169,69 @@ async function fetchPresetList(url: string): Promise<NamedPreset[]> {
   }
 }
 
-/** Local shipped file first, then GitHub homebase so restarts/updates still load. */
+/** Built-in catalog first, then local JSON, then GitHub — ids win first. */
 export async function loadHomebasePresets(): Promise<NamedPreset[]> {
-  const [local, remote] = await Promise.all([
+  const [{ builtinPresets }, local, remote] = await Promise.all([
+    import("@/lib/ripple/showroom"),
     fetchPresetList("/studio/presets.json"),
     fetchPresetList(GITHUB_HOMEBASE_URL),
   ]);
   const seen = new Set<string>();
   const merged: NamedPreset[] = [];
-  for (const p of [easyPreset(), ...local, ...remote]) {
+  for (const p of [...builtinPresets(), ...local, ...remote]) {
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     merged.push(p);
   }
   return merged;
+}
+
+export async function fetchAsDataUrl(path: string): Promise<string | null> {
+  try {
+    const r = await fetch(path, { cache: "no-store" });
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    return await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(typeof fr.result === "string" ? fr.result : null);
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function hydrateSnapshotMedia(snap: StudioSnapshot): Promise<StudioSnapshot> {
+  let customTexture = snap.customTexture;
+  if (customTexture?.path && !(customTexture.dataUrl && customTexture.dataUrl.length > 16)) {
+    const dataUrl = await fetchAsDataUrl(customTexture.path);
+    if (dataUrl) customTexture = { ...customTexture, dataUrl };
+  }
+  const customBrushes = await Promise.all(
+    (snap.customBrushes ?? []).map(async (b) => {
+      if (b.path && !(b.dataUrl && b.dataUrl.length > 16)) {
+        const dataUrl = await fetchAsDataUrl(b.path);
+        if (dataUrl) return { ...b, dataUrl };
+      }
+      return b;
+    }),
+  );
+  return { ...snap, customTexture, customBrushes };
+}
+
+/** Strip oversized dataUrls when a public path exists — keeps P2P casts small. */
+export function compactCastSnapshot(snap: StudioSnapshot): StudioSnapshot {
+  const cap = 64_000;
+  const trim = <T extends { dataUrl?: string; path?: string }>(item: T): T => {
+    const url = item.dataUrl ?? "";
+    if (url.length <= cap) return item;
+    if (item.path) return { ...item, dataUrl: "" };
+    return item;
+  };
+  return {
+    ...snap,
+    customTexture: snap.customTexture ? trim(snap.customTexture) : null,
+    customBrushes: (snap.customBrushes ?? []).map((b) => trim(b)),
+  };
 }

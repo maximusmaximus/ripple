@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import type { GyroMode, SensorsState } from "@/lib/ripple/media";
 import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
+import { formatCountdown, savePendingClip, type PendingClip } from "@/lib/ripple/record";
+import { TipMark } from "./tip-mark";
 
 type Props = {
   sensors: SensorsState;
@@ -20,6 +22,13 @@ type Props = {
   recording?: boolean;
   onToggleRecord?: () => void;
   recordStartedAt?: number | null;
+  recordLimitMs?: number;
+  recordRemainingMs?: number;
+  recordSaving?: boolean;
+  pendingClip?: PendingClip | null;
+  onSaveClip?: () => void;
+  recNote?: string | null;
+  recordError?: string | null;
   linkState?: "off" | "waiting" | "live";
   onToggleLink?: () => void;
 };
@@ -38,29 +47,36 @@ async function openCamera(facing: "user" | "environment"): Promise<MediaStream> 
   }
 }
 
-function formatElapsed(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 export function SensorsBar({
   sensors,
   onChange,
   recording = false,
   onToggleRecord,
   recordStartedAt,
+  recordLimitMs = 8_000,
+  recordRemainingMs,
+  recordSaving = false,
+  pendingClip,
+  onSaveClip,
+  recNote,
+  recordError,
   linkState,
   onToggleLink,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!recording) return;
-    const id = window.setInterval(() => setNow(Date.now()), 250);
+    if (!recording && !recordSaving) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
     return () => window.clearInterval(id);
-  }, [recording]);
-  const elapsed = recording && recordStartedAt ? Math.max(0, Math.floor((now - recordStartedAt) / 1000)) : 0;
+  }, [recording, recordSaving]);
+  const remaining =
+    recordRemainingMs != null
+      ? recordRemainingMs
+      : recording && recordStartedAt
+        ? Math.max(0, recordLimitMs - (now - recordStartedAt))
+        : 0;
+  const tight = recording && remaining <= 3000;
 
   /** Cycle: off → rear → front → off. One top-left button. */
   const cycleCamera = useCallback(async () => {
@@ -240,7 +256,8 @@ export function SensorsBar({
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex gap-2">
-        <button
+        <span className="relative">
+          <button
           type="button"
           className={btn}
           style={{ opacity: camState === "off" ? 0.5 : 1 }}
@@ -265,6 +282,9 @@ export function SensorsBar({
             </span>
           )}
         </button>
+          <TipMark id="camera" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
+        <span className="relative">
         <button
           type="button"
           className={btn}
@@ -280,6 +300,9 @@ export function SensorsBar({
         >
           <Mic className="size-4" strokeWidth={1.75} />
         </button>
+          <TipMark id="mic" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
+        <span className="relative">
         <button
           type="button"
           className={btn}
@@ -300,6 +323,8 @@ export function SensorsBar({
             </span>
           )}
         </button>
+          <TipMark id="gyro" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
       </div>
       {sensors.error && (
         <div className="pointer-events-auto max-w-[40%] rounded-lg bg-ink/70 px-3 py-1.5 text-xs text-amber-200 backdrop-blur">
@@ -308,16 +333,22 @@ export function SensorsBar({
       )}
       <div className="flex items-center gap-2">
       {onToggleLink && (
+        <span className="relative max-md:hidden">
         <button
           type="button"
           className={
-            "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-95 max-md:hidden " +
+            "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-95 " +
             (linkState === "live"
               ? "border-emerald-400/80 bg-emerald-500/25 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.45)]"
               : linkState === "waiting"
                 ? "border-amber-400/70 bg-amber-500/15 text-amber-100"
                 : "border-line bg-ink/50 text-fg/55 hover:bg-ink/70 hover:text-fg")
           }
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleLink();
+          }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -353,24 +384,41 @@ export function SensorsBar({
             </span>
           )}
         </button>
+          <TipMark id="pair" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
       )}
       {onToggleRecord && (
+        <span className="relative">
         <button
           type="button"
           className={
             "pointer-events-auto relative flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border backdrop-blur-md transition active:scale-95 " +
             (recording
-              ? "rec-live border-red-400 bg-red-600 px-3 text-white shadow-[0_0_18px_rgba(220,38,38,0.55)]"
-              : "border-line bg-ink/50 px-2.5 text-fg/85 hover:bg-ink/70 hover:text-fg")
+              ? "rec-live border-red-400 bg-red-600 px-3 text-white shadow-[0_0_18px_rgba(220,38,38,0.55)] " +
+                (tight ? "rec-tight" : "")
+              : recordSaving
+                ? "border-amber-300/80 bg-amber-700/80 px-3 text-white"
+                : "border-line bg-ink/50 px-2.5 text-fg/85 hover:bg-ink/70 hover:text-fg")
           }
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onToggleRecord();
           }}
+          disabled={recordSaving}
           aria-pressed={recording}
-          aria-label={recording ? "Stop recording and save" : "Start recording"}
-          title={recording ? "Recording — tap to stop and save" : "Record the canvas"}
+          aria-label={
+            recording
+              ? `Stop recording, ${formatCountdown(remaining)} left`
+              : recordSaving
+                ? "Saving clip"
+                : "Start recording"
+          }
+          title={
+            recording
+              ? `${formatCountdown(remaining)} left · tap to stop. Auto-saves to this device and the linked one.`
+              : "Record the canvas. Linked devices both get the clip."
+          }
         >
           {recording ? (
             <Square className="size-3.5 fill-current" strokeWidth={2} />
@@ -380,12 +428,38 @@ export function SensorsBar({
           <span
             className={
               "font-mono text-[10px] font-semibold tracking-wide tabular-nums " +
-              (recording ? "text-white" : "text-fg/80")
+              (recording || recordSaving ? "text-white" : "text-fg/80")
             }
           >
-            {recording ? formatElapsed(elapsed) : "REC"}
+            {recording ? formatCountdown(remaining) : recordSaving ? "SAVE" : "REC"}
           </span>
         </button>
+          <TipMark id="rec" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
+      )}
+      {pendingClip && (
+        <button
+          type="button"
+          className="pointer-events-auto flex h-11 items-center rounded-full border border-emerald-300/70 bg-emerald-700/85 px-3 text-[11px] font-semibold text-white"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            savePendingClip(pendingClip);
+            onSaveClip?.();
+          }}
+        >
+          Save clip
+        </button>
+      )}
+      {recordError && (
+        <span className="pointer-events-none max-w-[9rem] truncate rounded-full bg-rose-600/80 px-2 py-1 text-[10px] text-white">
+          {recordError}
+        </span>
+      )}
+      {recNote && !pendingClip && (
+        <span className="pointer-events-none max-w-[10rem] truncate rounded-full bg-ink/70 px-2 py-1 text-[10px] text-fg/85">
+          {recNote}
+        </span>
       )}
       </div>
     </div>

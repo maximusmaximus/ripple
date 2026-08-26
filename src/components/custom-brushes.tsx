@@ -9,6 +9,7 @@ import {
   type CustomBrush,
 } from "@/lib/ripple/brushes";
 import { MAX_BRUSH_BYTES, readBrushPng } from "@/lib/ripple/brush-file";
+import { mediaSrc } from "@/lib/ripple/studio";
 import { useRippleStore } from "@/store/ripple";
 
 export function CustomBrushMenu({ color }: { color: string }) {
@@ -86,7 +87,7 @@ export function CustomBrushMenu({ color }: { color: string }) {
                 style={{ background: "rgb(8 8 12 / 0.85)" }}
               >
                 <img
-                  src={b.dataUrl}
+                  src={mediaSrc(b) ?? ""}
                   alt=""
                   className="max-h-[80%] max-w-[80%] object-contain"
                   style={{

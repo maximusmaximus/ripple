@@ -3,9 +3,11 @@
  *
  * Messages are small JSON over a WebRTC data channel (P2PRoom).
  * Camera frames are JPEG, base64, at low res for bandwidth.
+ * Studio snapshots travel reliably so the pad menu drives the wall.
  */
 
 import type { Splat } from "./pointer";
+import type { StudioSnapshot } from "./studio";
 
 export type CastRole = "host" | "pad";
 
@@ -18,6 +20,14 @@ export type CastMsg =
   | { t: "gyro"; alpha: number; beta: number; gamma: number; ang?: 0 | 90 | 180 | 270 }
   | { t: "mic"; level: number; bands?: number[] }
   | { t: "cam"; b64: string }
+  | { t: "studio"; snap: StudioSnapshot }
+  | { t: "clear" }
+  | { t: "rec"; on: boolean }
+  | { t: "rec-state"; on: boolean; startedAt: number; limitMs: number }
+  | { t: "rec-meta"; name: string; mime: string; n: number; bytes: number }
+  | { t: "rec-chunk"; i: number; b64: string }
+  | { t: "rec-done" }
+  | { t: "rec-skip"; reason: string }
   | { t: "ping"; ts: number }
   | { t: "pong"; ts: number }
   | { t: "bye" };

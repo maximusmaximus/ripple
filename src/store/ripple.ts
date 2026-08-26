@@ -16,10 +16,10 @@ import {
   type ColorPair,
   type ColorStop,
 } from "@/lib/ripple/palettes";
-import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, type CustomBrush } from "@/lib/ripple/brushes";
+import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, normalizeBrushSpan, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
-import type { CustomTexture, StudioSnapshot, TextureFit } from "@/lib/ripple/studio";
+import { hasMediaPayload, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
 
 export type WorldId = PaletteId;
 
@@ -37,8 +37,10 @@ interface RippleState {
 
   viscosity: number;
   waveStrength: number;
-  /** Brush diameter in normalized units (0.01 – 0.12). */
+  /** Brush diameter in normalized units (0.01 – 0.12). Kept as the large end of the live span. */
   brushDiameter: number;
+  /** Per-brush small/large mark size. Tail interpolates between them along a stroke. */
+  brushSpan: Partial<Record<string, BrushSpan>>;
   /** Active brush preset (builtin id or cb_*). */
   brushId: string;
   /** Per-brush mix with bed + camera. One or more compatible modes. */
@@ -72,6 +74,9 @@ interface RippleState {
   clearToken: number;
   castPinned: boolean;
   dockOpen: boolean;
+  tipsOn: boolean;
+  openTipId: string | null;
+  hiddenPresetIds: string[];
 
   setWorld: (id: WorldId) => void;
   nextWorld: () => void;
@@ -81,13 +86,15 @@ interface RippleState {
   setShadowColor: (hex: string) => void;
   resetColorRange: () => void;
   getActiveStops: () => ColorStop[];
-  addColorStop: () => void;
+  addColorStop: (t?: number) => string | null;
   removeColorStop: (id: string) => void;
   updateColorStop: (id: string, patch: Partial<Pick<ColorStop, "t" | "color" | "alpha">>) => void;
   resetColorStops: () => void;
   setViscosity: (v: number) => void;
   setWaveStrength: (v: number) => void;
   setBrushDiameter: (v: number) => void;
+  setBrushSpan: (span: BrushSpan) => void;
+  getActiveSpan: () => BrushSpan;
   setBrushId: (id: string) => void;
   addCustomBrush: (brush: CustomBrush) => void;
   updateCustomBrush: (id: string, patch: Partial<Pick<CustomBrush, "name" | "angle" | "spin">>) => void;
@@ -118,6 +125,9 @@ interface RippleState {
   clearSurface: () => void;
   setCastPinned: (v: boolean) => void;
   setDockOpen: (v: boolean) => void;
+  setTipsOn: (v: boolean) => void;
+  setOpenTip: (id: string | null) => void;
+  hidePreset: (id: string) => void;
 
   getActiveRange: () => ColorRange;
   getActivePair: () => ColorPair;
@@ -184,6 +194,7 @@ export const useRippleStore = create<RippleState>()(
       viscosity: PALETTES.lens.viscosity,
       waveStrength: PALETTES.lens.waveStrength,
       brushDiameter: getBrush(PALETTES.lens.brushId).radius * 2,
+      brushSpan: {},
       brushId: PALETTES.lens.brushId,
       brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
       brushFxOpacity: PALETTES.lens.brushFxOpacity,
@@ -207,6 +218,9 @@ export const useRippleStore = create<RippleState>()(
       clearToken: 0,
       castPinned: false,
       dockOpen: true,
+      tipsOn: false,
+      openTipId: null,
+      hiddenPresetIds: [],
 
       setWorld: (id) =>
         set((s) => {
@@ -285,18 +299,21 @@ export const useRippleStore = create<RippleState>()(
         return defaultStopsFor(palette, colorPairs[worldId]);
       },
 
-      addColorStop: () => {
+      addColorStop: (t) => {
         const { worldId, colorStops, colorPairs } = get();
         const saved = colorStops[worldId];
         const current =
           saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
-        if (current.length >= MAX_COLOR_STOPS) return;
+        if (current.length >= MAX_COLOR_STOPS) return null;
+        const next = addStopHelper(current, undefined, t);
+        const added = next.find((s) => !current.some((c) => c.id === s.id));
         set({
           colorStops: {
             ...colorStops,
-            [worldId]: addStopHelper(current),
+            [worldId]: next,
           },
         });
+        return added?.id ?? null;
       },
 
       removeColorStop: (id) => {
@@ -334,18 +351,44 @@ export const useRippleStore = create<RippleState>()(
 
       setViscosity: (v) => set({ viscosity: Math.max(0.85, Math.min(0.999, v)) }),
       setWaveStrength: (v) => set({ waveStrength: Math.max(0.1, Math.min(1.5, v)) }),
-      setBrushDiameter: (v) => set({ brushDiameter: Math.max(0.01, Math.min(0.12, v)) }),
+      setBrushDiameter: (v) => {
+        const id = get().brushId;
+        const b = getBrush(id, get().customBrushes);
+        const prev = get().brushSpan[id] ?? defaultBrushSpan(b.radius);
+        const span = normalizeBrushSpan({ min: prev.min, max: v });
+        set({ brushDiameter: span.max, brushSpan: { ...get().brushSpan, [id]: span } });
+      },
+      setBrushSpan: (span) => {
+        const id = get().brushId;
+        const next = normalizeBrushSpan(span);
+        set({ brushDiameter: next.max, brushSpan: { ...get().brushSpan, [id]: next } });
+      },
+      getActiveSpan: () => {
+        const s = get();
+        const b = getBrush(s.brushId, s.customBrushes);
+        return normalizeBrushSpan(s.brushSpan[s.brushId] ?? defaultBrushSpan(b.radius));
+      },
       setBrushId: (id) => {
         const customs = get().customBrushes;
         const b = getBrush(id, customs);
         const nextId = isCustomBrushId(id) && customs.some((c) => c.id === id) ? id : b.id;
-        set({ brushId: nextId, brushDiameter: Math.max(0.01, Math.min(0.12, b.radius * 2)) });
+        const span = get().brushSpan[nextId] ?? defaultBrushSpan(b.radius);
+        set({
+          brushId: nextId,
+          brushDiameter: span.max,
+          brushSpan: { ...get().brushSpan, [nextId]: span },
+        });
       },
       addCustomBrush: (brush) => {
         const list = get().customBrushes;
         if (list.length >= MAX_CUSTOM_BRUSHES) return;
         if (list.some((c) => c.id === brush.id)) return;
-        set({ customBrushes: [...list, brush], brushId: brush.id, brushDiameter: Math.max(0.01, Math.min(0.12, 0.06)) });
+        set({
+          customBrushes: [...list, brush],
+          brushId: brush.id,
+          brushDiameter: 0.06,
+          brushSpan: { ...get().brushSpan, [brush.id]: { min: 0.02, max: 0.06 } },
+        });
       },
       updateCustomBrush: (id, patch) => {
         set({
@@ -441,6 +484,7 @@ export const useRippleStore = create<RippleState>()(
           viscosity: s.viscosity,
           waveStrength: s.waveStrength,
           brushDiameter: s.brushDiameter,
+          brushSpan: s.brushSpan,
           brushId: s.brushId,
           brushFx: s.brushFx,
           brushFxOpacity: s.brushFxOpacity,
@@ -480,7 +524,7 @@ export const useRippleStore = create<RippleState>()(
             /* ignore */
           }
         }
-        const custom = snap.customTexture ?? null;
+        const custom = snap.customTexture && hasMediaPayload(snap.customTexture) ? snap.customTexture : null;
         const texId = custom ? getTexture(snap.textureId).id : getTexture(snap.textureId === "custom" ? DEFAULT_TEXTURE_ID : snap.textureId).id;
         set({
           worldId: snap.worldId,
@@ -490,6 +534,7 @@ export const useRippleStore = create<RippleState>()(
           viscosity: snap.viscosity,
           waveStrength: snap.waveStrength,
           brushDiameter: snap.brushDiameter ?? Math.max(0.01, Math.min(0.12, brush.radius * 2)),
+          brushSpan: snap.brushSpan ?? {},
           brushId: keepCustom ? snap.brushId : brush.id,
           brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
           brushFxOpacity: snap.brushFxOpacity,
@@ -535,6 +580,7 @@ export const useRippleStore = create<RippleState>()(
           viscosity: p.viscosity,
           waveStrength: p.waveStrength,
           brushDiameter: Math.max(0.01, Math.min(0.12, brush.radius * 2)),
+          brushSpan: {},
           brushId: brush.id,
           brushFx: { [brush.id]: p.brushFx },
           brushFxOpacity: p.brushFxOpacity,
@@ -565,6 +611,12 @@ export const useRippleStore = create<RippleState>()(
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
       setDockOpen: (v) => set({ dockOpen: v }),
+      setTipsOn: (v) => set({ tipsOn: v, openTipId: v ? "paint" : null }),
+      setOpenTip: (id) => set({ openTipId: id }),
+      hidePreset: (id) =>
+        set((s) => ({
+          hiddenPresetIds: s.hiddenPresetIds.includes(id) ? s.hiddenPresetIds : [...s.hiddenPresetIds, id],
+        })),
 
       getActiveRange: () => {
         const { worldId, colorRanges } = get();
@@ -595,6 +647,7 @@ export const useRippleStore = create<RippleState>()(
     }),
     {
       name: "ripple-world-v3",
+      skipHydration: true,
       storage: createJSONStorage(() => liveStorage()),
       partialize: (s) => ({
         worldId: s.worldId,
@@ -604,6 +657,7 @@ export const useRippleStore = create<RippleState>()(
         viscosity: s.viscosity,
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
+        brushSpan: s.brushSpan,
         brushId: s.brushId,
         brushFx: s.brushFx,
         brushFxOpacity: s.brushFxOpacity,
@@ -624,6 +678,7 @@ export const useRippleStore = create<RippleState>()(
         gyroCalibrated: true as const,
         gyroZoom: s.gyroZoom,
         customBrushes: s.customBrushes,
+        hiddenPresetIds: s.hiddenPresetIds,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean };
@@ -641,6 +696,9 @@ export const useRippleStore = create<RippleState>()(
           gradientFlip: Boolean(p.gradientFlip),
           fxLayers: shadowOn && !fxLayers.includes("shadow") ? [...fxLayers, "shadow"] : fxLayers,
           customBrushes: Array.isArray(p.customBrushes) ? p.customBrushes : current.customBrushes,
+          hiddenPresetIds: Array.isArray((p as { hiddenPresetIds?: string[] }).hiddenPresetIds)
+            ? (p as { hiddenPresetIds: string[] }).hiddenPresetIds
+            : current.hiddenPresetIds,
         };
       },
     },

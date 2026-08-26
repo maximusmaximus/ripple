@@ -341,13 +341,16 @@ export class RippleEngineBase {
   };
 
   resize() {
+    const cw = this.canvas.clientWidth;
+    const ch = this.canvas.clientHeight;
+    if (cw < 8 || ch < 8) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.floor(Math.max(1, this.canvas.clientWidth) * dpr);
-    const h = Math.floor(Math.max(1, this.canvas.clientHeight) * dpr);
+    const w = Math.floor(cw * dpr);
+    const h = Math.floor(ch * dpr);
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
-      this.allocSim(this.canvas.clientWidth, this.canvas.clientHeight);
+      this.allocSim(cw, ch);
     }
   }
 

@@ -30,6 +30,8 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
+    overflow-anchor: none;
     background: var(--color-ink);
     color: var(--color-fg);
     font-family: var(--font-sans);
@@ -82,13 +84,13 @@
 .ripple-splash {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1.25rem;
-  background: var(--color-ink);
+  gap: 1.1rem;
+  background: transparent;
   pointer-events: none;
   opacity: 1;
   transition:
@@ -99,6 +101,50 @@
 .ripple-splash.is-fading {
   opacity: 0;
   filter: blur(3px);
+}
+
+.ripple-splash-wash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 55% at 18% 28%, color-mix(in oklab, var(--wash-a) 72%, transparent), transparent 70%),
+    radial-gradient(ellipse 65% 50% at 82% 36%, color-mix(in oklab, var(--wash-b) 68%, transparent), transparent 68%),
+    radial-gradient(ellipse 80% 60% at 48% 88%, color-mix(in oklab, var(--wash-c) 64%, transparent), transparent 72%),
+    radial-gradient(ellipse 50% 40% at 70% 70%, color-mix(in oklab, var(--wash-d) 50%, transparent), transparent 70%);
+  mix-blend-mode: screen;
+  opacity: 0.72;
+  animation: ripple-wash 7.5s ease-in-out infinite alternate;
+}
+
+.ripple-splash-wheel {
+  position: relative;
+  z-index: 1;
+  width: 6.5rem;
+  height: 6.5rem;
+  animation: ripple-spin 2.4s linear infinite;
+}
+
+.ripple-splash-wheel svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ripple-splash-track,
+.ripple-splash-fill {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.ripple-splash-track {
+  stroke: rgb(255 255 255 / 0.14);
+}
+
+.ripple-splash-fill {
+  stroke: var(--color-fg);
+  transition: stroke-dashoffset 160ms linear;
 }
 
 .ripple-splash-rings {
@@ -124,6 +170,8 @@
 }
 
 .ripple-splash-title {
+  position: relative;
+  z-index: 1;
   margin: 0;
   font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
   font-weight: 500;
@@ -134,10 +182,12 @@
 }
 
 .ripple-splash-sub {
+  position: relative;
+  z-index: 1;
   margin: 0;
   font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--color-subtle);
   background: linear-gradient(
@@ -176,8 +226,109 @@
   }
 }
 
+@keyframes ripple-wash {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: hue-rotate(0deg);
+  }
+  50% {
+    transform: scale(1.08) translate3d(2%, -3%, 0);
+    filter: hue-rotate(18deg);
+  }
+  100% {
+    transform: scale(1.04) translate3d(-3%, 2%, 0);
+    filter: hue-rotate(-12deg);
+  }
+}
+
+@keyframes ripple-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.preset-well {
+  background: rgb(0 0 0 / 0.32);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.05),
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    inset 0 18px 28px rgb(0 0 0 / 0.35);
+}
+
+.emoji-suggest {
+  position: fixed;
+  z-index: 120;
+  max-height: 12.5rem;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-ink) 92%, transparent);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.5);
+  padding: 4px;
+  backdrop-filter: blur(16px);
+}
+
+.emoji-suggest-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: left;
+  color: var(--color-fg);
+}
+
+.emoji-suggest-row.is-active {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.emoji-suggest-glyph {
+  width: 1.35rem;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.emoji-suggest-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.preset-well-scroll,
+.preset-scroller,
+.controls-dock-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior: contain;
+}
+
+.preset-well-scroll::-webkit-scrollbar,
+.preset-scroller::-webkit-scrollbar,
+.controls-dock-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.dock-scroll-track {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.04), rgb(255 255 255 / 0.12), rgb(255 255 255 / 0.04));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
 .rec-live {
   animation: rec-pulse 1.2s ease-in-out infinite;
+}
+
+.rec-tight {
+  animation: rec-pulse 0.45s ease-in-out infinite;
+  background: #b91c1c;
 }
 
 @keyframes rec-pulse {
@@ -190,9 +341,87 @@
   }
 }
 
+.voidride-hold {
+  --hold-ms: 1800ms;
+}
+
+.voidride-hold.is-done .voidride-load-bar span {
+  animation: none;
+  width: 100%;
+  transform: scaleX(1);
+}
+
+.voidride-load-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 12px 10px;
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.78);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.voidride-load-label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
+}
+
+.voidride-load-bar {
+  display: block;
+  height: 5px;
+  width: 9.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.22);
+}
+
+.voidride-load-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transform: scaleX(0.04);
+  transform-origin: left center;
+}
+
+.voidride-hold.is-wait .voidride-load-bar span {
+  width: 40%;
+  transform: none;
+  animation: voidride-bar-wait 1.15s ease-in-out infinite;
+}
+
+@keyframes voidride-bar-wait {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+@keyframes voidride-bar-fill {
+  from {
+    transform: scaleX(0.04);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ripple-splash-rings span,
-  .ripple-splash-sub {
+  .ripple-splash-sub,
+  .ripple-splash-wash,
+  .ripple-splash-wheel {
     animation: none;
   }
   .ripple-splash-sub {

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { encode } from "uqr";
 
 export function QrMark({
@@ -14,36 +14,38 @@ export function QrMark({
   dark?: string;
   light?: string;
 }) {
-  const { data, n } = useMemo(() => {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useLayoutEffect(() => {
+    const canvas = ref.current;
+    if (!canvas || !value) return;
     const result = encode(value, { ecc: "M", border: 2 });
-    return { data: result.data, n: result.size };
-  }, [value]);
-  const cell = size / n;
+    const n = result.size;
+    const scale = 4;
+    canvas.width = n * scale;
+    canvas.height = n * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = dark;
+    for (let y = 0; y < n; y++) {
+      const row = result.data[y]!;
+      for (let x = 0; x < n; x++) {
+        if (row[x]) ctx.fillRect(x * scale, y * scale, scale, scale);
+      }
+    }
+  }, [value, dark, light]);
 
   return (
-    <svg
+    <canvas
+      ref={ref}
       width={size}
       height={size}
-      viewBox={`0 0 ${size} ${size}`}
       className={className}
+      style={{ width: size, height: size, borderRadius: 12 }}
       role="img"
       aria-label="Scan to pair this display"
-    >
-      <rect width={size} height={size} fill={light} rx={12} />
-      {data.map((row, y) =>
-        row.map((on, x) =>
-          on ? (
-            <rect
-              key={`${x}-${y}`}
-              x={x * cell}
-              y={y * cell}
-              width={cell}
-              height={cell}
-              fill={dark}
-            />
-          ) : null,
-        ),
-      )}
-    </svg>
+    />
   );
 }

@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { QrMark } from "./qr-mark";
+import { VoidrideHold } from "./voidride-hold";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import { emptySensorsState, type SensorsState } from "@/lib/ripple/media";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
 import type { Splat } from "@/lib/ripple/pointer";
+import { hydrateSnapshotMedia } from "@/lib/ripple/studio";
 import { useOrientation } from "@/hooks/use-orientation";
+import { useCanvasRecord } from "@/hooks/use-canvas-record";
+import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
+import type { CastMsg } from "@/lib/ripple/cast";
 
 type Props = {
   preferredCode?: string | null;
@@ -19,6 +24,9 @@ export function WallViewport({ preferredCode }: Props) {
   const setViscosity = useRippleStore((s) => s.setViscosity);
   const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
   const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
+  const applySnapshot = useRippleStore((s) => s.applySnapshot);
+  const clearSurface = useRippleStore((s) => s.clearSurface);
+  const washColors = useRippleStore((s) => s.getActivePalette().colors);
 
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
@@ -54,6 +62,10 @@ export function WallViewport({ preferredCode }: Props) {
     }
   }, []);
 
+  const hostSendRef = useRef<(msg: CastMsg) => void>(() => {});
+  const hostLiveRef = useRef(false);
+  const recRef = useRef<{ start: () => boolean; stop: () => void } | null>(null);
+
   const onRemoteInput = useCallback(
     (input: RemoteInput) => {
       if (input.splats?.length) {
@@ -74,6 +86,10 @@ export function WallViewport({ preferredCode }: Props) {
         setWaveStrength(input.feel.waveStrength);
         setBrushDiameter(input.feel.brushDiameter);
       }
+      if (input.snapshot) {
+        void hydrateSnapshotMedia(input.snapshot).then((snap) => applySnapshot(snap));
+      }
+      if (input.clear) clearSurface();
       if (input.mic) {
         setRemoteMic(input.mic.level);
         setRemoteMicBands(input.mic.bands ?? null);
@@ -86,11 +102,45 @@ export function WallViewport({ preferredCode }: Props) {
         });
       }
     },
-    [setWorld, setViscosity, setWaveStrength, setBrushDiameter],
+    [setWorld, setViscosity, setWaveStrength, setBrushDiameter, applySnapshot, clearSurface],
   );
 
-  const host = useCastHost({ preferredCode, onCamFrame, onRemoteInput });
+  const host = useCastHost({
+    preferredCode,
+    onCamFrame,
+    onRemoteInput,
+    onRecToggle: (on) => {
+      if (on) recRef.current?.start();
+      else recRef.current?.stop();
+    },
+  });
+  hostSendRef.current = host.send;
+  hostLiveRef.current = host.isLive;
   const splash = useSurfaceSplash();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const record = useCanvasRecord(() => canvasRef.current, {
+    onBlob: async (blob, name) => {
+      if (hostLiveRef.current) await sendRecBlob((m) => hostSendRef.current(m), blob, name);
+    },
+  });
+  recRef.current = record;
+  const ready = Boolean(host.pairUrl && host.code);
+  const [gaveUp, setGaveUp] = useState(false);
+
+  useEffect(() => {
+    if (ready) return;
+    const t = window.setTimeout(() => setGaveUp(true), 400);
+    return () => window.clearTimeout(t);
+  }, [ready]);
+
+  useEffect(() => {
+    if (!host.isLive) return;
+    if (record.state === "recording" && record.startedAt) {
+      host.send({ t: "rec-state", on: true, startedAt: record.startedAt, limitMs: record.limitMs });
+    } else if (record.state === "idle") {
+      host.send({ t: "rec-state", on: false, startedAt: 0, limitMs: record.limitMs });
+    }
+  }, [host.isLive, host.send, record.state, record.startedAt, record.limitMs]);
 
   useEffect(() => () => lastBmp.current?.close(), []);
 
@@ -104,6 +154,7 @@ export function WallViewport({ preferredCode }: Props) {
       data-cast-state={host.state}
     >
       <RippleCanvas
+        ref={canvasRef}
         sensors={sensors}
         orientationAngle={angle}
         injectSplats={injectSplats}
@@ -115,17 +166,12 @@ export function WallViewport({ preferredCode }: Props) {
         onReady={splash.markReady}
       />
 
-      {host.isLive && (
-        <div className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-full bg-ink/50 px-3 py-1.5 text-xs text-fg/80 backdrop-blur-md">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-          Live from phone
-          <button
-            type="button"
-            onClick={host.disconnect}
-            className="ml-1 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-subtle hover:bg-fg/10 hover:text-fg"
-          >
-            End
-          </button>
+      {record.state === "recording" && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
+            <span className="inline-block size-2 rounded-full bg-white" />
+            {formatCountdown(record.remainingMs)} left · both screens save
+          </div>
         </div>
       )}
 
@@ -148,19 +194,25 @@ export function WallViewport({ preferredCode }: Props) {
               {host.state === "waiting"
                 ? "Connecting…"
                 : host.state === "reconnecting"
-                  ? "Reconnecting…"
+                  ? "Phone dropped"
                   : "Scan to cast"}
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Open this on your phone to paint the wall in real time
+              {host.state === "reconnecting"
+                ? "Scan again. The menu moves to the phone; this wall stays clean."
+                : "Open this on your phone to paint the wall in real time"}
             </p>
           </div>
 
-          {host.pairUrl ? (
+          {host.pairUrl && (ready || gaveUp) ? (
             <div className="rounded-2xl bg-fg p-3 shadow-inner">
               <QrMark value={host.pairUrl} size={280} />
             </div>
-          ) : null}
+          ) : (
+            <div className="w-full overflow-hidden rounded-2xl">
+              <VoidrideHold />
+            </div>
+          )}
 
           <div className="flex w-full flex-col items-center gap-2">
             <p className="font-mono text-2xl tracking-[0.35em] text-fg">{host.code}</p>
@@ -202,7 +254,13 @@ export function WallViewport({ preferredCode }: Props) {
         </div>
       </div>
 
-      {splash.show && <RippleSplash fading={splash.fading} />}
+      {splash.show && (
+        <RippleSplash
+          fading={splash.fading}
+          progress={splash.progress}
+          colors={washColors}
+        />
+      )}
     </div>
   );
 }

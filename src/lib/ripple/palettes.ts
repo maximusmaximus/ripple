@@ -552,11 +552,17 @@ export function resampleStops(stops: ColorStop[], count = 6): string[] {
   return Array.from({ length: count }, (_, i) => sampleFromStops(sorted, i / (count - 1)));
 }
 
-export function addStop(stops: ColorStop[], color?: string): ColorStop[] {
+export function addStop(stops: ColorStop[], color?: string, at?: number): ColorStop[] {
   const sorted = sortStops(stops);
   if (sorted.length >= MAX_COLOR_STOPS) return sorted;
   if (sorted.length === 0) {
-    return [{ id: newStopId(), t: 0.5, color: color ?? "#ffffff" }];
+    return [{ id: newStopId(), t: at ?? 0.5, color: color ?? "#ffffff" }];
+  }
+  if (at != null) {
+    let t = Math.max(0, Math.min(1, at));
+    while (sorted.some((s) => Math.abs(s.t - t) < 0.01)) t = Math.min(1, t + 0.012);
+    const c = color ?? sampleFromStops(sorted, t);
+    return sortStops([...sorted, { id: newStopId(), t, color: c }]);
   }
   if (sorted.length === 1) {
     const only = sorted[0]!;
@@ -609,4 +615,23 @@ export function flipStops(stops: ColorStop[]): ColorStop[] {
   return stops
     .map((s) => ({ ...s, t: 1 - s.t }))
     .sort((a, b) => a.t - b.t);
+}
+
+export function snapshotBarCss(
+  worldId: PaletteId,
+  colorStops?: Partial<Record<PaletteId, ColorStop[]>> | null,
+  flip = false,
+): string {
+  const p = PALETTES[worldId];
+  const stops = colorStops?.[worldId] ?? p?.stops;
+  let css: string;
+  if (stops && stops.length > 0) {
+    css = gradientFromStops(stops);
+  } else if (p?.colors?.length) {
+    css = `linear-gradient(90deg, ${p.colors.join(", ")})`;
+  } else {
+    css = "linear-gradient(90deg, #1a1a22, #8a8a96)";
+  }
+  if (flip) css = css.replace("90deg", "270deg");
+  return css;
 }

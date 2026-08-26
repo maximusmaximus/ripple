@@ -1,4 +1,6 @@
 import { useRippleStore } from "@/store/ripple";
+import { ColorSwatchButton } from "./color-wheel";
+import { TipCopy } from "./tip-mark";
 
 export function BrushShadow({ nested = false }: { nested?: boolean }) {
   const on = useRippleStore((s) => s.shadowOn);
@@ -25,22 +27,16 @@ export function BrushShadow({ nested = false }: { nested?: boolean }) {
         </label>
       )}
       {nested && (
-        <p className="text-[10px] leading-snug text-subtle">
-          FX checkboxes mix into this cast. Color, angle, and opacity stay on the shadow itself.
-        </p>
+        <TipCopy>
+          FX on the mix tiles also tints this cast. Color, angle, and opacity stay on the shadow itself.
+        </TipCopy>
       )}
       {show && (
         <div className={"flex flex-col gap-2 " + (nested ? "" : "pl-5")}>
-          <label className="flex items-center justify-between gap-2 text-[12px] text-muted">
+          <div className="flex items-center justify-between gap-2 text-[12px] text-muted">
             <span>Color</span>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="h-7 w-10 cursor-pointer rounded border border-line bg-transparent p-0"
-              aria-label="Shadow color"
-            />
-          </label>
+            <ColorSwatchButton value={color} onChange={setColor} label="Shadow color" className="h-7 w-10 rounded" />
+          </div>
           <label className="flex flex-col gap-1.5">
             <div className="flex justify-between text-[12px] text-muted">
               <span>Angle</span>

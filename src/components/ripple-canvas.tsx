@@ -7,7 +7,7 @@ import { PALETTES } from "@/lib/ripple/palettes";
 import { getBrush, getCustomBrush, isCustomBrushId } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, fxMask, fxLayerMask } from "@/lib/ripple/blend";
 import { getTexture } from "@/lib/ripple/textures";
-import { fitCode } from "@/lib/ripple/studio";
+import { fitCode, mediaSrc } from "@/lib/ripple/studio";
 import type { SensorsState } from "@/lib/ripple/media";
 import {
   createMicMonitor,
@@ -70,10 +70,12 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
+  const spanMin = useRippleStore((s) => s.getActiveSpan().min);
+  const spanMax = useRippleStore((s) => s.getActiveSpan().max);
   const brushId = useRippleStore((s) => s.brushId);
   const customBrushes = useRippleStore((s) => s.customBrushes);
   const customBrushSig = customBrushes
-    .map((c) => `${c.id}:${c.angle}:${c.spin}:${c.dataUrl.length}`)
+    .map((c) => `${c.id}:${c.angle}:${c.spin}:${c.dataUrl?.length ?? 0}:${c.path ?? ""}`)
     .join("|");
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
@@ -145,7 +147,8 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const brush = getBrush(brushId, customs);
     const custom = getCustomBrush(brushId, customs);
     painter.setBrush(
-      brushDiameter / 2,
+      spanMin / 2,
+      spanMax / 2,
       brush.force,
       brush.kind,
       brush.spread ?? 1.8,
@@ -271,7 +274,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    const src = textureId === "custom" ? (customLiveUrl || customTexture?.dataUrl) : null;
+    const src = textureId === "custom" ? (customLiveUrl || mediaSrc(customTexture)) : null;
     if (!src) {
       engine.setCustomTexture(null);
       return;
@@ -291,7 +294,8 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const brush = getBrush(brushId, customs);
     const custom = getCustomBrush(brushId, customs);
     painterRef.current.setBrush(
-      brushDiameter / 2,
+      spanMin / 2,
+      spanMax / 2,
       brush.force,
       brush.kind,
       brush.spread ?? 1.8,
@@ -301,7 +305,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       custom?.angle ?? 0,
       custom?.spin ?? 0,
     );
-  }, [brushDiameter, brushId, customBrushSig]);
+  }, [spanMin, spanMax, brushId, customBrushSig]);
 
   useEffect(() => {
     const engine = engineRef.current;
@@ -314,7 +318,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const img = new Image();
     img.onload = () => engine.setStampTexture(img);
     img.onerror = () => engine.setStampTexture(null);
-    img.src = custom.dataUrl;
+    img.src = mediaSrc(custom) ?? "";
     return () => {
       img.onload = null;
       img.onerror = null;

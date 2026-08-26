@@ -21,7 +21,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Full-screen interactive fluid surface. Paint waves, switch worlds, layer camera and mic, cast phone-to-wall.",
+          "Full-screen interactive fluid surface. Paint waves, switch presets, layer camera and mic, cast phone-to-wall.",
       },
     ],
     links: [

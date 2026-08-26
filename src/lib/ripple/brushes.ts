@@ -56,6 +56,8 @@ export type CustomBrush = {
   angle: number;
   /** Rotation along the stroke, 0 = locked. */
   spin: number;
+  /** Repo-relative public path after persist (`/studio/media/...`). */
+  path?: string;
 };
 
 export const MAX_CUSTOM_BRUSHES = 16;
@@ -95,6 +97,37 @@ export const SCRIPT_BRUSHES: BrushPreset[] = [
 export const ALL_BRUSHES: BrushPreset[] = [...BRUSHES, ...SCRIPT_BRUSHES];
 
 export const DEFAULT_BRUSH_ID: BrushId = "ink";
+
+export const DIA_MIN = 0.008;
+export const DIA_MAX = 0.12;
+
+export type BrushSpan = { min: number; max: number };
+
+export function clampDia(n: number) {
+  return Math.max(DIA_MIN, Math.min(DIA_MAX, n));
+}
+
+export function defaultBrushSpan(radius: number): BrushSpan {
+  const dia = clampDia(radius * 2);
+  const min = clampDia(Math.min(dia * 0.36, dia - 0.008));
+  const max = clampDia(Math.max(dia * 1.12, min + 0.008));
+  return { min, max };
+}
+
+export function normalizeBrushSpan(span: BrushSpan): BrushSpan {
+  let min = clampDia(span.min);
+  let max = clampDia(span.max);
+  if (max < min) {
+    const t = min;
+    min = max;
+    max = t;
+  }
+  if (max - min < 0.006) {
+    max = clampDia(min + 0.006);
+    if (max - min < 0.006) min = clampDia(max - 0.006);
+  }
+  return { min, max };
+}
 
 export const STAMP_PRESET: BrushPreset = {
   id: "ink",

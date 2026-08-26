@@ -16,9 +16,12 @@ import { useOrientation } from "@/hooks/use-orientation";
 import { useDesktopHost } from "@/hooks/use-desktop";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { StudioSync } from "./studio-sync";
+import { TipsGuide } from "./tips-guide";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
+import { compactCastSnapshot, hydrateSnapshotMedia, type StudioSnapshot } from "@/lib/ripple/studio";
+import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
 
 export function RippleApp() {
   const search = useSearch({ from: "/" });
@@ -38,10 +41,19 @@ export function RippleApp() {
   const setWaveStrength = useRippleStore((s) => s.setWaveStrength);
   const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
   const setWorld = useRippleStore((s) => s.setWorld);
+  const applySnapshot = useRippleStore((s) => s.applySnapshot);
   const { angle, isImmersive } = useOrientation();
   const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const record = useCanvasRecord(() => canvasRef.current);
+  const hostSendRef = useRef<(msg: import("@/lib/ripple/cast").CastMsg) => void>(() => {});
+  const hostLiveRef = useRef(false);
+  const record = useCanvasRecord(() => canvasRef.current, {
+    onBlob: async (blob, name) => {
+      if (hostLiveRef.current) await sendRecBlob((m) => hostSendRef.current(m), blob, name);
+    },
+  });
+  const recRef = useRef(record);
+  recRef.current = record;
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
@@ -104,6 +116,10 @@ export function RippleApp() {
         setWaveStrength(input.feel.waveStrength);
         setBrushDiameter(input.feel.brushDiameter);
       }
+      if (input.snapshot) {
+        void hydrateSnapshotMedia(input.snapshot).then((snap) => applySnapshot(snap));
+      }
+      if (input.clear) clearSurface();
       if (input.mic) {
         setRemoteMic(input.mic.level);
         setRemoteMicBands(input.mic.bands ?? null);
@@ -116,7 +132,7 @@ export function RippleApp() {
         });
       }
     },
-    [setWorld, setViscosity, setWaveStrength, setBrushDiameter],
+    [setWorld, setViscosity, setWaveStrength, setBrushDiameter, applySnapshot, clearSurface],
   );
 
   const host = useCastHost({
@@ -124,7 +140,13 @@ export function RippleApp() {
     enabled: isDesktop && mode === "local",
     onCamFrame,
     onRemoteInput,
+    onRecToggle: (on) => {
+      if (on) recRef.current.start();
+      else recRef.current.stop();
+    },
   });
+  hostSendRef.current = host.send;
+  hostLiveRef.current = host.isLive;
 
   const openPair = useCallback(() => {
     setPairForced(true);
@@ -132,18 +154,25 @@ export function RippleApp() {
     setDockOpen(false);
   }, [setDockOpen]);
 
-  useEffect(() => () => lastBmp.current?.close(), []);
+  useEffect(() => {
+    void useRippleStore.persist.rehydrate();
+  }, []);
 
   useEffect(() => {
     if (host.state === "reconnecting") {
       setPairDismissed(false);
+      setPairForced(true);
       setCamSource(null);
       setRemoteGyro(null);
       setRemoteMic(0);
       setRemoteMicBands(null);
     }
-    if (host.isLive) setPairForced(false);
-  }, [host.state, host.isLive]);
+    if (host.isLive) {
+      setPairForced(false);
+      setPairDismissed(true);
+      setDockOpen(false);
+    }
+  }, [host.state, host.isLive, setDockOpen]);
 
   useEffect(() => {
     if (isImmersive) setDockOpen(false);
@@ -157,6 +186,7 @@ export function RippleApp() {
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (panel.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
       setDockOpen(false);
     };
     document.addEventListener("pointerdown", onPointerDown, true);
@@ -187,13 +217,22 @@ export function RippleApp() {
     setHint(false);
   }, [setDockOpen]);
 
-  const showChrome = !isImmersive;
-  const showPairOverlay = pairForced || (!pairDismissed && !host.isLive);
+  const showChrome = !isImmersive && !host.isLive;
+  const showPairOverlay = !host.isLive && (pairForced || !pairDismissed);
   const linkState: "off" | "waiting" | "live" = host.isLive
     ? "live"
     : host.state === "waiting" || host.state === "reconnecting"
       ? "waiting"
       : "off";
+
+  useEffect(() => {
+    if (!host.isLive) return;
+    if (record.state === "recording" && record.startedAt) {
+      host.send({ t: "rec-state", on: true, startedAt: record.startedAt, limitMs: record.limitMs });
+    } else if (record.state === "idle") {
+      host.send({ t: "rec-state", on: false, startedAt: 0, limitMs: record.limitMs });
+    }
+  }, [host.isLive, host.send, record.state, record.startedAt, record.limitMs]);
 
   if (mode === "pad" && search.c) {
     return (
@@ -203,13 +242,23 @@ export function RippleApp() {
             sensors={sensors}
             onSensorsChange={onSensorsChange}
             angle={angle}
-            showChrome={showChrome}
             onPaintStart={onPaintStart}
             sendSplats={pad.sendSplats}
             sendWorld={pad.sendWorld}
             sendFeel={pad.sendFeel}
             sendGyro={pad.sendGyro}
             sendMic={pad.sendMic}
+            sendStudio={pad.sendStudio}
+            sendClear={pad.sendClear}
+            sendRec={pad.sendRec}
+            recOn={pad.recOn}
+            recStartedAt={pad.recStartedAt}
+            recLimitMs={pad.recLimitMs}
+            recRemainingMs={pad.recRemainingMs}
+            recSaving={pad.recSaving}
+            pendingClip={pad.pendingClip}
+            recNote={pad.recNote}
+            clearPendingClip={pad.clearPendingClip}
             worldId={worldId}
             viscosity={viscosity}
             waveStrength={waveStrength}
@@ -228,6 +277,8 @@ export function RippleApp() {
     <div
       className="relative h-dvh w-dvw overflow-hidden bg-ink"
       style={{ touchAction: "none", overscrollBehavior: "none" }}
+      data-cast-state={host.state}
+      data-cast-live={host.isLive ? "true" : "false"}
     >
       <StudioSync />
       <RippleCanvas
@@ -262,11 +313,11 @@ export function RippleApp() {
         </div>
       )}
 
-      {showChrome && record.state === "recording" && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))]">
+      {record.state === "recording" && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
             <span className="inline-block size-2 rounded-full bg-white" />
-            Recording — tap REC to stop and save
+            {formatCountdown(record.remainingMs)} left · both screens save
           </div>
         </div>
       )}
@@ -278,6 +329,12 @@ export function RippleApp() {
           recording={record.state === "recording"}
           onToggleRecord={record.toggle}
           recordStartedAt={record.startedAt}
+          recordLimitMs={record.limitMs}
+          recordRemainingMs={record.remainingMs}
+          recordSaving={record.state === "saving"}
+          pendingClip={record.pendingClip}
+          onSaveClip={record.clearPending}
+          recordError={record.error}
           linkState={linkState}
           onToggleLink={openPair}
         />
@@ -306,7 +363,7 @@ export function RippleApp() {
         </div>
       )}
 
-      {!dockOpen && (
+      {showChrome && !dockOpen && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
@@ -321,6 +378,8 @@ export function RippleApp() {
         </div>
       )}
 
+      {showChrome && <TipsGuide />}
+
       {showPairOverlay && (
         <PairOverlay
           host={host}
@@ -331,7 +390,13 @@ export function RippleApp() {
         />
       )}
 
-      {splash.show && <RippleSplash fading={splash.fading} />}
+      {splash.show && !(showPairOverlay && isDesktop) && (
+        <RippleSplash
+          fading={splash.fading}
+          progress={splash.progress}
+          colors={PALETTES[worldId]?.colors}
+        />
+      )}
     </div>
   );
 }
@@ -340,13 +405,23 @@ function PadSurface({
   sensors,
   onSensorsChange,
   angle,
-  showChrome,
   onPaintStart,
   sendSplats,
   sendWorld,
   sendFeel,
   sendGyro,
   sendMic,
+  sendStudio,
+  sendClear,
+  sendRec,
+  recOn,
+  recStartedAt,
+  recLimitMs,
+  recRemainingMs,
+  recSaving,
+  pendingClip,
+  recNote,
+  clearPendingClip,
   worldId,
   viscosity,
   waveStrength,
@@ -355,19 +430,40 @@ function PadSurface({
   sensors: SensorsState;
   onSensorsChange: (s: SensorsState) => void;
   angle: 0 | 90 | 180 | 270;
-  showChrome: boolean;
   onPaintStart: () => void;
   sendSplats: (s: Splat[]) => void;
   sendWorld: (id: string) => void;
   sendFeel: (viscosity: number, waveStrength: number, brushDiameter: number) => void;
   sendGyro: (alpha: number, beta: number, gamma: number, ang?: 0 | 90 | 180 | 270) => void;
   sendMic: (level: number, bands?: number[]) => void;
+  sendStudio: (snap: StudioSnapshot) => void;
+  sendClear: () => void;
+  sendRec: (on: boolean) => void;
+  recOn: boolean;
+  recStartedAt: number | null;
+  recLimitMs: number;
+  recRemainingMs: number;
+  recSaving: boolean;
+  pendingClip: import("@/lib/ripple/record").PendingClip | null;
+  recNote: string | null;
+  clearPendingClip: () => void;
   worldId: string;
   viscosity: number;
   waveStrength: number;
   brushDiameter: number;
 }) {
   const splash = useSurfaceSplash();
+  const dockOpen = useRippleStore((s) => s.dockOpen);
+  const setDockOpen = useRippleStore((s) => s.setDockOpen);
+  const takeSnapshot = useRippleStore((s) => s.takeSnapshot);
+  const clearToken = useRippleStore((s) => s.clearToken);
+  const dockPanelRef = useRef<HTMLDivElement>(null);
+  const lastStudio = useRef("");
+  const lastClear = useRef(clearToken);
+
+  useEffect(() => {
+    setDockOpen(true);
+  }, [setDockOpen]);
 
   useEffect(() => {
     sendWorld(worldId);
@@ -376,6 +472,32 @@ function PadSurface({
   useEffect(() => {
     sendFeel(viscosity, waveStrength, brushDiameter);
   }, [viscosity, waveStrength, brushDiameter, sendFeel]);
+
+  useEffect(() => {
+    let timer = 0;
+    const flush = () => {
+      const snap = compactCastSnapshot(takeSnapshot());
+      const wire = JSON.stringify(snap);
+      if (wire === lastStudio.current) return;
+      lastStudio.current = wire;
+      sendStudio(snap);
+    };
+    flush();
+    const unsub = useRippleStore.subscribe(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(flush, 40);
+    });
+    return () => {
+      window.clearTimeout(timer);
+      unsub();
+    };
+  }, [sendStudio, takeSnapshot]);
+
+  useEffect(() => {
+    if (clearToken === lastClear.current) return;
+    lastClear.current = clearToken;
+    sendClear();
+  }, [clearToken, sendClear]);
 
   useEffect(() => {
     if (!sensors.gyroOn && sensors.gyroMode === "off") return;
@@ -411,8 +533,24 @@ function PadSurface({
     };
   }, [sensors.micOn, sensors.micStream, sendMic]);
 
+  useEffect(() => {
+    if (!dockOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const panel = dockPanelRef.current;
+      if (!panel) return;
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (panel.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
+      setDockOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [dockOpen, setDockOpen]);
+
   return (
-    <div className="relative h-dvh w-dvw overflow-hidden bg-ink" style={{ touchAction: "none" }}>
+    <div className="relative h-dvh w-dvw overflow-hidden bg-ink" style={{ touchAction: "none" }} data-pad="true">
+      <StudioSync />
       <RippleCanvas
         sensors={sensors}
         orientationAngle={angle}
@@ -420,8 +558,65 @@ function PadSurface({
         onSplats={sendSplats}
         onReady={splash.markReady}
       />
-      {showChrome && <SensorsBar sensors={sensors} onChange={onSensorsChange} />}
-      {splash.show && <RippleSplash fading={splash.fading} />}
+      <SensorsBar
+        sensors={sensors}
+        onChange={onSensorsChange}
+        recording={recOn}
+        onToggleRecord={() => sendRec(!recOn)}
+        recordStartedAt={recStartedAt}
+        recordLimitMs={recLimitMs}
+        recordRemainingMs={recRemainingMs}
+        recordSaving={recSaving}
+        pendingClip={pendingClip}
+        onSaveClip={clearPendingClip}
+        recNote={recNote}
+      />
+
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] transition-all duration-300 ease-out"
+        style={{
+          opacity: dockOpen ? 1 : 0,
+          transform: dockOpen ? "translateY(0)" : "translateY(110%)",
+        }}
+        aria-hidden={!dockOpen}
+      >
+        <div
+          ref={dockPanelRef}
+          data-ui-chrome
+          className="w-full max-w-sm"
+          style={{ pointerEvents: dockOpen ? "auto" : "none" }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <ControlsDock showPairButton={false} />
+        </div>
+      </div>
+
+      {!dockOpen && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            data-ui-chrome
+            className="pointer-events-auto flex h-11 items-center gap-2 rounded-full border border-line bg-ink/55 px-4 text-sm text-fg/85 shadow-lg backdrop-blur-md transition hover:bg-ink/70 hover:text-fg"
+            onClick={() => setDockOpen(true)}
+            aria-label="Show menu"
+          >
+            <ChevronUp className="size-3.5" />
+            Menu
+          </button>
+        </div>
+      )}
+
+      <TipsGuide />
+
+      {splash.show && (
+        <RippleSplash
+          fading={splash.fading}
+          progress={splash.progress}
+          colors={PALETTES[worldId as PaletteId]?.colors}
+        />
+      )}
     </div>
   );
 }
