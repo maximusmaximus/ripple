@@ -94,7 +94,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "pair",
     title: "Secondary device",
-    body: "On a wide screen, scan the QR with your phone. The menu and buttons move to the phone; this display becomes a clean wall. If the phone drops, the pairing card comes back. The loading art tracks the real wait for a code, then the QR appears.",
+    body: "The light next to REC opens pairing. On a desktop it shows a QR for your phone. On a phone it tells you to scan the desktop or primary screen — or type that screen’s six-character code. The menu then lives on the phone and the large display becomes a clean wall.",
   },
   {
     id: "camera",
