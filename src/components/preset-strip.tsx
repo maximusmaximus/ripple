@@ -172,7 +172,7 @@ export function PresetStrip() {
       setMsg({ text: "Saved as a new preset. The live surface stays as it is.", tone: "info" });
       await refresh();
     } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : "Could not save." });
+      setMsg({ text: e instanceof Error ? e.message : "Could not save.", tone: "error" });
     } finally {
       setBusy(false);
     }
