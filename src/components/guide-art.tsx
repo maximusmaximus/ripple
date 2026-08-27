@@ -19,6 +19,7 @@ import {
   Smartphone,
   Sparkles,
   Spline,
+  Sun,
   Trash2,
   Waves,
   ZoomIn,
@@ -31,6 +32,7 @@ const ICONS: Record<string, typeof Paintbrush> = {
   delete: Trash2,
   brushes: Paintbrush,
   diameter: Spline,
+  shadow: Sun,
   "brush-shape": RotateCw,
   layerfx: Blend,
   texture: Layers,
@@ -109,6 +111,29 @@ function RecArt() {
   );
 }
 
+function ShadowArt() {
+  return (
+    <ArtFrame>
+      <div className="relative h-8 w-20">
+        <span className="absolute left-7 top-1 size-6 rounded-full bg-fg/25" />
+        <span className="absolute left-3 top-3 size-6 rounded-full bg-fg/80" />
+      </div>
+    </ArtFrame>
+  );
+}
+
+function TextureArt() {
+  return (
+    <ArtFrame>
+      <div className="grid grid-cols-4 gap-1 px-3">
+        {["#d8cbb8", "#5a3a58", "#c4b090", "#3a3a3e"].map((c) => (
+          <span key={c} className="h-7 w-7 rounded-md border border-white/20" style={{ background: c }} />
+        ))}
+      </div>
+    </ArtFrame>
+  );
+}
+
 function PresetArt() {
   return (
     <ArtFrame>
@@ -124,6 +149,8 @@ function PresetArt() {
 export function GuideArt({ id }: { id: string }) {
   if (id === "gradient") return <GradientArt />;
   if (id === "diameter") return <WidthArt />;
+  if (id === "shadow") return <ShadowArt />;
+  if (id === "texture") return <TextureArt />;
   if (id === "pair") return <PairArt />;
   if (id === "rec") return <RecArt />;
   if (id === "presets" || id === "save" || id === "delete") return <PresetArt />;

@@ -56,6 +56,7 @@ const snapshotSchema = z
     shadowColor: z.string(),
     shadowAngle: z.number(),
     shadowOpacity: z.number(),
+    shadowDist: z.number().optional(),
     textureId: z.string(),
     textureFit: z.enum(["cover", "contain", "stretch"]),
     customTexture: mediaObject.nullable(),

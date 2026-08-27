@@ -22,13 +22,15 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, Layer FX, texture, color ramp (stops + brush shadow), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, distance, angle), Layer FX, texture well, color ramp (stops + shadow color), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
 ### Paint
 
 Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the menu. **Width** is a three-stop profile — start, belly, and tail — stored per brush. Drag a stop to reshape how the mark swells along the stroke.
+
+**Brush shadow** sits under Width: an on/off switch, **Distance**, and **Angle**. Color and opacity for that cast live on the large diamond on the Color ramp.
 
 ### Presets
 
@@ -52,11 +54,13 @@ Stroke color follows the live gradient.
 
 ### Layer FX
 
-Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. **Brush shadow** color, opacity, and angle live on the large diamond on the Color ramp — the Shadow pill only turns the cast on.
+Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. The Shadow pill mixes FX into the cast — turn the cast on under Width.
 
 ### Surface
 
-Textures (paper, silk, mesh, and more) plus upload (JPG, PNG, GIF, WebP). Invert and levels reshape a photo. Cover / contain / stretch set the fit. **Color** is one ramp: crop handles, click to add a stop, pick color on the wheel, and fade each stop with **opacity**. The **large diamond** is brush shadow and uses that same opacity slider. **Flip** reverses the ramp. There are no separate Key / Shadow swatches. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
+**Texture** matches presets: the selected grain sits at the top (swipe or arrows), a **well of tall chips** below, **Upload** in that window. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
+
+**Color** is one ramp: crop handles, click to add a stop, pick color on the wheel, and fade each stop with **opacity**. The **large diamond** is brush-shadow color and opacity. **Flip** reverses the ramp. Distance and angle for the cast live under Width. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
 
 ### Sensors
 

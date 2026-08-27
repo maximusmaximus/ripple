@@ -31,13 +31,11 @@ export function ColorRangeSlider() {
   const customStops = useRippleStore((s) => s.colorStops[s.worldId]);
   const shadowColor = useRippleStore((s) => s.shadowColor);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
-  const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const setColorRange = useRippleStore((s) => s.setColorRange);
   const resetColorRange = useRippleStore((s) => s.resetColorRange);
   const addColorStop = useRippleStore((s) => s.addColorStop);
   const removeColorStop = useRippleStore((s) => s.removeColorStop);
   const updateColorStop = useRippleStore((s) => s.updateColorStop);
-  const setShadowAngle = useRippleStore((s) => s.setShadowAngle);
   const gradientFlip = useRippleStore((s) => s.gradientFlip);
   const setGradientFlip = useRippleStore((s) => s.setGradientFlip);
 
@@ -340,23 +338,6 @@ export function ColorRangeSlider() {
               className="w-full"
             />
           </label>
-          {selectedShadow && (
-            <label className="flex flex-col gap-1">
-              <div className="flex justify-between text-[11px] text-muted">
-                <span>Angle</span>
-                <span className="font-mono tabular-nums text-fg">{Math.round(shadowAngle)}°</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={360}
-                step={1}
-                value={shadowAngle}
-                onChange={(e) => setShadowAngle(parseFloat(e.target.value))}
-                className="w-full"
-              />
-            </label>
-          )}
         </div>
       )}
 

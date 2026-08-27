@@ -57,6 +57,8 @@ interface RippleState {
   shadowColor: string;
   shadowAngle: number;
   shadowOpacity: number;
+  /** 0–1 user scale for how far the cast sits from the mark. */
+  shadowDist: number;
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
@@ -115,6 +117,7 @@ interface RippleState {
   setBrushShadowColor: (hex: string) => void;
   setShadowAngle: (deg: number) => void;
   setShadowOpacity: (v: number) => void;
+  setShadowDist: (v: number) => void;
   setTextureId: (id: TextureId) => void;
   setTextureFit: (fit: TextureFit) => void;
   setTextureLevels: (v: number) => void;
@@ -212,6 +215,7 @@ export const useRippleStore = create<RippleState>()(
       shadowColor: "#0a0810",
       shadowAngle: 135,
       shadowOpacity: 0.45,
+      shadowDist: 0.35,
       textureId: DEFAULT_TEXTURE_ID,
       textureFit: "cover",
       customTexture: null,
@@ -463,7 +467,6 @@ export const useRippleStore = create<RippleState>()(
         const next = toggleFxLayerHelper(current, id);
         set({
           fxLayers: next,
-          shadowOn: id === "shadow" ? next.includes("shadow") : get().shadowOn,
         });
       },
       getActiveFxLayers: () => asFxLayers(get().fxLayers),
@@ -488,6 +491,7 @@ export const useRippleStore = create<RippleState>()(
           colorStops: { ...colorStops, [worldId]: next },
         });
       },
+      setShadowDist: (v) => set({ shadowDist: Math.max(0, Math.min(1, v)) }),
       setTextureId: (id) =>
         set((s) => {
           const next = getTexture(id).id;
@@ -554,6 +558,7 @@ export const useRippleStore = create<RippleState>()(
           shadowColor: s.shadowColor,
           shadowAngle: s.shadowAngle,
           shadowOpacity: s.shadowOpacity,
+          shadowDist: s.shadowDist,
           textureId: s.textureId,
           textureFit: s.textureFit,
           customTexture: s.customTexture,
@@ -601,15 +606,12 @@ export const useRippleStore = create<RippleState>()(
           brushId: keepCustom ? snap.brushId : brush.id,
           brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
           brushFxOpacity: snap.brushFxOpacity,
-          fxLayers: (() => {
-            const layers = asFxLayers(snap.fxLayers);
-            if (snap.shadowOn && !layers.includes("shadow")) return [...layers, "shadow"];
-            return layers;
-          })(),
-          shadowOn: snap.shadowOn || asFxLayers(snap.fxLayers).includes("shadow"),
+          fxLayers: asFxLayers(snap.fxLayers),
+          shadowOn: Boolean(snap.shadowOn),
           shadowColor: snap.shadowColor,
           shadowAngle: snap.shadowAngle,
           shadowOpacity: snap.shadowOpacity,
+          shadowDist: Math.max(0, Math.min(1, snap.shadowDist ?? 0.35)),
           textureId: texId === "custom" && !custom ? DEFAULT_TEXTURE_ID : texId,
           textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
           customTexture: custom,
@@ -653,6 +655,7 @@ export const useRippleStore = create<RippleState>()(
           shadowColor: "#0a0810",
           shadowAngle: 135,
           shadowOpacity: 0.45,
+          shadowDist: 0.35,
           textureId: DEFAULT_TEXTURE_ID,
           textureFit: "cover",
           customTexture: null,
@@ -742,6 +745,7 @@ export const useRippleStore = create<RippleState>()(
         shadowColor: s.shadowColor,
         shadowAngle: s.shadowAngle,
         shadowOpacity: s.shadowOpacity,
+        shadowDist: s.shadowDist,
         textureId: s.textureId,
         textureFit: s.textureFit,
         customTexture: s.customTexture,
@@ -761,7 +765,6 @@ export const useRippleStore = create<RippleState>()(
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean; gyroQuietV2?: boolean };
         const fxLayers = asFxLayers(p.fxLayers ?? current.fxLayers);
-        const shadowOn = Boolean(p.shadowOn);
         let gyroSensitivity = typeof p.gyroSensitivity === "number" ? p.gyroSensitivity : current.gyroSensitivity;
         if (!p.gyroQuietV2) {
           gyroSensitivity = 0.7;
@@ -780,7 +783,8 @@ export const useRippleStore = create<RippleState>()(
           brushShape: p.brushShape ?? current.brushShape,
           textureInvert: Boolean(p.textureInvert),
           gradientFlip: Boolean(p.gradientFlip),
-          fxLayers: shadowOn && !fxLayers.includes("shadow") ? [...fxLayers, "shadow"] : fxLayers,
+          fxLayers,
+          shadowDist: typeof p.shadowDist === "number" ? Math.max(0, Math.min(1, p.shadowDist)) : current.shadowDist,
           customBrushes,
           hiddenPresetIds: Array.isArray((p as { hiddenPresetIds?: string[] }).hiddenPresetIds)
             ? (p as { hiddenPresetIds: string[] }).hiddenPresetIds

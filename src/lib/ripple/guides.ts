@@ -37,6 +37,11 @@ export const GUIDE_TIPS: GuideTip[] = [
     body: "Three stops along the stroke: start, belly, and tail. Drag a stop up to fatten that part of the mark, down to thin it. Each brush keeps its own profile.",
   },
   {
+    id: "shadow",
+    title: "Brush shadow",
+    body: "Switch it on under Width. Distance pushes the cast away from the mark. Angle aims it. Color and opacity live on the large diamond on the Color ramp. The Layer FX Shadow pill only mixes FX into that cast.",
+  },
+  {
     id: "brush-shape",
     title: "Rotation and blade",
     body: "Rotation turns the mark. Blade pinches it from a circle into a chisel. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Stroke thickness lives on the Width profile above.",
@@ -44,17 +49,17 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Shadow’s color, opacity, and angle live on the large Color-ramp stop — the Shadow pill only turns the cast on.",
+    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Shadow’s color and opacity live on the Color-ramp diamond. Turn the cast on under Width — Distance and Angle sit there.",
   },
   {
     id: "texture",
     title: "Texture",
-    body: "Grain on the bed — paper, silk, mesh, and more. Upload a JPG, PNG, GIF, or WebP. Invert and levels reshape the photo. Cover / contain / stretch set the fit.",
+    body: "The selected texture sits at the top — swipe it or tap the arrows. The well below is tall chips, same layout as presets. Upload sits in the well. Invert and crop stay underneath.",
   },
   {
     id: "gradient",
     title: "Color",
-    body: "The dual handles crop the live ramp. Click the ramp to drop a stop. The large diamond is brush shadow — same color wheel and opacity slider as every other stop. Drag stops, fade them with opacity, or Flip the ramp.",
+    body: "The dual handles crop the live ramp. Click the ramp to drop a stop. The large diamond is brush shadow color and opacity — same slider as every other stop. Flip reverses the ramp. Distance and angle for the cast live under Width.",
   },
   {
     id: "viscosity",

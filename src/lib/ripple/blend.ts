@@ -153,7 +153,7 @@ export const FX_LAYERS: { id: FxLayerId; name: string; hint: string; bit: number
   { id: "mic", name: "Mic", hint: "Mix volume and frequency.", bit: 2 },
   { id: "brush", name: "Brush", hint: "Mix the stroke with the bed.", bit: 4 },
   { id: "texture", name: "Texture", hint: "Mix the medium grain.", bit: 8 },
-  { id: "shadow", name: "Brush Shadow", hint: "Turns the large Color-ramp stop into a live cast. Color and opacity live on that stop.", bit: 16 },
+  { id: "shadow", name: "Brush Shadow", hint: "Mix the FX stack into the brush shadow. Turn the cast on under Width.", bit: 16 },
 ];
 
 export const DEFAULT_FX_LAYERS: FxLayerId[] = ["brush"];

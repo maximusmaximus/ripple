@@ -1,42 +1,57 @@
 import { useRippleStore } from "@/store/ripple";
-import { ColorSwatchButton } from "./color-wheel";
-import { TipCopy } from "./tip-mark";
+import { TipMark, TipCopy } from "./tip-mark";
 
-export function BrushShadow({ nested = false }: { nested?: boolean }) {
+export function BrushShadowPanel() {
   const on = useRippleStore((s) => s.shadowOn);
-  const color = useRippleStore((s) => s.shadowColor);
   const angle = useRippleStore((s) => s.shadowAngle);
-  const opacity = useRippleStore((s) => s.shadowOpacity);
+  const dist = useRippleStore((s) => s.shadowDist);
   const setOn = useRippleStore((s) => s.setShadowOn);
-  const setColor = useRippleStore((s) => s.setBrushShadowColor);
   const setAngle = useRippleStore((s) => s.setShadowAngle);
-  const setOpacity = useRippleStore((s) => s.setShadowOpacity);
-  const show = nested || on;
+  const setDist = useRippleStore((s) => s.setShadowDist);
 
   return (
     <div className="flex flex-col gap-2">
-      {!nested && (
-        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-muted">
-          <input
-            type="checkbox"
-            checked={on}
-            onChange={(e) => setOn(e.target.checked)}
-            className="size-3.5 accent-fg"
+      <div className="flex items-center justify-between gap-2 text-[12px] text-muted">
+        <span className="inline-flex items-center gap-1.5">
+          Brush shadow
+          <TipMark id="shadow" />
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          onClick={() => setOn(!on)}
+          className={
+            "relative h-7 w-12 shrink-0 rounded-full border transition " +
+            (on ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
+          }
+        >
+          <span
+            className={
+              "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
+              (on ? "translate-x-6" : "translate-x-0.5")
+            }
           />
-          <span className="font-medium text-fg/90">Brush shadow</span>
-        </label>
-      )}
-      {nested && (
-        <TipCopy>
-          FX on the mix tiles also tints this cast. Color, angle, and opacity stay on the shadow itself.
-        </TipCopy>
-      )}
-      {show && (
-        <div className={"flex flex-col gap-2 " + (nested ? "" : "pl-5")}>
-          <div className="flex items-center justify-between gap-2 text-[12px] text-muted">
-            <span>Color</span>
-            <ColorSwatchButton value={color} onChange={setColor} label="Shadow color" className="h-7 w-10 rounded" />
-          </div>
+        </button>
+      </div>
+      {on && (
+        <>
+          <TipCopy>Color and opacity live on the large Color-ramp diamond. Distance and angle sit here.</TipCopy>
+          <label className="flex flex-col gap-1.5">
+            <div className="flex justify-between text-[12px] text-muted">
+              <span>Distance</span>
+              <span className="font-mono tabular-nums text-fg">{Math.round(dist * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={dist}
+              onChange={(e) => setDist(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </label>
           <label className="flex flex-col gap-1.5">
             <div className="flex justify-between text-[12px] text-muted">
               <span>Angle</span>
@@ -44,7 +59,7 @@ export function BrushShadow({ nested = false }: { nested?: boolean }) {
                 <span
                   aria-hidden
                   className="inline-block size-2 rounded-[1px] bg-fg/80"
-                  style={{ transform: `rotate(${angle}deg)`, transformOrigin: "center" }}
+                  style={{ transform: `rotate(${angle}deg)` }}
                 />
                 {Math.round(angle)}°
               </span>
@@ -59,22 +74,7 @@ export function BrushShadow({ nested = false }: { nested?: boolean }) {
               className="w-full"
             />
           </label>
-          <label className="flex flex-col gap-1.5">
-            <div className="flex justify-between text-[12px] text-muted">
-              <span>Opacity</span>
-              <span className="font-mono tabular-nums text-fg">{Math.round(opacity * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={opacity}
-              onChange={(e) => setOpacity(parseFloat(e.target.value))}
-              className="w-full"
-            />
-          </label>
-        </div>
+        </>
       )}
     </div>
   );

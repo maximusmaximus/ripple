@@ -69,7 +69,6 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const worldId = useRippleStore((s) => s.worldId);
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
-  const brushDiameter = useRippleStore((s) => s.brushDiameter);
   const spanStart = useRippleStore((s) => s.getActiveSpan().start);
   const spanMid = useRippleStore((s) => s.getActiveSpan().mid);
   const spanEnd = useRippleStore((s) => s.getActiveSpan().end);
@@ -89,6 +88,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const shadowColor = useRippleStore((s) => s.shadowColor);
   const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
+  const shadowDist = useRippleStore((s) => s.shadowDist);
   const textureId = useRippleStore((s) => s.textureId);
   const textureFit = useRippleStore((s) => s.textureFit);
   const textureLevels = useRippleStore((s) => s.textureLevels);
@@ -237,11 +237,11 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
       fxOpacity: brushFxOpacity,
       fxLayers: fxLayerMask(asFxLayers(useRippleStore.getState().getActiveFxLayers())),
-      shadowOn: shadowOn || asFxLayers(useRippleStore.getState().getActiveFxLayers()).includes("shadow"),
+      shadowOn,
       shadowColor,
       shadowAngle,
       shadowOpacity,
-      shadowDist: 0.016 + brushDiameter * 0.24,
+      shadowDist: 0.004 + shadowDist * 0.072,
       texId: getTexture(textureId).code,
       texFit: fitCode(textureFit),
       texLevels: textureLevels,
@@ -263,11 +263,11 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     brushFxSig,
     brushFxOpacity,
     fxLayerSig,
-    brushDiameter,
     shadowOn,
     shadowColor,
     shadowAngle,
     shadowOpacity,
+    shadowDist,
     textureId,
     textureFit,
     textureLevels,

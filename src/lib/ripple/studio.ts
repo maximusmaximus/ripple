@@ -35,6 +35,7 @@ export type StudioSnapshot = {
   shadowColor: string;
   shadowAngle: number;
   shadowOpacity: number;
+  shadowDist?: number;
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
@@ -89,6 +90,7 @@ export function easySnapshot(): StudioSnapshot {
     shadowColor: "#0a0810",
     shadowAngle: 135,
     shadowOpacity: 0.45,
+    shadowDist: 0.35,
     textureId: "none",
     textureFit: "cover",
     customTexture: null,

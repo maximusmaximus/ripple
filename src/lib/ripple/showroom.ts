@@ -123,6 +123,7 @@ function snapshotFrom(r: Recipe): StudioSnapshot {
     shadowColor: r.shadowColor ?? "#0a0810",
     shadowAngle: r.shadowAngle ?? 135,
     shadowOpacity: r.shadowOpacity ?? 0.45,
+    shadowDist: 0.35,
     textureId: r.texture,
     textureFit: r.fit ?? "cover",
     customTexture: null,

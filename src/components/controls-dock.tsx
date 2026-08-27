@@ -4,6 +4,7 @@ import { ColorRangeSlider } from "./color-range-slider";
 import { TexturePicker } from "./texture-picker";
 import { BrushPicker } from "./brush-picker";
 import { BrushSpanSlider } from "./brush-span-slider";
+import { BrushShadowPanel } from "./brush-shadow";
 import { LayerFxPicker } from "./brush-fx";
 import { PresetStrip } from "./preset-strip";
 import { FeedbackFooter } from "./feedback-form";
@@ -64,13 +65,13 @@ export function ControlsDock({
             </h3>
             <BrushPicker />
             <BrushSpanSlider />
+            <BrushShadowPanel />
             <LayerFxPicker />
           </section>
 
           <section className="flex flex-col gap-2.5">
-            <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
               Surface
-              <TipMark id="texture" />
             </h3>
             <TexturePicker />
             <ColorRangeSlider />
