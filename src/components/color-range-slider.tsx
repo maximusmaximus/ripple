@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -8,8 +9,6 @@ import {
 } from "react";
 import { Minus } from "lucide-react";
 import {
-  gradientFromStops,
-  sampleFromStops,
   defaultStopsFor,
   MAX_COLOR_STOPS,
   MIN_COLOR_STOPS,
@@ -22,26 +21,38 @@ import {
 import { useRippleStore } from "@/store/ripple";
 import { TipMark, TipCopy } from "./tip-mark";
 import { ColorSwatchButton } from "./color-wheel";
+import { spanHalfH, spanSilhouettePath } from "./brush-span-slider";
+
+function cssStops(stops: ColorStop[]) {
+  const sorted = [...stops].sort((a, b) => a.t - b.t);
+  return sorted.map((s) => {
+    const a = stopAlpha(s);
+    const hex = s.color;
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const ok = Number.isFinite(r) && Number.isFinite(g) && Number.isFinite(b);
+    const color = ok ? `rgba(${r},${g},${b},${a})` : hex;
+    return { offset: `${Math.round(s.t * 1000) / 10}%`, color };
+  });
+}
 
 export function ColorRangeSlider() {
   const worldId = useRippleStore((s) => s.worldId);
   const palette = useRippleStore((s) => s.getActivePalette());
-  const storedRange = useRippleStore((s) => s.colorRanges[s.worldId]);
   const storedPair = useRippleStore((s) => s.colorPairs[s.worldId]);
   const customStops = useRippleStore((s) => s.colorStops[s.worldId]);
   const shadowColor = useRippleStore((s) => s.shadowColor);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
-  const setColorRange = useRippleStore((s) => s.setColorRange);
   const resetColorRange = useRippleStore((s) => s.resetColorRange);
   const addColorStop = useRippleStore((s) => s.addColorStop);
   const removeColorStop = useRippleStore((s) => s.removeColorStop);
   const updateColorStop = useRippleStore((s) => s.updateColorStop);
   const gradientFlip = useRippleStore((s) => s.gradientFlip);
   const setGradientFlip = useRippleStore((s) => s.setGradientFlip);
-
-  const def = palette.defaultRange;
-  const start = storedRange ? Math.min(storedRange.start, storedRange.end) : def[0];
-  const end = storedRange ? Math.max(storedRange.start, storedRange.end) : def[1];
+  const spanStart = useRippleStore((s) => s.getActiveSpan().start);
+  const spanMid = useRippleStore((s) => s.getActiveSpan().mid);
+  const spanEnd = useRippleStore((s) => s.getActiveSpan().end);
 
   const stops = useMemo(() => {
     const base = customStops && customStops.length >= 2 ? customStops : defaultStopsFor(palette, storedPair);
@@ -50,10 +61,9 @@ export function ColorRangeSlider() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef<"start" | "end" | "stop" | null>(null);
+  const dragging = useRef(false);
   const dragStopId = useRef<string | null>(null);
-  const rangeRef = useRef({ start, end });
-  rangeRef.current = { start, end };
+  const uid = useId().replace(/:/g, "");
 
   const stopIds = useMemo(() => stops.map((s) => s.id).join("|"), [stops]);
 
@@ -76,19 +86,11 @@ export function ColorRangeSlider() {
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      const which = dragging.current;
-      if (!which) return;
-      const t = clientXToT(e.clientX);
-      if (which === "stop" && dragStopId.current) {
-        updateColorStop(dragStopId.current, { t });
-        return;
-      }
-      const r = rangeRef.current;
-      if (which === "start") setColorRange({ start: t, end: r.end });
-      else if (which === "end") setColorRange({ start: r.start, end: t });
+      if (!dragging.current || !dragStopId.current) return;
+      updateColorStop(dragStopId.current, { t: clientXToT(e.clientX) });
     };
     const onUp = () => {
-      dragging.current = null;
+      dragging.current = false;
       dragStopId.current = null;
     };
     window.addEventListener("pointermove", onMove);
@@ -99,24 +101,13 @@ export function ColorRangeSlider() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [clientXToT, setColorRange, updateColorStop]);
-
-  const beginRangeDrag = (which: "start" | "end") => (e: ReactPointerEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragging.current = which;
-    try {
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  };
+  }, [clientXToT, updateColorStop]);
 
   const beginStopDrag = (stop: ColorStop) => (e: ReactPointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedId(stop.id);
-    dragging.current = "stop";
+    dragging.current = true;
     dragStopId.current = stop.id;
     try {
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -127,14 +118,14 @@ export function ColorRangeSlider() {
 
   const onTrackPointerDown = (e: ReactPointerEvent) => {
     const target = e.target as HTMLElement;
-    if (target.dataset.handle || target.dataset.stop) return;
+    if (target.dataset.stop || target.closest("[data-stop]")) return;
     e.preventDefault();
     const t = clientXToT(e.clientX);
     if (!canAdd) return;
     const id = addColorStop(t);
     if (!id) return;
     setSelectedId(id);
-    dragging.current = "stop";
+    dragging.current = true;
     dragStopId.current = id;
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -143,24 +134,32 @@ export function ColorRangeSlider() {
     }
   };
 
-  const fullGradient = gradientFromStops(stops);
-  const startColor = sampleFromStops(stops, start);
-  const endColor = sampleFromStops(stops, end);
-  const rangeDefault = Math.abs(start - def[0]) < 0.015 && Math.abs(end - def[1]) < 0.015;
   const hasCustomStops = Boolean(customStops && customStops.length >= 2);
-  const isDefault = rangeDefault && !hasCustomStops;
+  const isDefault = !hasCustomStops && !gradientFlip;
   const selected = selectedId ? stops.find((s) => s.id === selectedId) : null;
   const selectedShadow = Boolean(selected && isShadowStop(selected));
   const canAdd = stops.length < MAX_COLOR_STOPS;
   const canRemove = Boolean(selected) && !selectedShadow && inkStops(stops).length > MIN_COLOR_STOPS;
   const extraCount = Math.max(0, inkStops(stops).length - 6);
   const selectedA = selected ? stopAlpha(selected) : 1;
+  const path = spanSilhouettePath(spanStart, spanMid, spanEnd);
+  const gradStops = cssStops(stops);
+  const checkerId = `chk-${uid}`;
+  const gradId = `grad-${uid}`;
+
+  const yFor = (t: number) => {
+    const h =
+      t < 0.5
+        ? spanHalfH(spanStart) + (spanHalfH(spanMid) - spanHalfH(spanStart)) * t * 2
+        : spanHalfH(spanMid) + (spanHalfH(spanEnd) - spanHalfH(spanMid)) * (t - 0.5) * 2;
+    return ((40 + h) / 80) * 100;
+  };
 
   return (
     <div className="flex flex-col gap-2 select-none" key={worldId}>
       <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-muted">
         <span className="inline-flex items-center gap-1">
-          Color
+          Brush Color
           <TipMark id="gradient" />
         </span>
         <div className="flex items-center gap-2">
@@ -190,35 +189,32 @@ export function ColorRangeSlider() {
       <div
         ref={trackRef}
         onPointerDown={onTrackPointerDown}
-        className="relative mb-4 w-full cursor-copy touch-none rounded-full"
-        title={canAdd ? "Click to add a stop" : "Maximum stops reached"}
-        style={{
-          height: 48,
-          minHeight: 48,
-          backgroundImage: `${fullGradient}, repeating-conic-gradient(#2a2a2a 0% 25%, #4a4a4a 0% 50%)`,
-          backgroundSize: "auto, 8px 8px",
-          boxShadow: "inset 0 1px 4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.2)",
-        }}
+        className="relative h-24 w-full cursor-copy touch-none"
+        title={canAdd ? "Click to add a color along the stroke" : "Maximum stops reached"}
       >
-        <div
-          className="pointer-events-none absolute inset-y-0 left-0 rounded-l-full bg-ink/55"
-          style={{ width: `${start * 100}%` }}
-        />
-        <div
-          className="pointer-events-none absolute inset-y-0 right-0 rounded-r-full bg-ink/55"
-          style={{ width: `${(1 - end) * 100}%` }}
-        />
-        <div
-          className="pointer-events-none absolute inset-y-0 border-y-2 border-fg/35"
-          style={{ left: `${start * 100}%`, width: `${Math.max(2, (end - start) * 100)}%` }}
-        />
+        <svg viewBox="0 0 200 80" className="absolute inset-0 size-full" preserveAspectRatio="none" aria-hidden>
+          <defs>
+            <pattern id={checkerId} width="8" height="8" patternUnits="userSpaceOnUse">
+              <rect width="8" height="8" fill="#2a2a2a" />
+              <rect width="4" height="4" fill="#4a4a4a" />
+              <rect x="4" y="4" width="4" height="4" fill="#4a4a4a" />
+            </pattern>
+            <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="0">
+              {gradStops.map((s, i) => (
+                <stop key={i} offset={s.offset} stopColor={s.color} />
+              ))}
+            </linearGradient>
+          </defs>
+          <path d={path} fill={`url(#${checkerId})`} />
+          <path d={path} fill={`url(#${gradId})`} />
+        </svg>
 
         {stops.map((stop) => {
           const active = stop.id === selectedId;
           const a = stopAlpha(stop);
           const hole = a < 0.08;
           const shadow = isShadowStop(stop);
-          const size = shadow ? 22 : 14;
+          const size = shadow ? 18 : 14;
           return (
             <button
               key={stop.id}
@@ -230,11 +226,8 @@ export function ColorRangeSlider() {
                 e.stopPropagation();
                 setSelectedId(stop.id);
               }}
-              className={
-                "absolute z-20 -translate-x-1/2 touch-none " +
-                (active ? "scale-110" : "hover:scale-105")
-              }
-              style={{ left: `${stop.t * 100}%`, bottom: shadow ? "-11px" : "-7px" }}
+              className={"absolute z-20 -translate-x-1/2 -translate-y-1/2 touch-none " + (active ? "scale-110" : "hover:scale-105")}
+              style={{ left: `${stop.t * 100}%`, top: `${yFor(stop.t)}%` }}
               aria-label={shadow ? "Brush shadow stop" : hole ? "Transparent color stop" : `Color stop ${stop.color}`}
               aria-pressed={active}
             >
@@ -259,31 +252,11 @@ export function ColorRangeSlider() {
             </button>
           );
         })}
-
-        <div
-          data-handle="start"
-          onPointerDown={beginRangeDrag("start")}
-          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-[3px] border-fg active:scale-110"
-          style={{
-            left: `${start * 100}%`,
-            width: 22,
-            height: 22,
-            backgroundColor: startColor,
-            boxShadow: `0 0 0 2px ${startColor}55, 0 2px 8px rgba(0,0,0,0.55)`,
-          }}
-        />
-        <div
-          data-handle="end"
-          onPointerDown={beginRangeDrag("end")}
-          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-[3px] border-fg active:scale-110"
-          style={{
-            left: `${end * 100}%`,
-            width: 22,
-            height: 22,
-            backgroundColor: endColor,
-            boxShadow: `0 0 0 2px ${endColor}55, 0 2px 8px rgba(0,0,0,0.55)`,
-          }}
-        />
+      </div>
+      <div className="flex justify-between text-[10px] uppercase tracking-wider text-subtle">
+        <span>Start</span>
+        <span>Belly</span>
+        <span>Tail</span>
       </div>
 
       {selected && (
@@ -300,7 +273,7 @@ export function ColorRangeSlider() {
                 {selectedShadow ? "Brush shadow" : "Stop"}
               </div>
               <div className="font-mono text-[10px] tabular-nums text-muted">
-                {selected.color.toUpperCase()} · {Math.round(selected.t * 100)}%
+                {selected.color.toUpperCase()} · {Math.round(selected.t * 100)}% along the stroke
               </div>
             </div>
             <button
@@ -348,12 +321,11 @@ export function ColorRangeSlider() {
             {extraCount > 0 ? ` · +${extraCount} extra` : ""}
             {" · shadow"}
           </span>
-          <span>
-            {(start * 100).toFixed(0)}–{(end * 100).toFixed(0)}%
-          </span>
         </div>
       )}
-      {!selected && canAdd && <TipCopy>Click the ramp to add a stop. The large diamond is brush shadow.</TipCopy>}
+      {!selected && canAdd && (
+        <TipCopy>Left is the start of the stroke, right is the tail. Click to drop a color. The larger diamond is brush shadow.</TipCopy>
+      )}
     </div>
   );
 }

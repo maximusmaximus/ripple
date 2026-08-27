@@ -49,7 +49,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the Color-ramp diamond. Turn the cast on under Width — Distance and Angle sit there.",
+    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the large Brush Color diamond. Turn the cast on under Width — Distance and Angle sit there.",
   },
   {
     id: "texture",
@@ -58,8 +58,8 @@ export const GUIDE_TIPS: GuideTip[] = [
   },
   {
     id: "gradient",
-    title: "Color",
-    body: "The dual handles crop the live ramp. Click the ramp to drop a stop. The large diamond is brush shadow color and opacity — same slider as every other stop. Flip reverses the ramp. Distance and angle for the cast live under Width.",
+    title: "Brush Color",
+    body: "The ramp is the brush itself — same length and silhouette as Width, from start on the left through the belly to the tail on the right. Each diamond is a color along that stroke: the mark picks up the left color as it begins and the right color as it finishes. Click the silhouette to drop a stop, drag to slide it, tap it to set hue and opacity. Flip reverses start and tail. The larger diamond is brush-shadow color and opacity; distance and angle for the cast live under Width. There are no crop circles — the whole stroke is the gradient.",
   },
   {
     id: "viscosity",

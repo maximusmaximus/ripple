@@ -17,8 +17,15 @@ function label(n: number) {
   return Math.round(n * 200);
 }
 
-function halfH(v: number) {
+export function spanHalfH(v: number) {
   return 6 + toT(v) * 26;
+}
+
+export function spanSilhouettePath(start: number, mid: number, end: number) {
+  const sH = spanHalfH(start);
+  const mH = spanHalfH(mid);
+  const eH = spanHalfH(end);
+  return `M 8 ${40 - sH} L 100 ${40 - mH} L 192 ${40 - eH} L 192 ${40 + eH} L 100 ${40 + mH} L 8 ${40 + sH} Z`;
 }
 
 export function SpanProfile({
@@ -83,10 +90,10 @@ export function SpanProfile({
     }
   };
 
-  const sH = halfH(start);
-  const mH = halfH(mid);
-  const eH = halfH(end);
-  const d = `M 8 ${40 - sH} L 100 ${40 - mH} L 192 ${40 - eH} L 192 ${40 + eH} L 100 ${40 + mH} L 8 ${40 + sH} Z`;
+  const sH = spanHalfH(start);
+  const mH = spanHalfH(mid);
+  const eH = spanHalfH(end);
+  const d = spanSilhouettePath(start, mid, end);
 
   return (
     <div className="flex flex-col gap-2">

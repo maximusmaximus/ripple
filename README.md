@@ -22,7 +22,7 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, color ramp (stops + shadow color), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, Brush Color (stroke-length gradient), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
@@ -50,7 +50,7 @@ Round, soft, scatter, and script nibs. **Width** (start / belly / tail) is the s
 
 **Hold a brush chip for two seconds** — an **X** appears. Tap it, then confirm. Your stamps are deleted. Starter brushes hide on this studio.
 
-Stroke color follows the live gradient.
+Stroke color follows **Brush Color** — the gradient laid along the stroke from start to tail.
 
 ### Layer FX
 
@@ -60,7 +60,7 @@ Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix bo
 
 **Texture** matches presets: the selected grain sits at the top (swipe or arrows), a **well of tall chips** below, **Upload** in that window. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
 
-**Color** is one ramp: crop handles, click to add a stop, pick color on the wheel, and fade each stop with **opacity**. The **large diamond** is brush-shadow color and opacity. **Flip** reverses the ramp. Distance and angle for the cast live under Width. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
+**Brush Color** is the stroke itself: the same silhouette as Width, start on the left through belly to tail on the right. Diamonds are colors along that mark — the brush picks up the left color as it begins and the right color as it finishes. Click to add a stop, drag it, set hue and opacity. There are no crop circles. **Flip** reverses start and tail. The **larger diamond** is brush-shadow color and opacity. Distance and angle for the cast live under Width. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
 
 ### Sensors
 

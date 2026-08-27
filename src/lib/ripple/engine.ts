@@ -37,8 +37,8 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform2f(this.inkU.point, ux, uy);
       gl.uniform1f(this.inkU.force, s.force);
       gl.uniform1f(this.inkU.radius, Math.max(0.004, s.radius));
-      gl.uniform1f(this.inkU.t, this.strokeT(s.force));
-      gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.force));
+      gl.uniform1f(this.inkU.t, this.strokeT(s.along));
+      gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.along));
       gl.uniform1f(this.inkU.along, s.along ?? 0.5);
       this.bindStamp(this.inkU.stamp, this.inkU.useStamp, this.inkU.angle, this.inkU.aspect, useStamp, ang, this.inkU.width, width);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -49,12 +49,13 @@ export class RippleEngine extends RippleEngineBase {
     }
   }
 
-  private strokeT(force: number): number {
-    return mix01(this.rangeStart, this.rangeEnd, Math.max(0, Math.min(1, Math.abs(force))));
+  private strokeT(along?: number): number {
+    const u = typeof along === "number" ? Math.max(0, Math.min(1, along)) : 0.5;
+    return mix01(this.rangeStart, this.rangeEnd, u);
   }
 
-  private strokeAlpha(force: number): number {
-    const t = this.strokeT(force);
+  private strokeAlpha(along?: number): number {
+    const t = this.strokeT(along);
     return sampleStopsA(this.stopA, this.stopT, t);
   }
 

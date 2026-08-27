@@ -65,12 +65,21 @@ function ArtFrame({ children }: { children: ReactNode }) {
 function GradientArt() {
   return (
     <ArtFrame>
-      <div className="relative h-6 w-[85%] rounded-full" style={{ background: "linear-gradient(90deg,#07141f,#1a4a5c,#7ec8d8,#d7f6ff)" }}>
-        <span className="absolute -bottom-1.5 left-[8%] size-4 rotate-45 rounded-[2px] border-2 border-white bg-[#07141f]" />
-        <span className="absolute -bottom-1 left-[38%] size-2.5 rotate-45 rounded-[1px] border border-white bg-[#1a4a5c]" />
-        <span className="absolute -bottom-1 left-[62%] size-2.5 rotate-45 rounded-[1px] border border-white bg-[#7ec8d8]" />
-        <span className="absolute -bottom-1 left-[88%] size-2.5 rotate-45 rounded-[1px] border border-white bg-[#d7f6ff]" />
-      </div>
+      <svg viewBox="0 0 160 32" className="h-8 w-[85%]" aria-hidden>
+        <defs>
+          <linearGradient id="ga" x1="0" x2="1">
+            <stop offset="0%" stopColor="#07141f" />
+            <stop offset="40%" stopColor="#1a4a5c" />
+            <stop offset="75%" stopColor="#7ec8d8" />
+            <stop offset="100%" stopColor="#d7f6ff" />
+          </linearGradient>
+        </defs>
+        <path d="M4 16 L 40 6 L 80 4 L 120 10 L 156 22 L 156 26 L 120 22 L 80 20 L 40 22 L 4 20 Z" fill="url(#ga)" />
+        <rect x="10" y="20" width="5" height="5" transform="rotate(45 12.5 22.5)" fill="#07141f" stroke="#fff" strokeWidth="0.8" />
+        <rect x="58" y="18" width="4" height="4" transform="rotate(45 60 20)" fill="#1a4a5c" stroke="#fff" strokeWidth="0.7" />
+        <rect x="98" y="18" width="4" height="4" transform="rotate(45 100 20)" fill="#7ec8d8" stroke="#fff" strokeWidth="0.7" />
+        <rect x="138" y="22" width="4" height="4" transform="rotate(45 140 24)" fill="#d7f6ff" stroke="#fff" strokeWidth="0.7" />
+      </svg>
     </ArtFrame>
   );
 }
