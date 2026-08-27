@@ -11,6 +11,9 @@ import {
   resampleStops,
   defaultStopsFor,
   flipStops,
+  ensureShadowStop,
+  isShadowStop,
+  stopAlpha,
   MAX_COLOR_STOPS,
   type PaletteId,
   type ColorPair,
@@ -299,18 +302,16 @@ export const useRippleStore = create<RippleState>()(
       },
 
       getActiveStops: () => {
-        const { worldId, colorStops, colorPairs } = get();
+        const { worldId, colorStops, colorPairs, shadowColor, shadowOpacity } = get();
         const saved = colorStops[worldId];
-        if (saved && saved.length >= 2) return saved;
         const palette = PALETTES[worldId] ?? PALETTES.lens;
-        return defaultStopsFor(palette, colorPairs[worldId]);
+        const base = saved && saved.length >= 2 ? saved : defaultStopsFor(palette, colorPairs[worldId]);
+        return ensureShadowStop(base, shadowColor, shadowOpacity);
       },
 
       addColorStop: (t) => {
-        const { worldId, colorStops, colorPairs } = get();
-        const saved = colorStops[worldId];
-        const current =
-          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
         if (current.length >= MAX_COLOR_STOPS) return null;
         const next = addStopHelper(current, undefined, t);
         const added = next.find((s) => !current.some((c) => c.id === s.id));
@@ -324,10 +325,9 @@ export const useRippleStore = create<RippleState>()(
       },
 
       removeColorStop: (id) => {
-        const { worldId, colorStops, colorPairs } = get();
-        const saved = colorStops[worldId];
-        const current =
-          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
+        const { worldId, colorStops } = get();
+        if (isShadowStop({ id, t: 0, color: "#000" })) return;
+        const current = get().getActiveStops();
         set({
           colorStops: {
             ...colorStops,
@@ -337,15 +337,21 @@ export const useRippleStore = create<RippleState>()(
       },
 
       updateColorStop: (id, patch) => {
-        const { worldId, colorStops, colorPairs } = get();
-        const saved = colorStops[worldId];
-        const current =
-          saved && saved.length >= 2 ? saved : defaultStopsFor(PALETTES[worldId] ?? PALETTES.lens, colorPairs[worldId]);
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        const next = updateStopHelper(current, id, patch);
+        const sh = next.find(isShadowStop);
         set({
           colorStops: {
             ...colorStops,
-            [worldId]: updateStopHelper(current, id, patch),
+            [worldId]: next,
           },
+          ...(sh
+            ? {
+                shadowColor: sh.color,
+                shadowOpacity: stopAlpha(sh),
+              }
+            : {}),
         });
       },
 
@@ -462,9 +468,26 @@ export const useRippleStore = create<RippleState>()(
       },
       getActiveFxLayers: () => asFxLayers(get().fxLayers),
       setShadowOn: (v) => set({ shadowOn: v }),
-      setBrushShadowColor: (hex) => set({ shadowColor: hex }),
+      setBrushShadowColor: (hex) => {
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        const next = updateStopHelper(current, "brush-shadow", { color: hex });
+        set({
+          shadowColor: hex,
+          colorStops: { ...colorStops, [worldId]: next },
+        });
+      },
       setShadowAngle: (deg) => set({ shadowAngle: ((deg % 360) + 360) % 360 }),
-      setShadowOpacity: (v) => set({ shadowOpacity: Math.max(0, Math.min(1, v)) }),
+      setShadowOpacity: (v) => {
+        const opacity = Math.max(0, Math.min(1, v));
+        const { worldId, colorStops } = get();
+        const current = get().getActiveStops();
+        const next = updateStopHelper(current, "brush-shadow", { alpha: opacity });
+        set({
+          shadowOpacity: opacity,
+          colorStops: { ...colorStops, [worldId]: next },
+        });
+      },
       setTextureId: (id) =>
         set((s) => {
           const next = getTexture(id).id;

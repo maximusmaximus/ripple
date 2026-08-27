@@ -9,7 +9,6 @@ import {
   type FxLayerId,
 } from "@/lib/ripple/blend";
 import { useRippleStore } from "@/store/ripple";
-import { BrushShadow } from "./brush-shadow";
 import { TipMark, TipCopy } from "./tip-mark";
 
 export function LayerFxPicker() {
@@ -24,7 +23,6 @@ export function LayerFxPicker() {
   const names = active.map((id) => getBrushFx(id).name).join(" · ");
   const layerNames = layers.map((id) => FX_LAYERS.find((l) => l.id === id)?.name).filter(Boolean);
   const open = layers.length > 0;
-  const shadowOpen = layers.includes("shadow");
   const hint = active.length > 1
     ? `Stack: ${names}. Darken and Lighten families replace each other.`
     : getBrushFx(active[0] ?? "normal").hint;
@@ -63,11 +61,6 @@ export function LayerFxPicker() {
           );
         })}
       </div>
-      {shadowOpen && (
-        <div className="rounded-lg border border-line bg-fg/5 p-2">
-          <BrushShadow nested />
-        </div>
-      )}
       {open && (
         <>
           <TipCopy>{hint}</TipCopy>

@@ -22,7 +22,7 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, width, hold to remove), diameter, Layer FX, texture, gradient, viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form.
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, Layer FX, texture, color ramp (stops + brush shadow), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
@@ -52,11 +52,11 @@ Stroke color follows the live gradient.
 
 ### Layer FX
 
-Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. Shadow has its own color, angle, and opacity.
+Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. **Brush shadow** color, opacity, and angle live on the large diamond on the Color ramp — the Shadow pill only turns the cast on.
 
 ### Surface
 
-Textures (paper, silk, mesh, and more) plus upload (JPG, PNG, GIF, WebP). Invert and levels reshape a photo. Cover / contain / stretch set the fit. The dual-handle **Color** ramp crops the live gradient — **click the ramp** to add a stop, then pick on the circular color wheel. Stops can punch holes; **Flip gradient** reverses it. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
+Textures (paper, silk, mesh, and more) plus upload (JPG, PNG, GIF, WebP). Invert and levels reshape a photo. Cover / contain / stretch set the fit. **Color** is one ramp: crop handles, click to add a stop, pick color on the wheel, and fade each stop with **opacity**. The **large diamond** is brush shadow and uses that same opacity slider. **Flip** reverses the ramp. There are no separate Key / Shadow swatches. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
 
 ### Sensors
 

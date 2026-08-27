@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { GUIDE_BY_ID, GUIDE_TIPS } from "@/lib/ripple/guides";
 import { useRippleStore } from "@/store/ripple";
+import { GuideArt } from "./guide-art";
 
 export function TipsGuide() {
   const on = useRippleStore((s) => s.tipsOn);
@@ -29,6 +30,7 @@ export function TipsGuide() {
             </p>
           </div>
           <h2 className="mt-1 text-sm font-medium text-fg">{tip.title}</h2>
+          <GuideArt id={tip.id} />
           <p className="mt-1 text-[12px] leading-snug text-muted">{tip.body}</p>
           <p className="mt-2 text-[10px] text-subtle">Tap any i on a control for that feature.</p>
           <div className="mt-2.5 flex items-center justify-between">

@@ -37,6 +37,8 @@ export type ColorStop = {
   color: string;
   /** 0 = hole (see camera / bed), 1 = solid. */
   alpha?: number;
+  /** Brush-shadow handle living on the same ramp. */
+  role?: "shadow";
 };
 
 export type Palette = {
@@ -481,8 +483,9 @@ function parseHex(h: string): [number, number, number] {
 }
 
 /** Default 6 palette colors + 5 extras. */
-export const MAX_COLOR_STOPS = 11;
+export const MAX_COLOR_STOPS = 12;
 export const MIN_COLOR_STOPS = 2;
+export const BRUSH_SHADOW_STOP_ID = "brush-shadow";
 
 let stopSeq = 0;
 export function newStopId(): string {
@@ -500,8 +503,35 @@ export function stopsFromColors(colors: string[], idPrefix = "c"): ColorStop[] {
   }));
 }
 
+export function isShadowStop(stop: ColorStop): boolean {
+  return stop.role === "shadow" || stop.id === BRUSH_SHADOW_STOP_ID;
+}
+
+export function inkStops(stops: ColorStop[]): ColorStop[] {
+  return stops.filter((s) => !isShadowStop(s));
+}
+
 export function sortStops(stops: ColorStop[]): ColorStop[] {
   return [...stops].sort((a, b) => a.t - b.t);
+}
+
+export function ensureShadowStop(stops: ColorStop[], color: string, opacity: number): ColorStop[] {
+  const shadow: ColorStop = {
+    id: BRUSH_SHADOW_STOP_ID,
+    t: 0.08,
+    color: normalizeHex(color),
+    alpha: Math.max(0, Math.min(1, opacity)),
+    role: "shadow",
+  };
+  const existing = stops.find(isShadowStop);
+  if (!existing) return sortStops([...stops, shadow]);
+  return sortStops(
+    stops.map((s) =>
+      isShadowStop(s)
+        ? { ...s, id: BRUSH_SHADOW_STOP_ID, role: "shadow" as const }
+        : s,
+    ),
+  );
 }
 
 export function stopAlpha(stop: ColorStop): number {
@@ -586,7 +616,9 @@ export function addStop(stops: ColorStop[], color?: string, at?: number): ColorS
 }
 
 export function removeStop(stops: ColorStop[], id: string): ColorStop[] {
-  if (stops.length <= MIN_COLOR_STOPS) return stops;
+  const target = stops.find((s) => s.id === id);
+  if (target && isShadowStop(target)) return stops;
+  if (inkStops(stops).length <= MIN_COLOR_STOPS) return stops;
   return sortStops(stops.filter((s) => s.id !== id));
 }
 
@@ -598,7 +630,13 @@ export function updateStop(
   return sortStops(
     stops.map((s) =>
       s.id === id
-        ? { ...s, ...patch, t: patch.t != null ? Math.max(0, Math.min(1, patch.t)) : s.t }
+        ? {
+            ...s,
+            ...patch,
+            t: patch.t != null ? Math.max(0, Math.min(1, patch.t)) : s.t,
+            role: s.role,
+            id: isShadowStop(s) ? BRUSH_SHADOW_STOP_ID : s.id,
+          }
         : s,
     ),
   );

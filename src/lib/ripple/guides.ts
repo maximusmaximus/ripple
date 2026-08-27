@@ -44,7 +44,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Brush shadow rides on top of the painting and follows the live stroke.",
+    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Shadow’s color, opacity, and angle live on the large Color-ramp stop — the Shadow pill only turns the cast on.",
   },
   {
     id: "texture",
@@ -53,8 +53,8 @@ export const GUIDE_TIPS: GuideTip[] = [
   },
   {
     id: "gradient",
-    title: "Gradient",
-    body: "The dual handles crop the live ramp. Click the ramp to drop a stop, then pick its color on the wheel. Drag stops, punch holes with alpha, or flip the ramp. This is the color the fluid samples as you paint.",
+    title: "Color",
+    body: "The dual handles crop the live ramp. Click the ramp to drop a stop. The large diamond is brush shadow — same color wheel and opacity slider as every other stop. Drag stops, fade them with opacity, or Flip the ramp.",
   },
   {
     id: "viscosity",

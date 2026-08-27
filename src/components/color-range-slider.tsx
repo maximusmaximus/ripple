@@ -10,12 +10,14 @@ import { Minus } from "lucide-react";
 import {
   gradientFromStops,
   sampleFromStops,
-  resolvePair,
   defaultStopsFor,
   MAX_COLOR_STOPS,
   MIN_COLOR_STOPS,
   type ColorStop,
   stopAlpha,
+  ensureShadowStop,
+  isShadowStop,
+  inkStops,
 } from "@/lib/ripple/palettes";
 import { useRippleStore } from "@/store/ripple";
 import { TipMark, TipCopy } from "./tip-mark";
@@ -27,25 +29,26 @@ export function ColorRangeSlider() {
   const storedRange = useRippleStore((s) => s.colorRanges[s.worldId]);
   const storedPair = useRippleStore((s) => s.colorPairs[s.worldId]);
   const customStops = useRippleStore((s) => s.colorStops[s.worldId]);
+  const shadowColor = useRippleStore((s) => s.shadowColor);
+  const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
+  const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const setColorRange = useRippleStore((s) => s.setColorRange);
-  const setKeyColor = useRippleStore((s) => s.setKeyColor);
-  const setShadowColor = useRippleStore((s) => s.setShadowColor);
   const resetColorRange = useRippleStore((s) => s.resetColorRange);
   const addColorStop = useRippleStore((s) => s.addColorStop);
   const removeColorStop = useRippleStore((s) => s.removeColorStop);
   const updateColorStop = useRippleStore((s) => s.updateColorStop);
+  const setShadowAngle = useRippleStore((s) => s.setShadowAngle);
   const gradientFlip = useRippleStore((s) => s.gradientFlip);
   const setGradientFlip = useRippleStore((s) => s.setGradientFlip);
 
   const def = palette.defaultRange;
   const start = storedRange ? Math.min(storedRange.start, storedRange.end) : def[0];
   const end = storedRange ? Math.max(storedRange.start, storedRange.end) : def[1];
-  const pair = resolvePair(palette, storedPair);
 
   const stops = useMemo(() => {
-    if (customStops && customStops.length >= 2) return customStops;
-    return defaultStopsFor(palette, storedPair);
-  }, [customStops, palette, storedPair]);
+    const base = customStops && customStops.length >= 2 ? customStops : defaultStopsFor(palette, storedPair);
+    return ensureShadowStop(base, shadowColor, shadowOpacity);
+  }, [customStops, palette, storedPair, shadowColor, shadowOpacity]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -146,22 +149,35 @@ export function ColorRangeSlider() {
   const startColor = sampleFromStops(stops, start);
   const endColor = sampleFromStops(stops, end);
   const rangeDefault = Math.abs(start - def[0]) < 0.015 && Math.abs(end - def[1]) < 0.015;
-  const pairDefault = pair.key === palette.key && pair.shadow === palette.shadow;
   const hasCustomStops = Boolean(customStops && customStops.length >= 2);
-  const isDefault = rangeDefault && pairDefault && !hasCustomStops;
+  const isDefault = rangeDefault && !hasCustomStops;
   const selected = selectedId ? stops.find((s) => s.id === selectedId) : null;
+  const selectedShadow = Boolean(selected && isShadowStop(selected));
   const canAdd = stops.length < MAX_COLOR_STOPS;
-  const canRemove = Boolean(selected) && stops.length > MIN_COLOR_STOPS;
-  const extraCount = Math.max(0, stops.length - 6);
+  const canRemove = Boolean(selected) && !selectedShadow && inkStops(stops).length > MIN_COLOR_STOPS;
+  const extraCount = Math.max(0, inkStops(stops).length - 6);
+  const selectedA = selected ? stopAlpha(selected) : 1;
 
   return (
     <div className="flex flex-col gap-2 select-none" key={worldId}>
-      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted">
+      <div className="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider text-muted">
         <span className="inline-flex items-center gap-1">
           Color
           <TipMark id="gradient" />
         </span>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={gradientFlip}
+            onClick={() => setGradientFlip(!gradientFlip)}
+            className={
+              "rounded-full border px-2 py-0.5 text-[10px] normal-case tracking-normal transition " +
+              (gradientFlip ? "border-fg/70 bg-fg/20 text-fg" : "border-line text-subtle hover:text-fg")
+            }
+          >
+            Flip
+          </button>
           <button
             type="button"
             onClick={resetColorRange}
@@ -173,51 +189,14 @@ export function ColorRangeSlider() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex items-center gap-2" title="Key color">
-          <ColorSwatchButton value={pair.key} onChange={setKeyColor} label="Key" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">Key</span>
-            <span className="font-mono text-[9px] tabular-nums text-muted">{pair.key}</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2" title="Shadow color">
-          <ColorSwatchButton value={pair.shadow} onChange={setShadowColor} label="Shadow" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-subtle">Shadow</span>
-            <span className="font-mono text-[9px] tabular-nums text-muted">{pair.shadow}</span>
-          </span>
-        </div>
-        <label className="flex min-w-0 flex-1 cursor-pointer flex-col gap-1 pb-0.5">
-          <span className="text-[10px] uppercase tracking-wider text-muted">Flip Gradient</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={gradientFlip}
-            onClick={() => setGradientFlip(!gradientFlip)}
-            className={
-              "relative h-7 w-12 rounded-full border transition " +
-              (gradientFlip ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
-            }
-          >
-            <span
-              className={
-                "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
-                (gradientFlip ? "translate-x-6" : "translate-x-0.5")
-              }
-            />
-          </button>
-        </label>
-      </div>
-
       <div
         ref={trackRef}
         onPointerDown={onTrackPointerDown}
-        className="relative mb-3 w-full cursor-copy touch-none rounded-full"
+        className="relative mb-4 w-full cursor-copy touch-none rounded-full"
         title={canAdd ? "Click to add a stop" : "Maximum stops reached"}
         style={{
-          height: 44,
-          minHeight: 44,
+          height: 48,
+          minHeight: 48,
           backgroundImage: `${fullGradient}, repeating-conic-gradient(#2a2a2a 0% 25%, #4a4a4a 0% 50%)`,
           backgroundSize: "auto, 8px 8px",
           boxShadow: "inset 0 1px 4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.2)",
@@ -240,12 +219,14 @@ export function ColorRangeSlider() {
           const active = stop.id === selectedId;
           const a = stopAlpha(stop);
           const hole = a < 0.08;
+          const shadow = isShadowStop(stop);
+          const size = shadow ? 22 : 14;
           return (
             <button
               key={stop.id}
               type="button"
               data-stop={stop.id}
-              title={hole ? "Transparent stop" : stop.color}
+              title={shadow ? "Brush shadow" : hole ? "Transparent stop" : stop.color}
               onPointerDown={beginStopDrag(stop)}
               onClick={(e) => {
                 e.stopPropagation();
@@ -255,22 +236,26 @@ export function ColorRangeSlider() {
                 "absolute z-20 -translate-x-1/2 touch-none " +
                 (active ? "scale-110" : "hover:scale-105")
               }
-              style={{ left: `${stop.t * 100}%`, bottom: "-7px" }}
-              aria-label={hole ? "Transparent color stop" : `Color stop ${stop.color}`}
+              style={{ left: `${stop.t * 100}%`, bottom: shadow ? "-11px" : "-7px" }}
+              aria-label={shadow ? "Brush shadow stop" : hole ? "Transparent color stop" : `Color stop ${stop.color}`}
               aria-pressed={active}
             >
               <span
                 className={
-                  "block h-3.5 w-3.5 rotate-45 rounded-[2px] border-2 shadow " +
+                  "block rotate-45 rounded-[3px] border-2 shadow " +
                   (active
                     ? "border-white shadow-[0_0_0_2px_rgba(0,0,0,0.45)]"
-                    : "border-white/80 shadow-black/40")
+                    : shadow
+                      ? "border-white shadow-black/50"
+                      : "border-white/80 shadow-black/40")
                 }
                 style={{
+                  width: size,
+                  height: size,
                   background: hole
                     ? "repeating-conic-gradient(#d0d0d0 0% 25%, #555 0% 50%) 50% / 6px 6px"
                     : stop.color,
-                  opacity: hole ? 1 : undefined,
+                  opacity: hole ? 1 : 0.35 + a * 0.65,
                 }}
               />
             </button>
@@ -304,60 +289,90 @@ export function ColorRangeSlider() {
       </div>
 
       {selected && (
-        <div className="flex items-center gap-2 rounded-xl border border-line bg-ink/40 px-2.5 py-2">
-          <ColorSwatchButton
-            value={selected.color}
-            onChange={(hex) => updateColorStop(selected.id, { color: hex, alpha: 1 })}
-            label="Stop color"
-            className="size-8 rounded-lg"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[11px] font-medium text-fg/90">Stop selected</div>
-            <div className="font-mono text-[10px] tabular-nums text-muted">
-              {stopAlpha(selected) < 0.08 ? "Transparent" : selected.color.toUpperCase()} ·{" "}
-              {Math.round(selected.t * 100)}%
-            </div>
-          </div>
-          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-fg/10 px-2 py-1.5 text-[11px] text-fg/90 hover:bg-fg/16">
-            <input
-              type="checkbox"
-              checked={stopAlpha(selected) < 0.08}
-              onChange={(e) =>
-                updateColorStop(selected.id, { alpha: e.target.checked ? 0 : 1 })
-              }
-              className="size-3.5 accent-current"
-              aria-label="Make stop transparent"
+        <div className="flex flex-col gap-2 rounded-xl border border-line bg-ink/40 px-2.5 py-2">
+          <div className="flex items-center gap-2">
+            <ColorSwatchButton
+              value={selected.color}
+              onChange={(hex) => updateColorStop(selected.id, { color: hex })}
+              label={selectedShadow ? "Brush shadow color" : "Stop color"}
+              className="size-8 rounded-lg"
             />
-            Transparent
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[11px] font-medium text-fg/90">
+                {selectedShadow ? "Brush shadow" : "Stop"}
+              </div>
+              <div className="font-mono text-[10px] tabular-nums text-muted">
+                {selected.color.toUpperCase()} · {Math.round(selected.t * 100)}%
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={!canRemove}
+              onClick={() => {
+                removeColorStop(selected.id);
+                setSelectedId(null);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg bg-fg/10 px-2 py-1.5 text-[11px] text-fg/90 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-30"
+              title={
+                selectedShadow
+                  ? "Brush shadow stays on the ramp"
+                  : canRemove
+                    ? "Remove stop"
+                    : "Keep at least two stops"
+              }
+            >
+              <Minus className="size-3.5" strokeWidth={2.25} />
+              Remove
+            </button>
+          </div>
+          <label className="flex flex-col gap-1">
+            <div className="flex justify-between text-[11px] text-muted">
+              <span>Opacity</span>
+              <span className="font-mono tabular-nums text-fg">{Math.round(selectedA * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={selectedA}
+              onChange={(e) => updateColorStop(selected.id, { alpha: parseFloat(e.target.value) })}
+              className="w-full"
+            />
           </label>
-          <button
-            type="button"
-            disabled={!canRemove}
-            onClick={() => {
-              removeColorStop(selected.id);
-              setSelectedId(null);
-            }}
-            className="inline-flex items-center gap-1 rounded-lg bg-fg/10 px-2 py-1.5 text-[11px] text-fg/90 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-30"
-            title={canRemove ? "Remove stop" : "Keep at least two stops"}
-          >
-            <Minus className="size-3.5" strokeWidth={2.25} />
-            Remove
-          </button>
+          {selectedShadow && (
+            <label className="flex flex-col gap-1">
+              <div className="flex justify-between text-[11px] text-muted">
+                <span>Angle</span>
+                <span className="font-mono tabular-nums text-fg">{Math.round(shadowAngle)}°</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                step={1}
+                value={shadowAngle}
+                onChange={(e) => setShadowAngle(parseFloat(e.target.value))}
+                className="w-full"
+              />
+            </label>
+          )}
         </div>
       )}
 
       {!selected && (
         <div className="flex justify-between font-mono text-[10px] tabular-nums text-subtle">
           <span className="normal-case tracking-normal">
-            {stops.length} stops
+            {inkStops(stops).length} stops
             {extraCount > 0 ? ` · +${extraCount} extra` : ""}
+            {" · shadow"}
           </span>
           <span>
             {(start * 100).toFixed(0)}–{(end * 100).toFixed(0)}%
           </span>
         </div>
       )}
-      {!selected && canAdd && <TipCopy>Click the ramp to add a stop.</TipCopy>}
+      {!selected && canAdd && <TipCopy>Click the ramp to add a stop. The large diamond is brush shadow.</TipCopy>}
     </div>
   );
 }
