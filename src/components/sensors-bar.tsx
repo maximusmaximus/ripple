@@ -42,6 +42,7 @@ type Props = {
   onToggleLink?: () => void;
   viewers?: number;
   showViewers?: boolean;
+  lanHd?: boolean;
 };
 
 export function SensorsBar({
@@ -61,6 +62,7 @@ export function SensorsBar({
   onToggleLink,
   viewers = 0,
   showViewers = false,
+  lanHd = false,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -339,13 +341,16 @@ export function SensorsBar({
         </div>
       )}
       <div className="flex items-center gap-1.5">
-      {onToggleLink && (
+      {onToggleLink || linkState === "live" || lanHd ? (
         <span className="relative flex items-center gap-1.5">
         <button
           type="button"
+          data-lan-hd={lanHd ? "true" : "false"}
           className={
             "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-95 " +
-            (linkState === "live"
+            (lanHd
+              ? "border-ripple/80 bg-ripple/20 text-ripple shadow-[0_0_16px_rgba(126,200,227,0.45)]"
+              : linkState === "live"
               ? "border-emerald-400/80 bg-emerald-500/25 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.45)]"
               : linkState === "waiting"
                 ? "border-amber-400/70 bg-amber-500/15 text-amber-100"
@@ -354,22 +359,26 @@ export function SensorsBar({
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            onToggleLink();
+            onToggleLink?.();
           }}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            onToggleLink();
+            onToggleLink?.();
           }}
           aria-label={
-            linkState === "live"
+            lanHd
+              ? "Same network — HD saves on the wall"
+              : linkState === "live"
               ? "Linked — show pairing"
               : linkState === "waiting"
                 ? "Waiting for a link"
                 : "Pair with a larger screen"
           }
           title={
-            linkState === "live"
+            lanHd
+              ? "HD — same network. Saves stay on the wall."
+              : linkState === "live"
               ? "Linked"
               : linkState === "waiting"
                 ? "Waiting for a link"
@@ -377,15 +386,20 @@ export function SensorsBar({
           }
         >
           <Lightbulb
-            className={"size-4 " + (linkState === "live" ? "fill-current" : "")}
+            className={"size-4 " + (linkState === "live" || lanHd ? "fill-current" : "")}
             strokeWidth={1.75}
           />
-          {linkState === "waiting" && (
+          {linkState === "waiting" && !lanHd && (
             <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-amber-200">
               …
             </span>
           )}
-          {linkState === "live" && (
+          {lanHd && (
+            <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-ripple">
+              HD
+            </span>
+          )}
+          {linkState === "live" && !lanHd && (
             <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-emerald-200">
               ON
             </span>
@@ -393,7 +407,7 @@ export function SensorsBar({
         </button>
           <TipMark id="pair" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
         </span>
-      )}
+      ) : null}
       {(showViewers || viewers > 0) && (
         <span className="relative">
         <span
@@ -438,7 +452,7 @@ export function SensorsBar({
           title={
             recording
               ? `${formatCountdown(remaining)} left · tap to stop. Auto-saves to this device and the linked one.`
-              : "Record the canvas. Linked devices both get the clip."
+              : "Record the canvas. Same-network pairs save HD on the wall."
           }
         >
           {recording ? (

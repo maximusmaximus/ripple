@@ -22,7 +22,7 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, Brush Color (stroke-length gradient), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, Brush Color (stroke-length gradient), viscosity, wave, sensors, pairing (HD on the same network), LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
@@ -86,7 +86,7 @@ On a desktop-width studio the pairing card can open automatically or from the li
 
 On a phone the light is also top-right. It does **not** auto-open. Tap it after you are in the studio for instructions to scan the desktop / primary screen, or type that screen’s six-character code.
 
-Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again.
+Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again. Same-network pairs light the bulb **HD**; extra watchers do not turn that off.
 
 The pairing card opens with a **VOIDRIDE** loading screen for a few seconds so you can tap Listen Now. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears.
 
@@ -102,7 +102,9 @@ Watchers cannot paint. **My session** on the watch screen starts a private mix. 
 
 Top-right **REC** captures the live canvas for up to **30 seconds**. The label is a countdown. It auto-stops at zero. Tap REC again to stop early.
 
-When a phone is linked, REC on the phone records the **wall** (the picture on the big screen). Both devices receive the same clip — desktop usually auto-downloads; phones open a **save sheet** so you can download it with a full tap. If the file is too large to send, it still saves on the wall.
+When a phone is linked, REC on the phone records the **wall** (the picture on the big screen). If they are on **different networks**, both devices get the same ~30s clip. If ICE says they are on the **same network** (host / quiet RTT), the pair light reads **HD**: the wall saves a higher-bitrate clip (up to **60 seconds**) and does **not** ship that file over the paint channel. The phone shows a notice that HD landed on the wall. Extra watchers (local or web) stay on the cheap live view — they do not add encoders or change the HD file.
+
+A toast fires once when same-network is detected: “Same network — the wall will save HD.”
 
 Last three seconds pulse faster so you know the cap is close.
 

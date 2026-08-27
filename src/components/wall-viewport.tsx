@@ -5,6 +5,7 @@ import { QrMark } from "./qr-mark";
 import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
+import { LanHdToast } from "./lan-hd-toast";
 import { emptySensorsState, type SensorsState } from "@/lib/ripple/media";
 import { useRippleStore } from "@/store/ripple";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
@@ -14,7 +15,7 @@ import { useOrientation } from "@/hooks/use-orientation";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import { useLivePresence } from "@/hooks/use-live-presence";
 import { useViewStream } from "@/hooks/use-view-stream";
-import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
+import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
 import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
 import type { CastMsg } from "@/lib/ripple/cast";
 
@@ -68,6 +69,7 @@ export function WallViewport({ preferredCode }: Props) {
 
   const hostSendRef = useRef<(msg: CastMsg) => void>(() => {});
   const hostLiveRef = useRef(false);
+  const lanHdRef = useRef(false);
   const recRef = useRef<{ start: () => boolean; stop: () => void } | null>(null);
 
   const onRemoteInput = useCallback(
@@ -120,6 +122,7 @@ export function WallViewport({ preferredCode }: Props) {
   });
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
+  lanHdRef.current = host.lanHd;
   const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useLivePresence({
@@ -129,8 +132,14 @@ export function WallViewport({ preferredCode }: Props) {
   });
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
   const record = useCanvasRecord(() => canvasRef.current, {
-    onBlob: async (blob, name) => {
-      if (hostLiveRef.current) await sendRecBlob((m) => hostSendRef.current(m), blob, name);
+    profile: () => recordProfileFor(lanHdRef.current),
+    onBlob: async (blob, name, profile) => {
+      if (!hostLiveRef.current) return;
+      if (profile === "lanHd") {
+        hostSendRef.current({ t: "rec-skip", reason: "hd-local" });
+        return;
+      }
+      await sendRecBlob((m) => hostSendRef.current(m), blob, name);
     },
   });
   recRef.current = record;
@@ -163,6 +172,7 @@ export function WallViewport({ preferredCode }: Props) {
       className="relative h-dvh w-dvw overflow-hidden bg-ink"
       data-wall="true"
       data-cast-state={host.state}
+      data-lan-hd={host.lanHd ? "1" : "0"}
     >
       <RippleCanvas
         ref={canvasRef}
@@ -177,11 +187,23 @@ export function WallViewport({ preferredCode }: Props) {
         onReady={splash.markReady}
       />
 
-      {host.viewerCount > 0 && (
+      <LanHdToast on={host.lanHd} />
+
+      {(host.viewerCount > 0 || host.lanHd) && (
         <div
           data-ui-chrome
-          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end gap-1.5 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]"
         >
+          {host.lanHd && (
+            <span
+              data-lan-hd="true"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-ripple/50 bg-ink/70 px-2.5 text-[11px] font-semibold tracking-wide text-ripple backdrop-blur-md"
+              title="Same network — HD saves on this wall"
+            >
+              HD
+            </span>
+          )}
+          {host.viewerCount > 0 && (
           <span
             data-live-viewers={host.viewerCount}
             className="inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
@@ -190,6 +212,7 @@ export function WallViewport({ preferredCode }: Props) {
             <Eye className="size-3.5" strokeWidth={1.75} />
             {host.viewerCount}
           </span>
+          )}
         </div>
       )}
 
@@ -197,7 +220,8 @@ export function WallViewport({ preferredCode }: Props) {
         <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
             <span className="inline-block size-2 rounded-full bg-white" />
-            {formatCountdown(record.remainingMs)} left · both screens save
+            {formatCountdown(record.remainingMs)} left
+            {record.profile === "lanHd" ? " · HD on this wall" : " · both screens save"}
           </div>
         </div>
       )}

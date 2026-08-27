@@ -13,6 +13,7 @@ import {
 import type { Splat } from "@/lib/ripple/pointer";
 import type { PaletteId } from "@/lib/ripple/palettes";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
+import { isLanPeer } from "@/lib/ripple/record";
 
 export type HostConnectionState = "idle" | "waiting" | "connected" | "reconnecting";
 
@@ -58,6 +59,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   const [pairUrl, setPairUrl] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
+  const [lanHd, setLanHd] = useState(false);
   const p2pRef = useRef<P2PRoom | null>(null);
   const optsRef = useRef(opts);
   optsRef.current = opts;
@@ -74,6 +76,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     if (!code) return;
     if (opts.enabled === false) return;
     const selfId = makePeerId("w");
+    let lastLanSent = false;
     const p2p = new P2PRoom({
       room: roomIdFor(code),
       selfId,
@@ -91,6 +94,16 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
             (p.connectionState === "connecting" || p.connectionState === "new"),
         );
         const live = pads.length > 0;
+        const nextLan = live && pads.some((p) => isLanPeer(p));
+        setLanHd(nextLan);
+        if (nextLan !== lastLanSent) {
+          lastLanSent = nextLan;
+          try {
+            p2p.send({ t: "lan-hd", on: nextLan } satisfies CastMsg);
+          } catch {
+            /* ignore */
+          }
+        }
         if (live) {
           wasLive.current = true;
           setState("connected");
@@ -136,6 +149,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       wasLive.current = false;
       setLastError(null);
       setState("idle");
+      setLanHd(false);
       setCode(next);
       setPairUrl(pairUrlFor(next));
       return;
@@ -155,6 +169,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     wasLive.current = false;
     p2pRef.current?.close();
     setState("idle");
+    setLanHd(false);
   }, []);
 
   const send = useCallback((msg: CastMsg) => {
@@ -181,6 +196,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     showPairUI: state === "idle" || state === "reconnecting" || state === "waiting",
     lastError,
     viewerCount,
+    lanHd,
     regenerateCode,
     disconnect,
     send,

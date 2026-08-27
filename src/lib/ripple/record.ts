@@ -3,6 +3,32 @@ import { decodeCamB64, encodeCamB64, type CastMsg } from "./cast";
 export const REC_MAX_SHARE_BYTES = 8 * 1024 * 1024;
 const CHUNK = 10_000;
 
+/** Share = today's portable clip. lanHd = wall-local, same-network only. */
+export type RecordProfile = "share" | "lanHd";
+
+const LAN_HOST_RTT_MS = 40;
+const LAN_PRFLX_RTT_MS = 20;
+
+/** ICE host (or a very-local prflx) + quiet RTT. Watchers are ignored by the caller. */
+export function isLanPeer(p: {
+  candidateType: string | null;
+  rttMs: number | null;
+  connectionState?: string;
+}): boolean {
+  if (p.connectionState && p.connectionState !== "connected") return false;
+  const t = p.candidateType;
+  if (t === "host") return p.rttMs == null || p.rttMs <= LAN_HOST_RTT_MS;
+  if (t === "prflx") return p.rttMs != null && p.rttMs <= LAN_PRFLX_RTT_MS;
+  return false;
+}
+
+export function recordProfileFor(lanHd: boolean): RecordProfile {
+  if (!lanHd || typeof navigator === "undefined") return "share";
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+  if (mem <= 2) return "share";
+  return "lanHd";
+}
+
 export function pickRecordMime(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   const types = [
@@ -14,8 +40,12 @@ export function pickRecordMime(): string | undefined {
   return types.find((t) => MediaRecorder.isTypeSupported(t));
 }
 
-export function recordFps(): number {
+export function recordFps(profile: RecordProfile = "share"): number {
   if (typeof window === "undefined") return 15;
+  if (profile === "lanHd") {
+    const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
+    return mem >= 8 ? 30 : 24;
+  }
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
   if (coarse || mem <= 2) return 12;
@@ -23,15 +53,23 @@ export function recordFps(): number {
   return 20;
 }
 
-/** 30s cap — bitrate is kept low enough that the clip stays shareable. */
-export function recordLimitMs(_canvas?: HTMLCanvasElement | null): number {
-  return 30_000;
+export function recordBitrate(profile: RecordProfile, canvas?: HTMLCanvasElement | null): number {
+  if (profile !== "lanHd") return 1_200_000;
+  const w = canvas?.width ?? 1280;
+  const h = canvas?.height ?? 720;
+  const bits = Math.round(w * h * 30 * 0.14);
+  return Math.min(12_000_000, Math.max(6_000_000, bits));
 }
 
-export function recFileName(mime: string): string {
+export function recordLimitMs(profile: RecordProfile = "share"): number {
+  return profile === "lanHd" ? 60_000 : 30_000;
+}
+
+export function recFileName(mime: string, profile: RecordProfile = "share"): string {
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  return `ripple-${stamp}.${ext}`;
+  const tag = profile === "lanHd" ? "hd-" : "";
+  return `ripple-${tag}${stamp}.${ext}`;
 }
 
 export function formatCountdown(ms: number): string {

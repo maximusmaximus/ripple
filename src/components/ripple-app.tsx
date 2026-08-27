@@ -7,6 +7,7 @@ import { ControlsDock } from "./controls-dock";
 import { SensorsBar } from "./sensors-bar";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
+import { LanHdToast } from "./lan-hd-toast";
 import { PairOverlay } from "./pair-overlay";
 import { SessionGate } from "./session-gate";
 import { WatchViewport } from "./watch-viewport";
@@ -27,7 +28,7 @@ import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
 import { compactCastSnapshot, hydrateSnapshotMedia, type StudioSnapshot } from "@/lib/ripple/studio";
-import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
+import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
 
 const PRIVATE_KEY = "ripple-private-session";
 
@@ -74,9 +75,16 @@ export function RippleApp() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostSendRef = useRef<(msg: import("@/lib/ripple/cast").CastMsg) => void>(() => {});
   const hostLiveRef = useRef(false);
+  const lanHdRef = useRef(false);
   const record = useCanvasRecord(() => canvasRef.current, {
-    onBlob: async (blob, name) => {
-      if (hostLiveRef.current) await sendRecBlob((m) => hostSendRef.current(m), blob, name);
+    profile: () => recordProfileFor(lanHdRef.current),
+    onBlob: async (blob, name, profile) => {
+      if (!hostLiveRef.current) return;
+      if (profile === "lanHd") {
+        hostSendRef.current({ t: "rec-skip", reason: "hd-local" });
+        return;
+      }
+      await sendRecBlob((m) => hostSendRef.current(m), blob, name);
     },
   });
   const recRef = useRef(record);
@@ -177,6 +185,7 @@ export function RippleApp() {
   });
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
+  lanHdRef.current = host.lanHd;
 
   const presence = useLivePresence({
     role: mode === "local" && choice === "host" ? "host" : null,
@@ -377,6 +386,7 @@ export function RippleApp() {
             recSaving={pad.recSaving}
             pendingClip={pad.pendingClip}
             recNote={pad.recNote}
+            lanHd={pad.lanHd}
             clearPendingClip={pad.clearPendingClip}
             worldId={worldId}
             viscosity={viscosity}
@@ -413,6 +423,7 @@ export function RippleApp() {
       data-viewport={isDesktop ? "desktop" : "mobile"}
       data-vp-ready={viewportReady ? "1" : "0"}
       data-has-session={presence.session ? "1" : "0"}
+      data-lan-hd={host.lanHd ? "1" : "0"}
     >
       <StudioSync />
       <RippleCanvas
@@ -439,6 +450,8 @@ export function RippleApp() {
         </div>
       )}
 
+      <LanHdToast on={host.lanHd} />
+
       {hint && showChrome && !(showPairOverlay && isDesktop) && !showBoot && !showGate && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <p className="rounded-full border border-line bg-ink/50 px-4 py-2 text-sm text-fg/80 backdrop-blur-md">
@@ -451,7 +464,8 @@ export function RippleApp() {
         <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
             <span className="inline-block size-2 rounded-full bg-white" />
-            {formatCountdown(record.remainingMs)} left · both screens save
+            {formatCountdown(record.remainingMs)} left
+            {record.profile === "lanHd" ? " · HD on this wall" : " · both screens save"}
           </div>
         </div>
       )}
@@ -472,14 +486,25 @@ export function RippleApp() {
           linkState={linkState}
           onToggleLink={openPair}
           viewers={liveViewers}
+          lanHd={host.lanHd}
         />
       )}
 
-      {!showChrome && liveViewers > 0 && (
+      {!showChrome && (liveViewers > 0 || host.lanHd) && (
         <div
           data-ui-chrome
-          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]"
+          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end gap-1.5 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]"
         >
+          {host.lanHd && (
+            <span
+              data-lan-hd="true"
+              className="inline-flex h-11 items-center gap-1.5 rounded-full border border-ripple/50 bg-ink/70 px-2.5 text-[11px] font-semibold tracking-wide text-ripple backdrop-blur-md"
+              title="Same network — HD saves on this wall"
+            >
+              HD
+            </span>
+          )}
+          {liveViewers > 0 && (
           <span
             data-live-viewers={liveViewers}
             className="inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
@@ -488,6 +513,7 @@ export function RippleApp() {
             <Eye className="size-3.5" strokeWidth={1.75} />
             {liveViewers}
           </span>
+          )}
         </div>
       )}
 
@@ -581,6 +607,7 @@ function PadSurface({
   recSaving,
   pendingClip,
   recNote,
+  lanHd,
   clearPendingClip,
   worldId,
   viscosity,
@@ -607,6 +634,7 @@ function PadSurface({
   recSaving: boolean;
   pendingClip: import("@/lib/ripple/record").PendingClip | null;
   recNote: string | null;
+  lanHd: boolean;
   clearPendingClip: () => void;
   worldId: string;
   viscosity: number;
@@ -717,7 +745,7 @@ function PadSurface({
   }, [dockOpen, setDockOpen]);
 
   return (
-    <div className="relative h-dvh w-dvw overflow-hidden bg-ink" style={{ touchAction: "none" }} data-pad="true">
+    <div className="relative h-dvh w-dvw overflow-hidden bg-ink" style={{ touchAction: "none" }} data-pad="true" data-lan-hd={lanHd ? "1" : "0"}>
       <StudioSync />
       <RippleCanvas
         sensors={sensors}
@@ -738,7 +766,10 @@ function PadSurface({
         pendingClip={pendingClip}
         onSaveClip={clearPendingClip}
         recNote={recNote}
+        lanHd={lanHd}
+        linkState="live"
       />
+      <LanHdToast on={lanHd} />
 
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] transition-all duration-300 ease-out"

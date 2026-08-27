@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { P2PRoom } from "@/lib/multiplayer";
 import { encodeCamB64, parseCastMsg, roomIdFor, type CastMsg } from "@/lib/ripple/cast";
-import { createRecInbox, offerDownload, type PendingClip } from "@/lib/ripple/record";
+import { createRecInbox, offerDownload, isLanPeer, type PendingClip } from "@/lib/ripple/record";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
 
@@ -40,6 +40,7 @@ export function useCastPad(opts: UseCastPadOptions) {
   const [recSaving, setRecSaving] = useState(false);
   const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
   const [recNote, setRecNote] = useState<string | null>(null);
+  const [lanHd, setLanHd] = useState(false);
 
   const sendJson = useCallback((msg: CastMsg, reliable = true) => {
     const p2p = p2pRef.current;
@@ -69,6 +70,7 @@ export function useCastPad(opts: UseCastPadOptions) {
     stopOwnedStream();
     p2pRef.current?.close();
     p2pRef.current = null;
+    setLanHd(false);
   }, [stopMedia, stopOwnedStream]);
 
   const bindCameraStream = useCallback(
@@ -139,6 +141,8 @@ export function useCastPad(opts: UseCastPadOptions) {
       name: "pad",
       onPeersChanged: (peers) => {
         const live = peers.some((p) => p.connectionState === "connected");
+        const wall = peers.find((p) => p.name === "wall" && p.connectionState === "connected");
+        setLanHd(Boolean(wall && isLanPeer(wall)));
         const failed = peers.every((p) => p.connectionState === "failed") && peers.length > 0;
         if (live) setState("connected");
         else if (failed) {
@@ -160,6 +164,10 @@ export function useCastPad(opts: UseCastPadOptions) {
         if (msg.t === "bye") {
           cleanup();
           setState("idle");
+          return;
+        }
+        if (msg.t === "lan-hd") {
+          setLanHd(msg.on);
           return;
         }
         if (msg.t === "rec-state") {
@@ -193,7 +201,11 @@ export function useCastPad(opts: UseCastPadOptions) {
         if (msg.t === "rec-skip") {
           setRecSaving(false);
           setRecOn(false);
-          setRecNote("Clip saved on the wall — too large to send here");
+          setRecNote(
+            msg.reason === "hd-local"
+              ? "HD clip saved on the wall"
+              : "Clip saved on the wall — too large to send here",
+          );
         }
       },
       onConnected: () => {
@@ -296,6 +308,7 @@ export function useCastPad(opts: UseCastPadOptions) {
     recSaving,
     pendingClip,
     recNote,
+    lanHd,
     clearPendingClip: () => setPendingClip(null),
     startCameraLoop,
     bindCameraStream,

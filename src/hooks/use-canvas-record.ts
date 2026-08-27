@@ -3,9 +3,12 @@ import {
   offerDownload,
   pickRecordMime,
   recFileName,
+  recordBitrate,
   recordFps,
   recordLimitMs,
+  recordProfileFor,
   type PendingClip,
+  type RecordProfile,
 } from "@/lib/ripple/record";
 
 export type RecordState = "idle" | "recording" | "saving";
@@ -13,8 +16,9 @@ export type RecordState = "idle" | "recording" | "saving";
 export function useCanvasRecord(
   getCanvas: () => HTMLCanvasElement | null,
   opts?: {
-    onBlob?: (blob: Blob, name: string) => void | Promise<void>;
+    onBlob?: (blob: Blob, name: string, profile: RecordProfile) => void | Promise<void>;
     autoDownload?: boolean;
+    profile?: () => RecordProfile;
   },
 ) {
   const recRef = useRef<MediaRecorder | null>(null);
@@ -28,6 +32,7 @@ export function useCanvasRecord(
   const [remainingMs, setRemainingMs] = useState(0);
   const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeProfile, setActiveProfile] = useState<RecordProfile>("share");
 
   useEffect(() => {
     if (state !== "recording" || !startedAt) return;
@@ -61,8 +66,10 @@ export function useCanvasRecord(
       setError("Recording isn’t supported here");
       return false;
     }
-    const fps = recordFps();
-    const limit = recordLimitMs(canvas);
+    const profile = optsRef.current?.profile?.() ?? recordProfileFor(false);
+    const fps = recordFps(profile);
+    const limit = recordLimitMs(profile);
+    const bits = recordBitrate(profile, canvas);
     let stream: MediaStream;
     try {
       stream = canvas.captureStream(fps);
@@ -70,7 +77,7 @@ export function useCanvasRecord(
       setError("Couldn’t start the capture");
       return false;
     }
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_200_000 });
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bits });
     chunks.current = [];
     rec.ondataavailable = (e) => {
       if (e.data.size) chunks.current.push(e.data);
@@ -91,21 +98,22 @@ export function useCanvasRecord(
         return;
       }
       setState("saving");
-      const name = recFileName(mime);
+      const name = recFileName(mime, profile);
       const finish = () => setState("idle");
       void (async () => {
         try {
           if (optsRef.current?.autoDownload !== false) {
             setPendingClip(offerDownload(blob, name));
           }
-          await optsRef.current?.onBlob?.(blob, name);
+          await optsRef.current?.onBlob?.(blob, name, profile);
         } finally {
           finish();
         }
       })();
     };
     recRef.current = rec;
-    rec.start(400);
+    rec.start(profile === "lanHd" ? 1000 : 400);
+    setActiveProfile(profile);
     setLimitMs(limit);
     setRemainingMs(limit);
     setStartedAt(Date.now());
@@ -138,6 +146,7 @@ export function useCanvasRecord(
     remainingMs,
     pendingClip,
     error,
+    profile: activeProfile,
     start,
     stop,
     toggle,

@@ -22,6 +22,7 @@ export type PadHandle = {
   recSaving: boolean;
   pendingClip: PendingClip | null;
   recNote: string | null;
+  lanHd: boolean;
   clearPendingClip: () => void;
   startCameraLoop: () => Promise<void>;
   bindCameraStream: (stream: MediaStream | null) => void;
@@ -75,6 +76,7 @@ export function PadGate({ code, children }: Props) {
           recSaving: pad.recSaving,
           pendingClip: pad.pendingClip,
           recNote: pad.recNote,
+          lanHd: pad.lanHd,
           clearPendingClip: pad.clearPendingClip,
           startCameraLoop: pad.startCameraLoop,
           bindCameraStream: pad.bindCameraStream,

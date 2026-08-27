@@ -29,6 +29,7 @@ export type CastMsg =
   | { t: "rec-chunk"; i: number; b64: string }
   | { t: "rec-done" }
   | { t: "rec-skip"; reason: string }
+  | { t: "lan-hd"; on: boolean }
   | { t: "ping"; ts: number }
   | { t: "pong"; ts: number }
   | { t: "bye" };

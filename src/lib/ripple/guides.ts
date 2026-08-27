@@ -104,7 +104,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "pair",
     title: "Secondary device",
-    body: "The light next to REC opens pairing. On a desktop it shows a QR for your phone. On a phone it tells you to scan the desktop or primary screen — or type that screen’s six-character code. The menu then lives on the phone and the large display becomes a clean wall.",
+    body: "The light next to REC opens pairing. On a desktop it shows a QR for your phone. On a phone it tells you to scan the desktop or primary screen — or type that screen’s six-character code. The menu then lives on the phone and the large display becomes a clean wall. When both devices are on the same network the light reads HD — saves stay on the wall at higher quality so extra watchers do not slow the mix.",
   },
   {
     id: "live",
@@ -134,7 +134,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "rec",
     title: "Record",
-    body: "Top-right REC captures the wall canvas. The number counts down from 30 seconds. Tap again to stop early. Linked phone and wall both receive the same file — a save sheet appears on phones so you can download it. Last three seconds pulse faster.",
+    body: "Top-right REC captures the wall canvas. Off-network clips last 30 seconds and copy to both screens. Same-network pairs raise that to HD on the wall (up to 60 seconds, higher bitrate) — the phone is told the file landed there instead of sending a huge blob over the paint channel. Extra watchers stay on the cheap live view and do not change the encode. Last three seconds pulse faster.",
   },
 ];
 
