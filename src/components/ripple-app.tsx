@@ -17,6 +17,7 @@ import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
 import { useViewport } from "@/hooks/use-desktop";
+import { useAppFullscreen } from "@/hooks/use-app-fullscreen";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { useLivePresence } from "@/hooks/use-live-presence";
 import { useViewStream } from "@/hooks/use-view-stream";
@@ -68,7 +69,7 @@ export function RippleApp() {
   const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
   const setWorld = useRippleStore((s) => s.setWorld);
   const applySnapshot = useRippleStore((s) => s.applySnapshot);
-  const { angle, isImmersive } = useOrientation();
+  const { angle, isImmersive, isLandscape } = useOrientation();
   const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostSendRef = useRef<(msg: import("@/lib/ripple/cast").CastMsg) => void>(() => {});
@@ -193,6 +194,12 @@ export function RippleApp() {
     !showBoot &&
     viewportReady &&
     (pairForced || (isDesktop && !pairDismissed));
+
+  useAppFullscreen({
+    enabled: (mode === "local" || mode === "pad") && !showGate && !showBoot && !showPairOverlay,
+    landscape: isLandscape,
+    active: !hint,
+  });
 
   useEffect(() => {
     if (viewportReady && isDesktop) setBootDone(true);
