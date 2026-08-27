@@ -191,8 +191,8 @@ export function RippleApp() {
     !showGate &&
     !host.isLive &&
     !showBoot &&
-    (pairForced || !pairDismissed) &&
-    (bootDone || isDesktop);
+    viewportReady &&
+    (pairForced || (isDesktop && !pairDismissed));
 
   useEffect(() => {
     if (viewportReady && isDesktop) setBootDone(true);
@@ -265,19 +265,21 @@ export function RippleApp() {
 
   useEffect(() => {
     if (host.state === "reconnecting") {
-      setPairDismissed(false);
-      setPairForced(true);
       setCamSource(null);
       setRemoteGyro(null);
       setRemoteMic(0);
       setRemoteMicBands(null);
+      if (isDesktop) {
+        setPairDismissed(false);
+        setPairForced(true);
+      }
     }
     if (host.isLive) {
       setPairForced(false);
       setPairDismissed(true);
       setDockOpen(false);
     }
-  }, [host.state, host.isLive, setDockOpen]);
+  }, [host.state, host.isLive, isDesktop, setDockOpen]);
 
   useEffect(() => {
     if (isImmersive) setDockOpen(false);
@@ -529,7 +531,8 @@ export function RippleApp() {
       {showPairOverlay && (
         <PairOverlay
           host={host}
-          skipHold={!isDesktop}
+          layout={isDesktop ? "wall" : "phone"}
+          skipHold={!isDesktop || pairForced}
           onDismiss={() => {
             setPairDismissed(true);
             setPairForced(false);
