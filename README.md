@@ -22,7 +22,7 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, distance, angle), Layer FX, texture well, color ramp (stops + shadow color), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, color ramp (stops + shadow color), viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
