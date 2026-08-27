@@ -14,7 +14,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "presets",
     title: "Presets",
-    body: "The name at the top is the live mix. Swipe it left or right — or tap the arrows — to step through. The well below lists every mix as tall color chips, oldest at the top. Two rows fill the window; later chips scroll.",
+    body: "The name at the top is the live mix. Swipe it left or right — or tap the arrows — to step through. Easy is a clean first mark. The twenty worlds are each palette as designed. Mixes after that are demos: Night paper and Copperplate for nib + shadow, Taper noir for a fat-to-hair envelope, Prism blade for color along the stroke, Gyro flood and Voice bloom for sensors, Camera stain for the feed. The well below lists every mix as tall color chips, oldest at the top.",
   },
   {
     id: "save",
