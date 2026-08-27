@@ -98,6 +98,9 @@ export class RippleEngineBase {
   protected shadowAngle = 135;
   protected shadowOpacity = 0.45;
   protected shadowDist = 0.016;
+  protected shStart = 0.072;
+  protected shMid = 0.048;
+  protected shEnd = 0.022;
   protected texId = 0;
   protected customTex: WebGLTexture | null = null;
   protected customSource: TexImageSource | null = null;
@@ -235,6 +238,7 @@ export class RippleEngineBase {
       radius: gl.getUniformLocation(this.inkProg, "u_radius"),
       t: gl.getUniformLocation(this.inkProg, "u_t"),
       colorA: gl.getUniformLocation(this.inkProg, "u_colorA"),
+      along: gl.getUniformLocation(this.inkProg, "u_along"),
       stamp: gl.getUniformLocation(this.inkProg, "u_stamp"),
       useStamp: gl.getUniformLocation(this.inkProg, "u_useStamp"),
       angle: gl.getUniformLocation(this.inkProg, "u_angle"),
@@ -296,6 +300,9 @@ export class RippleEngineBase {
       shadowAngle: gl.getUniformLocation(this.displayProg, "u_shadowAngle"),
       shadowOpacity: gl.getUniformLocation(this.displayProg, "u_shadowOpacity"),
       shadowDist: gl.getUniformLocation(this.displayProg, "u_shadowDist"),
+      shStart: gl.getUniformLocation(this.displayProg, "u_shStart"),
+      shMid: gl.getUniformLocation(this.displayProg, "u_shMid"),
+      shEnd: gl.getUniformLocation(this.displayProg, "u_shEnd"),
       texId: gl.getUniformLocation(this.displayProg, "u_texId"),
       texMap: gl.getUniformLocation(this.displayProg, "u_texMap"),
       texHasMap: gl.getUniformLocation(this.displayProg, "u_texHasMap"),
@@ -373,6 +380,7 @@ export class RippleEngineBase {
     shadowAngle?: number;
     shadowOpacity?: number;
     shadowDist?: number;
+    shadowSpan?: { start: number; mid: number; end: number };
     texId?: number;
     texFit?: number;
     texLevels?: number;
@@ -410,6 +418,11 @@ export class RippleEngineBase {
     if (opts.shadowAngle != null) this.shadowAngle = ((opts.shadowAngle % 360) + 360) % 360;
     if (opts.shadowOpacity != null) this.shadowOpacity = Math.max(0, Math.min(1, opts.shadowOpacity));
     if (opts.shadowDist != null) this.shadowDist = Math.max(0.002, Math.min(0.08, opts.shadowDist));
+    if (opts.shadowSpan) {
+      this.shStart = Math.max(0.008, Math.min(0.12, opts.shadowSpan.start));
+      this.shMid = Math.max(0.008, Math.min(0.12, opts.shadowSpan.mid));
+      this.shEnd = Math.max(0.008, Math.min(0.12, opts.shadowSpan.end));
+    }
     if (opts.texId != null) this.texId = opts.texId | 0;
     if (opts.texFit != null) this.texFit = opts.texFit;
     if (opts.texLevels != null) this.texLevels = Math.max(0, Math.min(1, opts.texLevels));

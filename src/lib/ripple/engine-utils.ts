@@ -123,6 +123,7 @@ export type InkU = {
   radius: WebGLUniformLocation | null;
   t: WebGLUniformLocation | null;
   colorA: WebGLUniformLocation | null;
+  along: WebGLUniformLocation | null;
   stamp: WebGLUniformLocation | null;
   useStamp: WebGLUniformLocation | null;
   angle: WebGLUniformLocation | null;
@@ -162,6 +163,9 @@ export type DispU = {
   shadowAngle: WebGLUniformLocation | null;
   shadowOpacity: WebGLUniformLocation | null;
   shadowDist: WebGLUniformLocation | null;
+  shStart: WebGLUniformLocation | null;
+  shMid: WebGLUniformLocation | null;
+  shEnd: WebGLUniformLocation | null;
   texId: WebGLUniformLocation | null;
   texMap: WebGLUniformLocation | null;
   texHasMap: WebGLUniformLocation | null;

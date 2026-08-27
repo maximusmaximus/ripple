@@ -1,6 +1,6 @@
 import type { BrushFeel, BrushKind } from "./brushes"
 
-export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; width?: number; stamp?: boolean }
+export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; width?: number; stamp?: boolean; along?: number }
 type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number; rot: number; path: number }
 
 const MAX_SPLATS_PER_MOVE = 128
@@ -61,7 +61,7 @@ export class PointerPainter {
     const w = this.dynT(0, input.pressure ?? 0.5, 0, t, 0)
     const rot = (this.stampAngle * Math.PI) / 180
     this.tracks.set(id, { x, y, down: true, t, w, heading: this.nib, rot, path: 0 })
-    this.emit(x, y, this.force, w, this.nib, rot)
+    this.emit(x, y, this.force, w, this.nib, rot, 0)
   }
 
   move(id: number, x: number, y: number, t = performance.now(), input: StrokeInput = {}) {
@@ -79,8 +79,11 @@ export class PointerPainter {
     const w = last.w * 0.55 + target * 0.45
     const rot = last.rot + this.stampSpin * dist * 10
 
+    const along = clamp01(1 - Math.exp(-path / 0.14))
+    const lastAlong = clamp01(1 - Math.exp(-last.path / 0.14))
+
     if (dist < 1e-7) {
-      this.emit(x, y, this.force * 0.55, w * 0.9, heading, rot)
+      this.emit(x, y, this.force * 0.55, w * 0.9, heading, rot, along)
       this.tracks.set(id, { x, y, down: true, t, w, heading, rot, path })
       return
     }
@@ -99,7 +102,7 @@ export class PointerPainter {
       const u = i * inv
       const ww = last.w + (w - last.w) * u
       const rr = last.rot + (rot - last.rot) * u
-      this.emit(last.x + dx * u, last.y + dy * u, this.force, ww, heading, rr)
+      this.emit(last.x + dx * u, last.y + dy * u, this.force, ww, heading, rr, lastAlong + (along - lastAlong) * u)
     }
     this.tracks.set(id, { x, y, down: true, t, w, heading, rot, path })
   }
@@ -155,8 +158,9 @@ export class PointerPainter {
     return Math.max(0.003, env * feel)
   }
 
-  private emit(x: number, y: number, force: number, scale: number, heading: number, rot = 0) {
+  private emit(x: number, y: number, force: number, scale: number, heading: number, rot = 0, along = 0.5) {
     const r = Math.max(0.003, scale)
+    const a = clamp01(along)
     if (this.kind === "stamp") {
       this.queue.push({
         x: clamp01(x),
@@ -166,6 +170,7 @@ export class PointerPainter {
         angle: rot,
         width: this.markWidth,
         stamp: true,
+        along: a,
       })
       return
     }
@@ -181,13 +186,14 @@ export class PointerPainter {
           radius: r * (0.28 + Math.random() * 0.45),
           angle: rot,
           width: this.markWidth,
+          along: a,
         })
       }
       return
     }
     if (this.kind === "soft") {
-      this.queue.push({ x, y, force: force * 0.55, radius: r * 1.55, angle: rot, width: this.markWidth })
-      this.queue.push({ x, y, force: force * 0.85, radius: r * 0.7, angle: rot, width: this.markWidth })
+      this.queue.push({ x, y, force: force * 0.55, radius: r * 1.55, angle: rot, width: this.markWidth, along: a })
+      this.queue.push({ x, y, force: force * 0.85, radius: r * 0.7, angle: rot, width: this.markWidth, along: a })
       return
     }
     if (this.kind === "nib") {
@@ -204,11 +210,12 @@ export class PointerPainter {
           radius: r * (0.32 + (1 - Math.abs(u)) * 0.28),
           angle: rot,
           width: this.markWidth,
+          along: a,
         })
       }
       return
     }
-    this.queue.push({ x, y, force, radius: r, angle: rot, width: this.markWidth })
+    this.queue.push({ x, y, force, radius: r, angle: rot, width: this.markWidth, along: a })
   }
 }
 

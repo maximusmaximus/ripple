@@ -141,6 +141,10 @@ export function defaultBrushSpan(radius: number): BrushSpan {
   return { start, mid, end };
 }
 
+export function defaultShadowSpan(): BrushSpan {
+  return { start: 0.072, mid: 0.048, end: 0.022 };
+}
+
 export function normalizeBrushSpan(span: Partial<BrushSpan> & { min?: number; max?: number }): BrushSpan {
   const start = clampDia(
     typeof span.start === "number" ? span.start : typeof span.max === "number" ? span.max : 0.04,

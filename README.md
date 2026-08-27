@@ -30,7 +30,7 @@ The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes
 
 Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the menu. **Width** is a three-stop profile — start, belly, and tail — stored per brush. Drag a stop to reshape how the mark swells along the stroke.
 
-**Brush shadow** sits under Width: an on/off switch, **Distance**, and **Angle**. Color and opacity for that cast live on the large diamond on the Color ramp.
+**Brush shadow** sits under Width: an on/off switch, a **three-stop width** (start / belly / tail, same control as the brush), **Distance**, and **Angle**. Color and opacity for that cast live on the large diamond on the Color ramp. Starter mixes such as Noir quill, Copperplate, Eclipse stamp, and Shadow ember ship with their own shadow profiles.
 
 ### Presets
 

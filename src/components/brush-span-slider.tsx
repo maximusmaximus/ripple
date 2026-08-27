@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { DIA_MAX, DIA_MIN } from "@/lib/ripple/brushes";
+import { DIA_MAX, DIA_MIN, type BrushSpan } from "@/lib/ripple/brushes";
 import { useRippleStore } from "@/store/ripple";
 import { TipMark } from "./tip-mark";
 
@@ -21,12 +21,23 @@ function halfH(v: number) {
   return 6 + toT(v) * 26;
 }
 
-export function BrushSpanSlider() {
-  const brushId = useRippleStore((s) => s.brushId);
-  const start = useRippleStore((s) => s.getActiveSpan().start);
-  const mid = useRippleStore((s) => s.getActiveSpan().mid);
-  const end = useRippleStore((s) => s.getActiveSpan().end);
-  const setBrushSpan = useRippleStore((s) => s.setBrushSpan);
+export function SpanProfile({
+  title,
+  tipId,
+  start,
+  mid,
+  end,
+  onChange,
+  fillClass = "text-fg/45",
+}: {
+  title: string;
+  tipId: string;
+  start: number;
+  mid: number;
+  end: number;
+  onChange: (span: BrushSpan) => void;
+  fillClass?: string;
+}) {
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<"start" | "mid" | "end" | null>(null);
   const spanRef = useRef({ start, mid, end });
@@ -46,7 +57,7 @@ export function BrushSpanSlider() {
       if (!which) return;
       const v = clientToVal(e.clientY);
       const cur = spanRef.current;
-      setBrushSpan({ ...cur, [which]: v });
+      onChange({ ...cur, [which]: v });
     };
     const onUp = () => {
       dragging.current = null;
@@ -59,7 +70,7 @@ export function BrushSpanSlider() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [clientToVal, setBrushSpan]);
+  }, [clientToVal, onChange]);
 
   const begin = (which: "start" | "mid" | "end") => (e: ReactPointerEvent) => {
     e.preventDefault();
@@ -78,11 +89,11 @@ export function BrushSpanSlider() {
   const d = `M 8 ${40 - sH} L 100 ${40 - mH} L 192 ${40 - eH} L 192 ${40 + eH} L 100 ${40 + mH} L 8 ${40 + sH} Z`;
 
   return (
-    <div className="flex flex-col gap-2" key={brushId}>
+    <div className="flex flex-col gap-2">
       <div className="flex justify-between text-[12px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          Width
-          <TipMark id="diameter" />
+          {title}
+          <TipMark id={tipId} />
         </span>
         <span className="font-mono tabular-nums text-fg">
           {label(start)} · {label(mid)} · {label(end)}
@@ -98,24 +109,24 @@ export function BrushSpanSlider() {
           const x = (e.clientX - rect.left) / Math.max(1, rect.width);
           const which = x < 0.33 ? "start" : x < 0.66 ? "mid" : "end";
           dragging.current = which;
-          setBrushSpan({ ...spanRef.current, [which]: clientToVal(e.clientY) });
+          onChange({ ...spanRef.current, [which]: clientToVal(e.clientY) });
         }}
       >
-        <svg viewBox="0 0 200 80" className="absolute inset-0 size-full text-fg/45" preserveAspectRatio="none" aria-hidden>
+        <svg viewBox="0 0 200 80" className={"absolute inset-0 size-full " + fillClass} preserveAspectRatio="none" aria-hidden>
           <path d={d} fill="currentColor" />
         </svg>
         {(
           [
-            ["start", 8, start, sH, "Stroke start"],
-            ["mid", 100, mid, mH, "Stroke belly"],
-            ["end", 192, end, eH, "Stroke tail"],
+            ["start", 8, start, sH, `${title} start`],
+            ["mid", 100, mid, mH, `${title} belly`],
+            ["end", 192, end, eH, `${title} tail`],
           ] as const
-        ).map(([key, x, val, h, title]) => (
+        ).map(([key, x, val, h, aria]) => (
           <button
             key={key}
             type="button"
-            aria-label={title}
-            title={`${title} ${label(val)}`}
+            aria-label={aria}
+            title={`${aria} ${label(val)}`}
             onPointerDown={begin(key)}
             className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-fg bg-ink shadow-md"
             style={{
@@ -132,6 +143,20 @@ export function BrushSpanSlider() {
         <span>Belly</span>
         <span>Tail</span>
       </div>
+    </div>
+  );
+}
+
+export function BrushSpanSlider() {
+  const brushId = useRippleStore((s) => s.brushId);
+  const start = useRippleStore((s) => s.getActiveSpan().start);
+  const mid = useRippleStore((s) => s.getActiveSpan().mid);
+  const end = useRippleStore((s) => s.getActiveSpan().end);
+  const setBrushSpan = useRippleStore((s) => s.setBrushSpan);
+
+  return (
+    <div key={brushId}>
+      <SpanProfile title="Width" tipId="diameter" start={start} mid={mid} end={end} onChange={setBrushSpan} />
     </div>
   );
 }

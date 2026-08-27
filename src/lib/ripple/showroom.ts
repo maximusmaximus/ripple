@@ -27,6 +27,8 @@ type Recipe = {
   shadowColor?: string;
   shadowAngle?: number;
   shadowOpacity?: number;
+  shadowDist?: number;
+  shadowSpan?: { start: number; mid: number; end: number };
 };
 
 /** 50 authored mixes. Each one stresses a different corner of the engine. */
@@ -41,10 +43,10 @@ const RECIPES: Recipe[] = [
   { id: "home_magma_grain", name: "Magma grain", world: "magma", brush: "grit", texture: "grain", fx: ["multiply", "contrast"], layers: ["brush", "texture"], wave: 1.15, invert: false },
   { id: "home_ghost_hatch", name: "Ghost hatch", world: "ghost", brush: "hair", texture: "hatch", fx: ["inversion"], layers: ["brush", "texture"], vis: 0.97, cam: 0.55 },
   { id: "home_riot_spray", name: "Riot spray", world: "riot", brush: "spray", texture: "none", fx: ["overlay", "color"], layers: ["brush"], wave: 1.35, mic: 1.1 },
-  { id: "home_noir_quill", name: "Noir quill", world: "noir", brush: "italic", texture: "paper", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 118, shadowOpacity: 0.62 },
+  { id: "home_noir_quill", name: "Noir quill", world: "noir", brush: "italic", texture: "paper", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 118, shadowOpacity: 0.62, shadowDist: 0.28, shadowSpan: { start: 0.038, mid: 0.02, end: 0.01 } },
   { id: "home_plasma_scan", name: "Plasma scan", world: "plasma", brush: "needle", texture: "scan", fx: ["screen", "contrast"], layers: ["brush", "texture"], wave: 0.88 },
   { id: "home_aurora_veil", name: "Aurora veil", world: "aurora", brush: "mist", texture: "caustic", fx: ["lighten", "color"], layers: ["brush", "texture", "camera"], cam: 0.9 },
-  { id: "home_eclipse_stamp", name: "Eclipse stamp", world: "eclipse", brush: "stamp", texture: "marble", fx: ["darken"], layers: ["brush", "texture", "shadow"], dia: 0.1, shadowOpacity: 0.7 },
+  { id: "home_eclipse_stamp", name: "Eclipse stamp", world: "eclipse", brush: "stamp", texture: "marble", fx: ["darken"], layers: ["brush", "texture", "shadow"], dia: 0.1, shadowOpacity: 0.7, shadowDist: 0.52, shadowSpan: { start: 0.12, mid: 0.1, end: 0.086 } },
   { id: "home_storm_grit", name: "Storm grit", world: "storm", brush: "grit", texture: "grain", fx: ["overlay"], layers: ["brush", "texture", "mic"], mic: 1.2, wave: 1.4 },
   { id: "home_inkwell_needle", name: "Inkwell needle", world: "inkwell", brush: "needle", texture: "paper", fx: ["multiply"], layers: ["brush"], vis: 0.995, wave: 0.22, dia: 0.02 },
   { id: "home_fossil_marble", name: "Fossil marble", world: "fossil", brush: "pebble", texture: "marble", fx: ["multiply", "color"], layers: ["brush", "texture"], vis: 0.982 },
@@ -64,23 +66,23 @@ const RECIPES: Recipe[] = [
   { id: "home_color_grade", name: "Color grade", world: "prism", brush: "ink", texture: "none", fx: ["color"], layers: ["brush", "camera"], cam: 0.92 },
   { id: "home_hairline", name: "Hairline", world: "noir", brush: "hair", texture: "paper", fx: ["multiply"], layers: ["brush"], dia: 0.014, vis: 0.993, wave: 0.25 },
   { id: "home_bold_wash", name: "Bold wash", world: "ember", brush: "stamp", texture: "canvas", fx: ["multiply", "overlay"], layers: ["brush", "texture"], dia: 0.11, wave: 0.85 },
-  { id: "home_copperplate", name: "Copperplate", world: "inkwell", brush: "copper", texture: "paper", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 155, shadowOpacity: 0.55 },
+  { id: "home_copperplate", name: "Copperplate", world: "inkwell", brush: "copper", texture: "paper", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 155, shadowOpacity: 0.55, shadowDist: 0.4, shadowSpan: { start: 0.052, mid: 0.028, end: 0.01 } },
   { id: "home_brushpen_night", name: "Brushpen night", world: "eclipse", brush: "brushpen", texture: "none", fx: ["darken"], layers: ["brush"], vis: 0.978 },
   { id: "home_foam_crest", name: "Foam crest", world: "tide", brush: "cloud", texture: "foam", fx: ["lighten"], layers: ["brush", "texture"], wave: 1.28, vis: 0.935 },
   { id: "home_caustic_tide", name: "Caustic tide", world: "aurora", brush: "flood", texture: "caustic", fx: ["screen", "color"], layers: ["brush", "texture"], wave: 1.18 },
   { id: "home_weave_ink", name: "Weave ink", world: "inkwell", brush: "ink", texture: "weave", fx: ["multiply"], layers: ["brush", "texture"], vis: 0.986 },
-  { id: "home_paper_ember", name: "Paper ember", world: "ember", brush: "taper", texture: "paper", fx: ["overlay"], layers: ["brush", "texture", "shadow"], shadowColor: "#1a0804", shadowOpacity: 0.5 },
+  { id: "home_paper_ember", name: "Paper ember", world: "ember", brush: "taper", texture: "paper", fx: ["overlay"], layers: ["brush", "texture", "shadow"], shadowColor: "#1a0804", shadowOpacity: 0.5, shadowDist: 0.38, shadowSpan: { start: 0.08, mid: 0.052, end: 0.026 } },
   { id: "home_scan_storm", name: "Scan storm", world: "storm", brush: "spark", texture: "scan", fx: ["contrast", "screen"], layers: ["brush", "texture", "mic"], mic: 1.05 },
   { id: "home_mesh_volt", name: "Mesh volt", world: "volt", brush: "dart", texture: "mesh", fx: ["overlay"], layers: ["brush", "texture"], gyro: 0.35, wave: 1.0 },
   { id: "home_marble_fossil", name: "Marble fossil", world: "fossil", brush: "swell", texture: "marble", fx: ["multiply"], layers: ["brush", "texture"], vis: 0.975, levels: 0.15 },
   { id: "home_mist_ghost", name: "Mist ghost", world: "ghost", brush: "mist", texture: "grain", fx: ["lighten", "inversion"], layers: ["brush", "texture"], fxOp: 0.64, invert: true },
   { id: "home_spark_riot", name: "Spark riot", world: "riot", brush: "spark", texture: "none", fx: ["screen", "contrast"], layers: ["brush"], wave: 1.42, dia: 0.028 },
   { id: "home_sable_halo", name: "Sable halo", world: "halo", brush: "sable", texture: "silk", fx: ["color", "overlay"], layers: ["brush", "texture", "camera"], cam: 0.88 },
-  { id: "home_taper_noir", name: "Taper noir", world: "noir", brush: "taper", texture: "none", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 210, shadowOpacity: 0.48 },
+  { id: "home_taper_noir", name: "Taper noir", world: "noir", brush: "taper", texture: "none", fx: ["multiply"], layers: ["brush", "shadow"], shadowAngle: 210, shadowOpacity: 0.48, shadowDist: 0.32, shadowSpan: { start: 0.07, mid: 0.032, end: 0.01 } },
   { id: "home_swell_magma", name: "Swell magma", world: "magma", brush: "swell", texture: "canvas", fx: ["overlay", "multiply"], layers: ["brush", "texture"], wave: 1.22 },
   { id: "home_italic_tide", name: "Italic tide", world: "tide", brush: "italic", texture: "silk", fx: ["multiply", "color"], layers: ["brush", "texture"], vis: 0.984 },
   { id: "home_component_prism", name: "Component", world: "prism", brush: "bold", texture: "scan", fx: ["component", "contrast"], layers: ["brush", "texture", "camera"], cam: 0.7, fxOp: 0.8 },
-  { id: "home_shadow_ember", name: "Shadow ember", world: "ember", brush: "pebble", texture: "grain", fx: ["multiply"], layers: ["brush", "shadow", "texture"], shadowAngle: 125, shadowOpacity: 0.78, shadowColor: "#140804", flip: true },
+  { id: "home_shadow_ember", name: "Shadow ember", world: "ember", brush: "pebble", texture: "grain", fx: ["multiply"], layers: ["brush", "shadow", "texture"], shadowAngle: 125, shadowOpacity: 0.78, shadowColor: "#140804", flip: true, shadowDist: 0.62, shadowSpan: { start: 0.11, mid: 0.082, end: 0.048 } },
 ];
 
 function paletteRecipe(id: PaletteId): Recipe {
@@ -123,7 +125,8 @@ function snapshotFrom(r: Recipe): StudioSnapshot {
     shadowColor: r.shadowColor ?? "#0a0810",
     shadowAngle: r.shadowAngle ?? 135,
     shadowOpacity: r.shadowOpacity ?? 0.45,
-    shadowDist: 0.35,
+    shadowDist: r.shadowDist ?? 0.35,
+    shadowSpan: r.shadowSpan ?? { start: 0.072, mid: 0.048, end: 0.022 },
     textureId: r.texture,
     textureFit: r.fit ?? "cover",
     customTexture: null,

@@ -57,6 +57,7 @@ const snapshotSchema = z
     shadowAngle: z.number(),
     shadowOpacity: z.number(),
     shadowDist: z.number().optional(),
+    shadowSpan: z.object({ start: z.number(), mid: z.number(), end: z.number() }).optional(),
     textureId: z.string(),
     textureFit: z.enum(["cover", "contain", "stretch"]),
     customTexture: mediaObject.nullable(),

@@ -39,6 +39,7 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform1f(this.inkU.radius, Math.max(0.004, s.radius));
       gl.uniform1f(this.inkU.t, this.strokeT(s.force));
       gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.force));
+      gl.uniform1f(this.inkU.along, s.along ?? 0.5);
       this.bindStamp(this.inkU.stamp, this.inkU.useStamp, this.inkU.angle, this.inkU.aspect, useStamp, ang, this.inkU.width, width);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const inkTmp = this.inkPing;
@@ -235,6 +236,9 @@ export class RippleEngine extends RippleEngineBase {
     gl.uniform1f(this.dispU.shadowAngle, this.shadowAngle);
     gl.uniform1f(this.dispU.shadowOpacity, this.shadowOpacity);
     gl.uniform1f(this.dispU.shadowDist, this.shadowDist);
+    gl.uniform1f(this.dispU.shStart, this.shStart);
+    gl.uniform1f(this.dispU.shMid, this.shMid);
+    gl.uniform1f(this.dispU.shEnd, this.shEnd);
     gl.uniform1i(this.dispU.texId, this.texId);
     this.bindCustomMap(
       3,

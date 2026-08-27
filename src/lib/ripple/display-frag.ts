@@ -41,6 +41,9 @@ uniform vec3 u_shadowColor;
 uniform float u_shadowAngle;
 uniform float u_shadowOpacity;
 uniform float u_shadowDist;
+uniform float u_shStart;
+uniform float u_shMid;
+uniform float u_shEnd;
 uniform int u_texId;
 uniform sampler2D u_texMap;
 uniform float u_texHasMap;
@@ -251,14 +254,25 @@ void main() {
   }
   if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
     float ang = radians(u_shadowAngle);
-    vec2 shDir = vec2(cos(ang), -sin(ang)) * max(0.004, u_shadowDist);
+    float along = ink.a > 0.04 ? clamp(ink.g, 0.0, 1.0) : 0.5;
+    float shRad = along < 0.5
+      ? mix(u_shStart, u_shMid, along * 2.0)
+      : mix(u_shMid, u_shEnd, (along - 0.5) * 2.0);
+    float fat = clamp((shRad - 0.008) / 0.112, 0.0, 1.0);
+    float spread = mix(0.42, 2.55, fat);
+    vec2 shDir = vec2(cos(ang), -sin(ang)) * max(0.004, u_shadowDist) * mix(0.85, 1.25, fat);
+    vec2 shPerp = vec2(-shDir.y, shDir.x) * spread;
     vec2 shUv = clamp(uv - shDir, 0.0, 1.0);
     vec2 shUv2 = clamp(uv - shDir * 1.65, 0.0, 1.0);
     float hCast = abs(texture(u_height, shUv).r) + 0.55 * abs(texture(u_height, shUv2).r);
+    hCast += 0.42 * abs(texture(u_height, clamp(uv - shDir + shPerp * 0.32, 0.0, 1.0)).r);
+    hCast += 0.42 * abs(texture(u_height, clamp(uv - shDir - shPerp * 0.32, 0.0, 1.0)).r);
     float inkCast = texture(u_ink, clamp(inkUv - shDir, 0.0, 1.0)).a;
     inkCast = max(inkCast, 0.5 * texture(u_ink, clamp(inkUv - shDir * 1.65, 0.0, 1.0)).a);
-    float live = smoothstep(0.012, 0.16, hCast);
-    float rim = smoothstep(0.02, 0.22, inkCast);
+    inkCast = max(inkCast, 0.4 * texture(u_ink, clamp(inkUv - shDir + shPerp * 0.32, 0.0, 1.0)).a);
+    inkCast = max(inkCast, 0.4 * texture(u_ink, clamp(inkUv - shDir - shPerp * 0.32, 0.0, 1.0)).a);
+    float live = smoothstep(0.012, 0.16 * spread, hCast);
+    float rim = smoothstep(0.02, 0.22 * spread, inkCast);
     float self = smoothstep(0.08, 0.55, inkMark);
     float sh = max(live, rim * (1.0 - self * 0.35));
     float shW = clamp(sh * u_shadowOpacity, 0.0, 0.92);

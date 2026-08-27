@@ -108,6 +108,7 @@ uniform float u_force;
 uniform float u_radius;
 uniform float u_t;
 uniform float u_colorA;
+uniform float u_along;
 uniform sampler2D u_stamp;
 uniform float u_useStamp;
 uniform float u_angle;
@@ -146,7 +147,8 @@ void main() {
   if (m < 0.004) { fragColor = prev; return; }
   float a = clamp(max(prev.a, m * max(0.2, u_colorA)), 0.0, 1.0);
   float t = prev.a > 0.04 ? mix(prev.r, u_t, m) : u_t;
-  fragColor = vec4(clamp(t, 0.0, 1.0), mix(prev.g, u_t, m), 1.0, a);
+  float along = prev.a > 0.04 ? mix(prev.g, clamp(u_along, 0.0, 1.0), m) : clamp(u_along, 0.0, 1.0);
+  fragColor = vec4(clamp(t, 0.0, 1.0), along, 1.0, a);
 }
 `
 

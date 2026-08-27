@@ -36,6 +36,7 @@ export type StudioSnapshot = {
   shadowAngle: number;
   shadowOpacity: number;
   shadowDist?: number;
+  shadowSpan?: { start: number; mid: number; end: number };
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
@@ -91,6 +92,7 @@ export function easySnapshot(): StudioSnapshot {
     shadowAngle: 135,
     shadowOpacity: 0.45,
     shadowDist: 0.35,
+    shadowSpan: { start: 0.072, mid: 0.048, end: 0.022 },
     textureId: "none",
     textureFit: "cover",
     customTexture: null,

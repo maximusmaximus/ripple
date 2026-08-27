@@ -89,6 +89,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const shadowAngle = useRippleStore((s) => s.shadowAngle);
   const shadowOpacity = useRippleStore((s) => s.shadowOpacity);
   const shadowDist = useRippleStore((s) => s.shadowDist);
+  const shStart = useRippleStore((s) => s.shadowSpan.start);
+  const shMid = useRippleStore((s) => s.shadowSpan.mid);
+  const shEnd = useRippleStore((s) => s.shadowSpan.end);
   const textureId = useRippleStore((s) => s.textureId);
   const textureFit = useRippleStore((s) => s.textureFit);
   const textureLevels = useRippleStore((s) => s.textureLevels);
@@ -242,6 +245,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       shadowAngle,
       shadowOpacity,
       shadowDist: 0.004 + shadowDist * 0.072,
+      shadowSpan: { start: shStart, mid: shMid, end: shEnd },
       texId: getTexture(textureId).code,
       texFit: fitCode(textureFit),
       texLevels: textureLevels,
@@ -268,6 +272,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     shadowAngle,
     shadowOpacity,
     shadowDist,
+    shStart,
+    shMid,
+    shEnd,
     textureId,
     textureFit,
     textureLevels,

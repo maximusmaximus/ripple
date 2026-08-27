@@ -1,13 +1,18 @@
 import { useRippleStore } from "@/store/ripple";
 import { TipMark, TipCopy } from "./tip-mark";
+import { SpanProfile } from "./brush-span-slider";
 
 export function BrushShadowPanel() {
   const on = useRippleStore((s) => s.shadowOn);
   const angle = useRippleStore((s) => s.shadowAngle);
   const dist = useRippleStore((s) => s.shadowDist);
+  const start = useRippleStore((s) => s.shadowSpan.start);
+  const mid = useRippleStore((s) => s.shadowSpan.mid);
+  const end = useRippleStore((s) => s.shadowSpan.end);
   const setOn = useRippleStore((s) => s.setShadowOn);
   const setAngle = useRippleStore((s) => s.setShadowAngle);
   const setDist = useRippleStore((s) => s.setShadowDist);
+  const setSpan = useRippleStore((s) => s.setShadowSpan);
 
   return (
     <div className="flex flex-col gap-2">
@@ -36,7 +41,16 @@ export function BrushShadowPanel() {
       </div>
       {on && (
         <>
-          <TipCopy>Color and opacity live on the large Color-ramp diamond. Distance and angle sit here.</TipCopy>
+          <TipCopy>Color and opacity live on the large Color-ramp diamond. Width, distance, and angle sit here.</TipCopy>
+          <SpanProfile
+            title="Shadow width"
+            tipId="shadow"
+            start={start}
+            mid={mid}
+            end={end}
+            onChange={setSpan}
+            fillClass="text-fg/28"
+          />
           <label className="flex flex-col gap-1.5">
             <div className="flex justify-between text-[12px] text-muted">
               <span>Distance</span>

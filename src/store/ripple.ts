@@ -19,7 +19,7 @@ import {
   type ColorPair,
   type ColorStop,
 } from "@/lib/ripple/palettes";
-import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaultShapeFor, normalizeBrushShape, normalizeBrushSpan, type BrushShape, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
+import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaultShadowSpan, defaultShapeFor, normalizeBrushShape, normalizeBrushSpan, type BrushShape, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 import { hasMediaPayload, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
@@ -59,6 +59,8 @@ interface RippleState {
   shadowOpacity: number;
   /** 0–1 user scale for how far the cast sits from the mark. */
   shadowDist: number;
+  /** Start / belly / tail width of the brush shadow. */
+  shadowSpan: BrushSpan;
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
@@ -118,6 +120,7 @@ interface RippleState {
   setShadowAngle: (deg: number) => void;
   setShadowOpacity: (v: number) => void;
   setShadowDist: (v: number) => void;
+  setShadowSpan: (span: BrushSpan) => void;
   setTextureId: (id: TextureId) => void;
   setTextureFit: (fit: TextureFit) => void;
   setTextureLevels: (v: number) => void;
@@ -216,6 +219,7 @@ export const useRippleStore = create<RippleState>()(
       shadowAngle: 135,
       shadowOpacity: 0.45,
       shadowDist: 0.35,
+      shadowSpan: defaultShadowSpan(),
       textureId: DEFAULT_TEXTURE_ID,
       textureFit: "cover",
       customTexture: null,
@@ -492,6 +496,7 @@ export const useRippleStore = create<RippleState>()(
         });
       },
       setShadowDist: (v) => set({ shadowDist: Math.max(0, Math.min(1, v)) }),
+      setShadowSpan: (span) => set({ shadowSpan: normalizeBrushSpan(span) }),
       setTextureId: (id) =>
         set((s) => {
           const next = getTexture(id).id;
@@ -559,6 +564,7 @@ export const useRippleStore = create<RippleState>()(
           shadowAngle: s.shadowAngle,
           shadowOpacity: s.shadowOpacity,
           shadowDist: s.shadowDist,
+          shadowSpan: s.shadowSpan,
           textureId: s.textureId,
           textureFit: s.textureFit,
           customTexture: s.customTexture,
@@ -612,6 +618,7 @@ export const useRippleStore = create<RippleState>()(
           shadowAngle: snap.shadowAngle,
           shadowOpacity: snap.shadowOpacity,
           shadowDist: Math.max(0, Math.min(1, snap.shadowDist ?? 0.35)),
+          shadowSpan: normalizeBrushSpan(snap.shadowSpan ?? defaultShadowSpan()),
           textureId: texId === "custom" && !custom ? DEFAULT_TEXTURE_ID : texId,
           textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
           customTexture: custom,
@@ -656,6 +663,7 @@ export const useRippleStore = create<RippleState>()(
           shadowAngle: 135,
           shadowOpacity: 0.45,
           shadowDist: 0.35,
+          shadowSpan: defaultShadowSpan(),
           textureId: DEFAULT_TEXTURE_ID,
           textureFit: "cover",
           customTexture: null,
@@ -746,6 +754,7 @@ export const useRippleStore = create<RippleState>()(
         shadowAngle: s.shadowAngle,
         shadowOpacity: s.shadowOpacity,
         shadowDist: s.shadowDist,
+        shadowSpan: s.shadowSpan,
         textureId: s.textureId,
         textureFit: s.textureFit,
         customTexture: s.customTexture,
@@ -785,6 +794,7 @@ export const useRippleStore = create<RippleState>()(
           gradientFlip: Boolean(p.gradientFlip),
           fxLayers,
           shadowDist: typeof p.shadowDist === "number" ? Math.max(0, Math.min(1, p.shadowDist)) : current.shadowDist,
+          shadowSpan: normalizeBrushSpan(p.shadowSpan ?? current.shadowSpan ?? defaultShadowSpan()),
           customBrushes,
           hiddenPresetIds: Array.isArray((p as { hiddenPresetIds?: string[] }).hiddenPresetIds)
             ? (p as { hiddenPresetIds: string[] }).hiddenPresetIds
