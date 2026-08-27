@@ -38,7 +38,7 @@ export function LayerFxPicker() {
           {open ? `${layerNames.join(" · ")} · ${names}` : "Off"}
         </span>
       </div>
-      <TipCopy>{open ? "Apply the mix to the layers you tap." : "Tap a layer to open the mix."}</TipCopy>
+      <TipCopy>{open ? "The mix lands on the next stroke or live tool — not paint already on the bed." : "Tap a layer to open the mix."}</TipCopy>
       <div className="grid grid-cols-5 gap-1" role="group" aria-label="Apply FX to">
         {FX_LAYERS.map((l) => {
           const on = layers.includes(l.id);

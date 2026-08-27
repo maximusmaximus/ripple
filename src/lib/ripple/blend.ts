@@ -149,11 +149,11 @@ export function fxConflictsWith(active: BrushFxId[], id: BrushFxId): boolean {
 export type FxLayerId = "camera" | "mic" | "brush" | "texture" | "shadow";
 
 export const FX_LAYERS: { id: FxLayerId; name: string; hint: string; bit: number }[] = [
-  { id: "camera", name: "Camera", hint: "Mix the live feed.", bit: 1 },
-  { id: "mic", name: "Mic", hint: "Mix volume and frequency.", bit: 2 },
-  { id: "brush", name: "Brush", hint: "Mix the stroke with the bed.", bit: 4 },
-  { id: "texture", name: "Texture", hint: "Mix the medium grain.", bit: 8 },
-  { id: "shadow", name: "Brush Shadow", hint: "Mix the FX stack into the brush shadow. Turn the cast on under Width.", bit: 16 },
+  { id: "camera", name: "Camera", hint: "Mix the live feed over what’s already on the surface.", bit: 1 },
+  { id: "mic", name: "Mic", hint: "Mix incoming sound into the live mark — not paint that’s already down.", bit: 2 },
+  { id: "brush", name: "Brush", hint: "Mix the next stroke over existing color. Settled paint stays put.", bit: 4 },
+  { id: "texture", name: "Texture", hint: "Mix grain into the live mark, over colors already on the bed.", bit: 8 },
+  { id: "shadow", name: "Brush Shadow", hint: "Mix the live cast over the surface. Turn the shadow on under Width.", bit: 16 },
 ];
 
 export const DEFAULT_FX_LAYERS: FxLayerId[] = ["brush"];

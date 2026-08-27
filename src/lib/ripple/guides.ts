@@ -49,7 +49,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Shadow’s color and opacity live on the Color-ramp diamond. Turn the cast on under Width — Distance and Angle sit there.",
+    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the Color-ramp diamond. Turn the cast on under Width — Distance and Angle sit there.",
   },
   {
     id: "texture",

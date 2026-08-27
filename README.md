@@ -54,7 +54,7 @@ Stroke color follows the live gradient.
 
 ### Layer FX
 
-Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. The Shadow pill mixes FX into the cast — turn the cast on under Width.
+Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. **FX only mixes the next stroke or live tool over colors already on the bed** — settled paint is not restyled when you change the mode. The Shadow pill mixes FX into the live cast — turn the cast on under Width.
 
 ### Surface
 

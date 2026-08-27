@@ -198,6 +198,11 @@ void main() {
   inkLit = mix(inkLit, keyCol, highAmt * inkMark * 0.35);
   inkLit = mix(inkLit, u_c0, bass * inkMark * 0.2);
   vec3 dye = mix(col, inkLit, max(inkMark, wave * 0.4));
+  float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);
+  float wet = smoothstep(0.012, 0.2, abs(h) + abs(vel) * 1.25);
+  float dryInk = inkMark * (1.0 - wet);
+  float dryA = dryInk * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
+  vec3 preDry = mix(mix(rest, col, 0.35), dye, clamp(dryA, 0.0, 1.0));
   vec3 camLit = rest;
   if (u_camMix > 0.001) {
     float interact = max(0.75, u_camInteract);
@@ -208,39 +213,40 @@ void main() {
     vec3 cam = texture(u_cam, cuv).rgb;
     camLit = cam * (0.78 + 0.22 * diff) + vec3(spec * 0.2);
     if ((u_fxLayers & 1) != 0) {
-      vec3 camFx = applyBrushFx(rest, camLit, u_brushFx);
-      camLit = mix(camLit, camFx, clamp(u_fxOpacity, 0.0, 1.0));
+      vec3 camFx = applyBrushFx(preDry, camLit, u_brushFx);
+      camLit = mix(camLit, camFx, fxAmt);
     }
   }
   vec3 surface = mix(mix(rest, col, 0.35), camLit, u_camMix);
-  vec3 bed = mix(rest, camLit, u_camMix);
-  float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);
   if ((u_fxLayers & 2) != 0) {
     vec3 micCol = mix(u_c0, keyCol, highAmt);
     micCol = mix(micCol, u_c3, mid);
-    float micW = clamp(pulse * 0.7 + highAmt * 0.5 + bass * 0.3, 0.0, 1.0);
-    dye = mix(dye, applyBrushFx(dye, micCol, u_brushFx), fxAmt * micW);
-    col = mix(col, applyBrushFx(col, micCol, u_brushFx), fxAmt * micW * 0.65);
+    float micW = clamp(pulse * 0.7 + highAmt * 0.5 + bass * 0.3, 0.0, 1.0) * wet;
+    dye = mix(dye, applyBrushFx(preDry, micCol, u_brushFx), fxAmt * micW);
+    col = mix(col, applyBrushFx(preDry, micCol, u_brushFx), fxAmt * micW * 0.65);
   }
-  vec3 stroked = dye;
+  vec3 dry = mix(surface, dye, clamp(dryA, 0.0, 1.0));
+  vec3 incoming = mix(col, inkLit, max(inkMark, wave * 0.4));
+  vec3 stroked = incoming;
   if ((u_fxLayers & 4) != 0) {
-    vec3 fxed = applyBrushFx(bed, dye, u_brushFx);
-    stroked = mix(dye, fxed, fxAmt * mix(0.4, 1.0, inkMark));
-    float seeCam = u_camMix * mix(0.5, 0.2, inkMark);
-    stroked = mix(stroked, mix(fxed, camLit, 0.35), seeCam * (0.35 + 0.55 * fxAmt));
+    vec3 fxed = applyBrushFx(dry, incoming, u_brushFx);
+    stroked = mix(incoming, fxed, fxAmt);
   }
-  float alpha = coverage * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
-  alpha *= 1.0 + pulse * 0.12 * inkMark;
-  col = mix(surface, stroked, clamp(alpha, 0.0, 1.0));
+  float liveA = coverage * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
+  liveA *= 1.0 + pulse * 0.12 * inkMark;
+  col = mix(dry, mix(surface, stroked, clamp(liveA, 0.0, 1.0)), wet);
   if (u_texId > 0) {
     float texAmt = mix(0.35, 0.85, max(drawn, inkMark));
+    vec3 grained = col;
+    grained *= mix(1.0, 0.58 + tf.x * 0.72, texAmt);
+    grained += vec3(tf.w * 0.16 * texAmt);
+    grained = mix(grained, grained * grained * (0.7 + tf.x), texAmt * 0.22);
     if ((u_fxLayers & 8) != 0) {
       vec3 grain = mix(vec3(tf.x), pigment, 0.28) + vec3(tf.w * 0.22);
-      col = mix(col, applyBrushFx(col, grain, u_brushFx), texAmt * fxAmt);
+      vec3 texFx = applyBrushFx(dry, grain, u_brushFx);
+      col = mix(grained, mix(grained, texFx, texAmt * fxAmt), wet);
     } else {
-      col *= mix(1.0, 0.58 + tf.x * 0.72, texAmt);
-      col += vec3(tf.w * 0.16 * texAmt);
-      col = mix(col, col * col * (0.7 + tf.x), texAmt * 0.22);
+      col = grained;
     }
   }
   if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
