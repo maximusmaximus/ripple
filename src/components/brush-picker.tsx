@@ -255,7 +255,7 @@ export function BrushPicker() {
       <div className="flex flex-col gap-2 rounded-lg border border-line bg-fg/5 p-2">
         <div className="flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-[0.16em] text-subtle">
           <span className="inline-flex items-center gap-1.5">
-            Rotation & width
+            Rotation & blade
             <TipMark id="brush-shape" />
           </span>
         </div>
@@ -276,7 +276,7 @@ export function BrushPicker() {
         </label>
         <label className="flex flex-col gap-1.5">
           <div className="flex justify-between text-[12px] text-muted">
-            <span>Width</span>
+            <span>Blade</span>
             <span className="font-mono tabular-nums text-fg">{Math.round(shapeWidth * 100)}%</span>
           </div>
           <input

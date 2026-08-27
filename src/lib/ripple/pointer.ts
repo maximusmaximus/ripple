@@ -13,6 +13,7 @@ export class PointerPainter {
   private queue: Splat[] = []
   private minR = 0.012
   private maxR = 0.03
+  private midR = 0.02
   private radius = 0.03
   private force = 0.7
   private kind: BrushKind = "round"
@@ -25,8 +26,9 @@ export class PointerPainter {
   private markWidth = 1
 
   setBrush(
-    minRadius: number,
-    maxRadius: number,
+    startRadius: number,
+    midRadius: number,
+    endRadius: number,
     force: number,
     kind: BrushKind = "round",
     spread = 1.8,
@@ -37,10 +39,12 @@ export class PointerPainter {
     stampSpin = 0,
     markWidth = 1,
   ) {
-    const lo = Math.max(0.003, Math.min(minRadius, maxRadius))
-    const hi = Math.max(lo + 0.002, Math.max(minRadius, maxRadius))
-    this.minR = lo
-    this.maxR = Math.min(0.08, hi)
+    const start = Math.max(0.003, Math.min(0.08, startRadius))
+    const end = Math.max(0.003, Math.min(0.08, endRadius))
+    const mid = Math.max(0.003, Math.min(0.08, midRadius))
+    this.maxR = start
+    this.midR = mid
+    this.minR = end
     this.radius = this.maxR
     this.force = Math.max(0.18, force)
     this.kind = kind
@@ -123,35 +127,36 @@ export class PointerPainter {
     this.queue.length = 0
   }
 
-  /** 0 = smallest dimension, 1 = largest. Tail eases toward small along the stroke. */
+  /** Radius along the stroke from the start / belly / end profile. */
   private dynT(speed: number, pressure: number, heading: number, t: number, path: number): number {
     const p = pressure > 0.02 ? Math.max(0.08, Math.min(1, pressure)) : 0.55
     let feel = 1
     switch (this.feel) {
       case "press":
-        feel = p
+        feel = 0.55 + 0.45 * p
         break
       case "taper":
-        feel = 1 - clamp01(speed / 0.012)
+        feel = 1 - clamp01(speed / 0.012) * 0.35
         break
       case "swell":
-        feel = clamp01(speed / 0.01)
+        feel = 0.7 + 0.3 * clamp01(speed / 0.01)
         break
       case "nib":
-        feel = Math.abs(Math.sin(heading - this.nib))
+        feel = 0.55 + 0.45 * Math.abs(Math.sin(heading - this.nib))
         break
       case "pulse":
-        feel = 0.5 + 0.5 * Math.sin(t * 0.014)
+        feel = 0.75 + 0.25 * Math.sin(t * 0.014)
         break
       default:
         feel = 1
     }
-    const tail = 1 - Math.exp(-path / 0.14)
-    return mix(feel, 0, tail * 0.86)
+    const u = clamp01(1 - Math.exp(-path / 0.14))
+    const env = u < 0.5 ? mix(this.maxR, this.midR, u * 2) : mix(this.midR, this.minR, (u - 0.5) * 2)
+    return Math.max(0.003, env * feel)
   }
 
   private emit(x: number, y: number, force: number, scale: number, heading: number, rot = 0) {
-    const r = mix(this.minR, this.maxR, clamp01(scale))
+    const r = Math.max(0.003, scale)
     if (this.kind === "stamp") {
       this.queue.push({
         x: clamp01(x),

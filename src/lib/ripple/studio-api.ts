@@ -35,7 +35,18 @@ const snapshotSchema = z
     viscosity: z.number(),
     waveStrength: z.number(),
     brushDiameter: z.number(),
-    brushSpan: z.record(z.string(), z.object({ min: z.number(), max: z.number() })).optional(),
+    brushSpan: z
+      .record(
+        z.string(),
+        z.object({
+          min: z.number().optional(),
+          max: z.number().optional(),
+          start: z.number().optional(),
+          mid: z.number().optional(),
+          end: z.number().optional(),
+        }),
+      )
+      .optional(),
     brushShape: z.record(z.string(), z.object({ angle: z.number(), width: z.number(), spin: z.number() })).optional(),
     brushId: z.string(),
     brushFx: z.record(z.string(), z.unknown()).optional(),

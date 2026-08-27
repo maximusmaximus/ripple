@@ -28,7 +28,7 @@ The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes
 
 ### Paint
 
-Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the menu. **Diameter** is a two-handle range — small on the left, large on the right — stored per brush. Strokes start at the large end and tail toward the small end as you draw.
+Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the menu. **Width** is a three-stop profile — start, belly, and tail — stored per brush. Drag a stop to reshape how the mark swells along the stroke.
 
 ### Presets
 
@@ -44,7 +44,7 @@ Each starter (Lens, Voice, Noir, Easy, …) is a full mix: palette, thickness, w
 
 ### Brushes
 
-Round, soft, scatter, and script nibs. Every starter has a baked-in **rotation** and **width**. The selected brush keeps those sliders under the grid. Custom PNG stamps live under Script — on import you set name, rotation, and width before the stamp is added.
+Round, soft, scatter, and script nibs. **Width** (start / belly / tail) is the stroke profile. **Rotation** and **blade** sit under the brush grid — blade pinches a round mark into a chisel. Custom PNG stamps live under Script — on import you set name, rotation, and blade before the stamp is added.
 
 **Hold a brush chip for two seconds** — an **X** appears. Tap it, then confirm. Your stamps are deleted. Starter brushes hide on this studio.
 

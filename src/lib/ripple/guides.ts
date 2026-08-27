@@ -33,13 +33,13 @@ export const GUIDE_TIPS: GuideTip[] = [
   },
   {
     id: "diameter",
-    title: "Diameter",
-    body: "Two handles: smallest mark on the left, largest on the right. Each brush keeps its own pair. Strokes start fat and tail toward the small end as you draw.",
+    title: "Width",
+    body: "Three stops along the stroke: start, belly, and tail. Drag a stop up to fatten that part of the mark, down to thin it. Each brush keeps its own profile.",
   },
   {
     id: "brush-shape",
-    title: "Rotation and width",
-    body: "Rotation turns the mark. Width pinches it from a circle into a blade. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Changes stick to the selected brush.",
+    title: "Rotation and blade",
+    body: "Rotation turns the mark. Blade pinches it from a circle into a chisel. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Stroke thickness lives on the Width profile above.",
   },
   {
     id: "layerfx",

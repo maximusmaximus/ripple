@@ -379,7 +379,7 @@ export function PresetStrip() {
         />
         <div
           ref={wellRef}
-          className="preset-well-scroll grid h-[6.5rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          className="preset-well-scroll grid h-[7.5rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
           role="list"
           aria-label="Presets"
           onScroll={syncHints}
@@ -425,7 +425,7 @@ export function PresetStrip() {
                   }
                 >
                   <span
-                    className={on ? "block h-5 w-full" : "block h-4 w-full"}
+                    className={on ? "block h-7 w-full" : "block h-6 w-full"}
                     style={{ background: barFor(p) }}
                     aria-hidden="true"
                   />

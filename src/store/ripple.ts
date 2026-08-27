@@ -362,13 +362,13 @@ export const useRippleStore = create<RippleState>()(
         const id = get().brushId;
         const b = getBrush(id, get().customBrushes);
         const prev = get().brushSpan[id] ?? defaultBrushSpan(b.radius);
-        const span = normalizeBrushSpan({ min: prev.min, max: v });
-        set({ brushDiameter: span.max, brushSpan: { ...get().brushSpan, [id]: span } });
+        const span = normalizeBrushSpan({ ...prev, start: v });
+        set({ brushDiameter: span.start, brushSpan: { ...get().brushSpan, [id]: span } });
       },
       setBrushSpan: (span) => {
         const id = get().brushId;
         const next = normalizeBrushSpan(span);
-        set({ brushDiameter: next.max, brushSpan: { ...get().brushSpan, [id]: next } });
+        set({ brushDiameter: next.start, brushSpan: { ...get().brushSpan, [id]: next } });
       },
       getActiveSpan: () => {
         const s = get();
@@ -410,7 +410,7 @@ export const useRippleStore = create<RippleState>()(
         const span = get().brushSpan[nextId] ?? defaultBrushSpan(b.radius);
         set({
           brushId: nextId,
-          brushDiameter: span.max,
+          brushDiameter: span.start,
           brushSpan: { ...get().brushSpan, [nextId]: span },
         });
       },
@@ -423,7 +423,7 @@ export const useRippleStore = create<RippleState>()(
           customBrushes: [...list, { ...brush, markWidth: shape.width }],
           brushId: brush.id,
           brushDiameter: 0.06,
-          brushSpan: { ...get().brushSpan, [brush.id]: { min: 0.02, max: 0.06 } },
+          brushSpan: { ...get().brushSpan, [brush.id]: { start: 0.06, mid: 0.04, end: 0.02 } },
           brushShape: { ...get().brushShape, [brush.id]: shape },
         });
       },

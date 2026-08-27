@@ -39,7 +39,7 @@ function MobileVoidrideIntro({ onDone }: { onDone: () => void }) {
     <div
       data-ui-chrome
       data-voidride-intro="true"
-      className="absolute inset-0 z-[90] bg-ink md:hidden"
+      className="absolute inset-0 z-[90] bg-ink"
       role="status"
       aria-label="Loading"
     >
@@ -87,7 +87,7 @@ export function RippleApp() {
   const [pairDismissed, setPairDismissed] = useState(false);
   const [pairForced, setPairForced] = useState(false);
   const [choice, setChoice] = useState<"pending" | "host" | "private">("pending");
-  const [mobileHoldDone, setMobileHoldDone] = useState(false);
+  const [bootDone, setBootDone] = useState(false);
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
   const [remoteMic, setRemoteMic] = useState(0);
@@ -166,7 +166,7 @@ export function RippleApp() {
 
   const host = useCastHost({
     stayOnPage: true,
-    enabled: mode === "local" && (choice === "host" || choice === "private"),
+    enabled: mode === "local",
     onCamFrame,
     onRemoteInput,
     onRecToggle: (on) => {
@@ -185,36 +185,22 @@ export function RippleApp() {
 
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
 
-  const showGate = mode === "local" && choice === "pending" && Boolean(presence.session);
-  const showMobileIntro =
-    mode === "local" && !showGate && !mobileHoldDone && (!viewportReady || !isDesktop);
+  const showGate = bootDone && mode === "local" && choice === "pending" && Boolean(presence.session);
+  const showBoot = mode === "local" && !bootDone;
   const showPairOverlay =
-    choice !== "pending" &&
+    bootDone &&
+    !showGate &&
     !host.isLive &&
-    !showMobileIntro &&
-    (pairForced || (!pairDismissed && isDesktop));
+    !showBoot &&
+    (pairForced || !pairDismissed);
 
   useEffect(() => {
-    if (showGate) setMobileHoldDone(true);
-  }, [showGate]);
-
-  useEffect(() => {
-    if (mode !== "local" || choice !== "pending") return;
-    if (!presence.ready) return;
+    if (!bootDone || mode !== "local" || choice !== "pending") return;
     if (presence.session) return;
-    if (isDesktop) {
-      const t = window.setTimeout(() => setChoice("host"), 700);
-      return () => window.clearTimeout(t);
-    }
-    if (!mobileHoldDone) return;
-    try {
-      window.sessionStorage.setItem(PRIVATE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    setChoice("private");
-    setPairDismissed(true);
-  }, [mode, choice, presence.ready, presence.session, isDesktop, mobileHoldDone]);
+    const wait = presence.ready ? 0 : 480;
+    const t = window.setTimeout(() => setChoice("host"), wait);
+    return () => window.clearTimeout(t);
+  }, [bootDone, mode, choice, presence.ready, presence.session]);
 
   useEffect(() => {
     if (choice !== "host") return;
@@ -235,11 +221,9 @@ export function RippleApp() {
       /* ignore */
     }
     setChoice("private");
-    if (!isDesktop) {
-      setPairDismissed(true);
-      setPairForced(false);
-    }
-  }, [isDesktop]);
+    setPairDismissed(true);
+    setPairForced(false);
+  }, []);
 
   const leaveWatch = useCallback(() => {
     try {
@@ -249,11 +233,9 @@ export function RippleApp() {
     }
     void navigate({ search: {} });
     setChoice("private");
-    if (!isDesktop) {
-      setPairDismissed(true);
-      setPairForced(false);
-    }
-  }, [navigate, isDesktop]);
+    setPairDismissed(true);
+    setPairForced(false);
+  }, [navigate]);
 
   const openPair = useCallback(() => {
     setPairForced(true);
@@ -261,8 +243,8 @@ export function RippleApp() {
     setDockOpen(false);
   }, [setDockOpen]);
 
-  const finishMobileIntro = useCallback(() => {
-    setMobileHoldDone(true);
+  const finishBoot = useCallback(() => {
+    setBootDone(true);
   }, []);
 
   useEffect(() => {
@@ -339,7 +321,7 @@ export function RippleApp() {
     setHint(false);
   }, [setDockOpen]);
 
-  const showChrome = !isImmersive && !host.isLive;
+  const showChrome = !isImmersive && !host.isLive && !showBoot;
   const liveViewers =
     choice === "host" ? Math.max(host.viewerCount, presence.session?.viewers ?? 0) : host.viewerCount;
   const linkState: "off" | "waiting" | "live" = host.isLive
@@ -413,8 +395,8 @@ export function RippleApp() {
       data-live-code={presence.session?.code ?? ""}
       data-show-gate={showGate ? "1" : "0"}
       data-show-pair={showPairOverlay ? "1" : "0"}
-      data-mobile-intro={showMobileIntro ? "1" : "0"}
-      data-hold-done={mobileHoldDone ? "1" : "0"}
+      data-mobile-intro={showBoot ? "1" : "0"}
+      data-hold-done={bootDone ? "1" : "0"}
       data-viewport={isDesktop ? "desktop" : "mobile"}
       data-vp-ready={viewportReady ? "1" : "0"}
       data-has-session={presence.session ? "1" : "0"}
@@ -444,7 +426,7 @@ export function RippleApp() {
         </div>
       )}
 
-      {hint && showChrome && !(showPairOverlay && isDesktop) && !showMobileIntro && !showGate && (
+      {hint && showChrome && !(showPairOverlay && isDesktop) && !showBoot && !showGate && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <p className="rounded-full border border-line bg-ink/50 px-4 py-2 text-sm text-fg/80 backdrop-blur-md">
             Drag to paint
@@ -543,6 +525,7 @@ export function RippleApp() {
       {showPairOverlay && (
         <PairOverlay
           host={host}
+          skipHold
           onDismiss={() => {
             setPairDismissed(true);
             setPairForced(false);
@@ -550,9 +533,9 @@ export function RippleApp() {
         />
       )}
 
-      {showMobileIntro && <MobileVoidrideIntro onDone={finishMobileIntro} />}
+      {showBoot && <MobileVoidrideIntro onDone={finishBoot} />}
 
-      {splash.show && !showPairOverlay && !showGate && !showMobileIntro && (
+      {splash.show && !showPairOverlay && !showGate && !showBoot && (
         <RippleSplash
           fading={splash.fading}
           progress={splash.progress}

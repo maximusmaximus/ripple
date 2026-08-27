@@ -70,8 +70,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
   const brushDiameter = useRippleStore((s) => s.brushDiameter);
-  const spanMin = useRippleStore((s) => s.getActiveSpan().min);
-  const spanMax = useRippleStore((s) => s.getActiveSpan().max);
+  const spanStart = useRippleStore((s) => s.getActiveSpan().start);
+  const spanMid = useRippleStore((s) => s.getActiveSpan().mid);
+  const spanEnd = useRippleStore((s) => s.getActiveSpan().end);
   const brushId = useRippleStore((s) => s.brushId);
   const customBrushes = useRippleStore((s) => s.customBrushes);
   const shapeAngle = useRippleStore((s) => s.getActiveShape().angle);
@@ -150,8 +151,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const customs = useRippleStore.getState().customBrushes;
     const brush = getBrush(brushId, customs);
     painter.setBrush(
-      spanMin / 2,
-      spanMax / 2,
+      spanStart / 2,
+      spanMid / 2,
+      spanEnd / 2,
       brush.force,
       brush.kind,
       brush.spread ?? 1.8,
@@ -297,8 +299,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const customs = useRippleStore.getState().customBrushes;
     const brush = getBrush(brushId, customs);
     painterRef.current.setBrush(
-      spanMin / 2,
-      spanMax / 2,
+      spanStart / 2,
+      spanMid / 2,
+      spanEnd / 2,
       brush.force,
       brush.kind,
       brush.spread ?? 1.8,
@@ -309,7 +312,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       useRippleStore.getState().getActiveShape().spin,
       useRippleStore.getState().getActiveShape().width,
     );
-  }, [spanMin, spanMax, brushId, customBrushSig, shapeSig]);
+  }, [spanStart, spanMid, spanEnd, brushId, customBrushSig, shapeSig]);
 
   useEffect(() => {
     const engine = engineRef.current;

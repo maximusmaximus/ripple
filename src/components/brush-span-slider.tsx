@@ -17,33 +17,36 @@ function label(n: number) {
   return Math.round(n * 200);
 }
 
+function halfH(v: number) {
+  return 6 + toT(v) * 26;
+}
+
 export function BrushSpanSlider() {
   const brushId = useRippleStore((s) => s.brushId);
-  const min = useRippleStore((s) => s.getActiveSpan().min);
-  const max = useRippleStore((s) => s.getActiveSpan().max);
-  const span = { min, max };
+  const start = useRippleStore((s) => s.getActiveSpan().start);
+  const mid = useRippleStore((s) => s.getActiveSpan().mid);
+  const end = useRippleStore((s) => s.getActiveSpan().end);
   const setBrushSpan = useRippleStore((s) => s.setBrushSpan);
   const trackRef = useRef<HTMLDivElement>(null);
-  const dragging = useRef<"min" | "max" | null>(null);
-  const spanRef = useRef(span);
-  spanRef.current = span;
+  const dragging = useRef<"start" | "mid" | "end" | null>(null);
+  const spanRef = useRef({ start, mid, end });
+  spanRef.current = { start, mid, end };
 
-  const clientXToT = useCallback((clientX: number) => {
+  const clientToVal = useCallback((clientY: number) => {
     const el = trackRef.current;
-    if (!el) return 0;
+    if (!el) return DIA_MIN;
     const rect = el.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width)));
+    const t = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / Math.max(1, rect.height)));
+    return fromT(t);
   }, []);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       const which = dragging.current;
       if (!which) return;
-      const t = clientXToT(e.clientX);
-      const v = fromT(t);
+      const v = clientToVal(e.clientY);
       const cur = spanRef.current;
-      if (which === "min") setBrushSpan({ min: Math.min(v, cur.max - 0.006), max: cur.max });
-      else setBrushSpan({ min: cur.min, max: Math.max(v, cur.min + 0.006) });
+      setBrushSpan({ ...cur, [which]: v });
     };
     const onUp = () => {
       dragging.current = null;
@@ -56,9 +59,9 @@ export function BrushSpanSlider() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [clientXToT, setBrushSpan]);
+  }, [clientToVal, setBrushSpan]);
 
-  const begin = (which: "min" | "max") => (e: ReactPointerEvent) => {
+  const begin = (which: "start" | "mid" | "end") => (e: ReactPointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragging.current = which;
@@ -69,68 +72,65 @@ export function BrushSpanSlider() {
     }
   };
 
-  const minT = toT(span.min);
-  const maxT = toT(span.max);
+  const sH = halfH(start);
+  const mH = halfH(mid);
+  const eH = halfH(end);
+  const d = `M 8 ${40 - sH} L 100 ${40 - mH} L 192 ${40 - eH} L 192 ${40 + eH} L 100 ${40 + mH} L 8 ${40 + sH} Z`;
 
   return (
     <div className="flex flex-col gap-2" key={brushId}>
       <div className="flex justify-between text-[12px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          Diameter
+          Width
           <TipMark id="diameter" />
         </span>
         <span className="font-mono tabular-nums text-fg">
-          {label(span.min)}–{label(span.max)}
+          {label(start)} · {label(mid)} · {label(end)}
         </span>
       </div>
       <div
         ref={trackRef}
-        className="relative h-8 w-full cursor-pointer touch-none"
+        className="relative h-24 w-full cursor-ns-resize touch-none rounded-xl border border-line/80 bg-fg/5"
         onPointerDown={(e) => {
-          const t = clientXToT(e.clientX);
-          const v = fromT(t);
-          if (Math.abs(t - minT) <= Math.abs(t - maxT)) {
-            dragging.current = "min";
-            setBrushSpan({ min: Math.min(v, span.max - 0.006), max: span.max });
-          } else {
-            dragging.current = "max";
-            setBrushSpan({ min: span.min, max: Math.max(v, span.min + 0.006) });
-          }
+          const el = trackRef.current;
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / Math.max(1, rect.width);
+          const which = x < 0.33 ? "start" : x < 0.66 ? "mid" : "end";
+          dragging.current = which;
+          setBrushSpan({ ...spanRef.current, [which]: clientToVal(e.clientY) });
         }}
       >
-        <div className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-fg/10" />
-        <div
-          className="absolute top-1/2 -translate-y-1/2 bg-fg/35"
-          style={{
-            left: `${minT * 100}%`,
-            width: `${Math.max(2, (maxT - minT) * 100)}%`,
-            height: 10,
-            clipPath: "polygon(0 32%, 100% 0, 100% 100%, 0 68%)",
-            borderRadius: 2,
-          }}
-        />
-        <button
-          type="button"
-          data-handle="min"
-          aria-label="Smallest brush size"
-          title={`Small ${label(span.min)}`}
-          onPointerDown={begin("min")}
-          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-fg bg-ink"
-          style={{ left: `${minT * 100}%`, width: 14, height: 14 }}
-        />
-        <button
-          type="button"
-          data-handle="max"
-          aria-label="Largest brush size"
-          title={`Large ${label(span.max)}`}
-          onPointerDown={begin("max")}
-          className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-fg bg-fg"
-          style={{ left: `${maxT * 100}%`, width: 20, height: 20 }}
-        />
+        <svg viewBox="0 0 200 80" className="absolute inset-0 size-full text-fg/45" preserveAspectRatio="none" aria-hidden>
+          <path d={d} fill="currentColor" />
+        </svg>
+        {(
+          [
+            ["start", 8, start, sH, "Stroke start"],
+            ["mid", 100, mid, mH, "Stroke belly"],
+            ["end", 192, end, eH, "Stroke tail"],
+          ] as const
+        ).map(([key, x, val, h, title]) => (
+          <button
+            key={key}
+            type="button"
+            aria-label={title}
+            title={`${title} ${label(val)}`}
+            onPointerDown={begin(key)}
+            className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-fg bg-ink shadow-md"
+            style={{
+              left: `${(x / 200) * 100}%`,
+              top: `${((40 - h) / 80) * 100}%`,
+              width: key === "mid" ? 22 : 18,
+              height: key === "mid" ? 22 : 18,
+            }}
+          />
+        ))}
       </div>
       <div className="flex justify-between text-[10px] uppercase tracking-wider text-subtle">
-        <span>Small</span>
-        <span>Large</span>
+        <span>Start</span>
+        <span>Belly</span>
+        <span>Tail</span>
       </div>
     </div>
   );

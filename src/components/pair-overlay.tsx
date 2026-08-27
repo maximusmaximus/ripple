@@ -11,9 +11,11 @@ type Host = ReturnType<typeof useCastHost>;
 export function PairOverlay({
   host,
   onDismiss,
+  skipHold = false,
 }: {
   host: Host;
   onDismiss: () => void;
+  skipHold?: boolean;
 }) {
   const heading =
     host.state === "waiting"
@@ -37,21 +39,21 @@ export function PairOverlay({
   }, [ready]);
 
   const tryDismiss = () => {
-    if (nudge()) return;
+    if (!skipHold && nudge()) return;
     onDismiss();
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (nudge()) return;
+      if (!skipHold && nudge()) return;
       onDismiss();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [nudge, onDismiss]);
+  }, [nudge, onDismiss, skipHold]);
 
-  const showHold = locked || (!ready && !gaveUp);
+  const showHold = !skipHold && (locked || (!ready && !gaveUp));
   const joinCode = codeIn.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
   const joinDesktop = () => {
@@ -90,10 +92,17 @@ export function PairOverlay({
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">Pair screens</p>
           <h2 className="mt-1 text-lg font-semibold text-fg">Scan the desktop</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">
-            Open this studio on a desktop or the primary display. Scan the QR that appears there —
-            this phone becomes the controller, and that screen becomes the wall.
+            Scan this code from another device, or type the six-character code. Tap outside to paint on this screen.
           </p>
         </div>
+        <div className="mx-auto rounded-2xl bg-fg p-2.5">
+          {host.pairUrl ? (
+            <QrMark value={host.pairUrl} size={180} />
+          ) : (
+            <div className="flex size-[180px] items-center justify-center text-ink/50">Getting a code…</div>
+          )}
+        </div>
+        <p className="text-center font-mono text-xl tracking-[0.35em] text-fg">{host.code || "------"}</p>
         <ol className="space-y-2 text-left text-[13px] text-fg/85">
           <li className="flex gap-2">
             <span className="font-mono text-[11px] text-subtle">1</span>

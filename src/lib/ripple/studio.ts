@@ -80,7 +80,7 @@ export function easySnapshot(): StudioSnapshot {
     viscosity: 0.96,
     waveStrength: 0.7,
     brushDiameter: 0.04,
-    brushSpan: { ink: { min: 0.014, max: 0.04 } },
+    brushSpan: { ink: { start: 0.04, mid: 0.028, end: 0.014 } },
     brushId: "ink",
     brushFx: { ink: ["normal"] },
     brushFxOpacity: 0.7,

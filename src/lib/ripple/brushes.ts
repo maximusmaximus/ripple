@@ -127,7 +127,7 @@ export const DEFAULT_BRUSH_ID: BrushId = "ink";
 export const DIA_MIN = 0.008;
 export const DIA_MAX = 0.12;
 
-export type BrushSpan = { min: number; max: number };
+export type BrushSpan = { start: number; mid: number; end: number; min?: number; max?: number };
 
 export function clampDia(n: number) {
   return Math.max(DIA_MIN, Math.min(DIA_MAX, n));
@@ -135,24 +135,23 @@ export function clampDia(n: number) {
 
 export function defaultBrushSpan(radius: number): BrushSpan {
   const dia = clampDia(radius * 2);
-  const min = clampDia(Math.min(dia * 0.36, dia - 0.008));
-  const max = clampDia(Math.max(dia * 1.12, min + 0.008));
-  return { min, max };
+  const start = clampDia(Math.max(dia * 1.12, dia + 0.004));
+  const end = clampDia(Math.min(dia * 0.36, start - 0.01));
+  const mid = clampDia(dia * 0.82);
+  return { start, mid, end };
 }
 
-export function normalizeBrushSpan(span: BrushSpan): BrushSpan {
-  let min = clampDia(span.min);
-  let max = clampDia(span.max);
-  if (max < min) {
-    const t = min;
-    min = max;
-    max = t;
-  }
-  if (max - min < 0.006) {
-    max = clampDia(min + 0.006);
-    if (max - min < 0.006) min = clampDia(max - 0.006);
-  }
-  return { min, max };
+export function normalizeBrushSpan(span: Partial<BrushSpan> & { min?: number; max?: number }): BrushSpan {
+  const start = clampDia(
+    typeof span.start === "number" ? span.start : typeof span.max === "number" ? span.max : 0.04,
+  );
+  const end = clampDia(
+    typeof span.end === "number" ? span.end : typeof span.min === "number" ? span.min : DIA_MIN,
+  );
+  const mid = clampDia(
+    typeof span.mid === "number" ? span.mid : (start + end) / 2,
+  );
+  return { start, mid, end };
 }
 
 export const STAMP_PRESET: BrushPreset = {
