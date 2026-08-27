@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp, Eye } from "lucide-react";
+import { ChevronUp, Eye, Lightbulb } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { WallViewport } from "./wall-viewport";
 import { PadGate } from "./pad-gate";
@@ -473,6 +473,60 @@ export function RippleApp() {
           onToggleLink={openPair}
           viewers={liveViewers}
         />
+      )}
+
+      {isImmersive && !host.isLive && !showBoot && !showGate && (
+        <div
+          data-ui-chrome
+          className="pointer-events-none absolute inset-x-0 top-0 z-40 flex items-start justify-end gap-1.5 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pr-[max(0.75rem,env(safe-area-inset-right))]"
+        >
+          <button
+            type="button"
+            data-cast-fab="true"
+            className={
+              "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition active:scale-95 " +
+              (linkState === "live"
+                ? "border-emerald-400/80 bg-emerald-500/25 text-emerald-100 shadow-[0_0_16px_rgba(52,211,153,0.45)]"
+                : linkState === "waiting"
+                  ? "border-amber-400/70 bg-amber-500/15 text-amber-100"
+                  : "border-line bg-ink/50 text-fg/80 hover:bg-ink/70 hover:text-fg")
+            }
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openPair();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              openPair();
+            }}
+            aria-label={
+              linkState === "waiting" ? "Waiting for a link" : "Pair with a larger screen"
+            }
+            title="Pair screens"
+          >
+            <Lightbulb
+              className={"size-4 " + (linkState === "live" ? "fill-current" : "")}
+              strokeWidth={1.75}
+            />
+            {linkState === "waiting" && (
+              <span className="absolute -bottom-0.5 rounded-full bg-ink/80 px-1 text-[8px] font-semibold tracking-wide text-amber-200">
+                …
+              </span>
+            )}
+          </button>
+          {liveViewers > 0 && (
+            <span
+              data-live-viewers={liveViewers}
+              className="pointer-events-none inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
+              title={liveViewers === 1 ? "1 watching" : `${liveViewers} watching`}
+            >
+              <Eye className="size-3.5" strokeWidth={1.75} />
+              {liveViewers}
+            </span>
+          )}
+        </div>
       )}
 
       {!showChrome && !isImmersive && liveViewers > 0 && (
