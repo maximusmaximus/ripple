@@ -241,7 +241,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       shadowColor,
       shadowAngle,
       shadowOpacity,
-      shadowDist: 0.01 + brushDiameter * 0.18,
+      shadowDist: 0.016 + brushDiameter * 0.24,
       texId: getTexture(textureId).code,
       texFit: fitCode(textureFit),
       texLevels: textureLevels,

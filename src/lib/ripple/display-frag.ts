@@ -213,21 +213,6 @@ void main() {
     }
   }
   vec3 surface = mix(mix(rest, col, 0.35), camLit, u_camMix);
-  if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
-    float ang = radians(u_shadowAngle);
-    vec2 shDir = vec2(cos(ang), -sin(ang)) * max(0.004, u_shadowDist);
-    float shA = texture(u_ink, clamp(inkUv - shDir, 0.0, 1.0)).a;
-    shA = max(shA, 0.55 * texture(u_ink, clamp(inkUv - shDir * 1.7, 0.0, 1.0)).a);
-    float sh = smoothstep(0.015, 0.22, shA) * (1.0 - inkMark * 0.82);
-    float shW = clamp(sh * u_shadowOpacity, 0.0, 0.92);
-    vec3 shCol = u_shadowColor;
-    if ((u_fxLayers & 16) != 0) {
-      vec3 shFx = applyBrushFx(surface, u_shadowColor, u_brushFx);
-      shCol = mix(u_shadowColor, shFx, clamp(u_fxOpacity, 0.0, 1.0));
-    }
-    surface = mix(surface, shCol, shW);
-    camLit = mix(camLit, shCol, shW * 0.7);
-  }
   vec3 bed = mix(rest, camLit, u_camMix);
   float fxAmt = clamp(u_fxOpacity, 0.0, 1.0);
   if ((u_fxLayers & 2) != 0) {
@@ -257,6 +242,26 @@ void main() {
       col += vec3(tf.w * 0.16 * texAmt);
       col = mix(col, col * col * (0.7 + tf.x), texAmt * 0.22);
     }
+  }
+  if (u_shadowOn > 0.5 && u_shadowOpacity > 0.001) {
+    float ang = radians(u_shadowAngle);
+    vec2 shDir = vec2(cos(ang), -sin(ang)) * max(0.004, u_shadowDist);
+    vec2 shUv = clamp(uv - shDir, 0.0, 1.0);
+    vec2 shUv2 = clamp(uv - shDir * 1.65, 0.0, 1.0);
+    float hCast = abs(texture(u_height, shUv).r) + 0.55 * abs(texture(u_height, shUv2).r);
+    float inkCast = texture(u_ink, clamp(inkUv - shDir, 0.0, 1.0)).a;
+    inkCast = max(inkCast, 0.5 * texture(u_ink, clamp(inkUv - shDir * 1.65, 0.0, 1.0)).a);
+    float live = smoothstep(0.012, 0.16, hCast);
+    float rim = smoothstep(0.02, 0.22, inkCast);
+    float self = smoothstep(0.08, 0.55, inkMark);
+    float sh = max(live, rim * (1.0 - self * 0.35));
+    float shW = clamp(sh * u_shadowOpacity, 0.0, 0.92);
+    vec3 shCol = u_shadowColor;
+    if ((u_fxLayers & 16) != 0) {
+      vec3 shFx = applyBrushFx(col, u_shadowColor, u_brushFx);
+      shCol = mix(u_shadowColor, shFx, clamp(u_fxOpacity, 0.0, 1.0));
+    }
+    col = mix(col, shCol, shW * (1.0 - self * 0.22));
   }
   float vig = smoothstep(1.25, 0.28, length(v_uv - 0.5));
   float vigAmt = mix(0.28, 0.12, u_camMix);

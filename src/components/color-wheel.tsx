@@ -97,7 +97,8 @@ export function ColorWheel({
     const s = clamp(dist / rad);
     let h = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
     if (h < 0) h += 360;
-    commit({ h, s, v: hsvRef.current.v });
+    const v = hsvRef.current.v < 0.22 ? 1 : hsvRef.current.v;
+    commit({ h, s, v });
   };
 
   useEffect(() => {
@@ -143,7 +144,7 @@ export function ColorWheel({
         style={{
           width: WHEEL,
           height: WHEEL,
-          background: `radial-gradient(circle at center, #fff 0%, transparent 70%), conic-gradient(from -90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)`,
+          background: `radial-gradient(circle at center, #fff 0%, transparent 70%), conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)`,
         }}
         onPointerDown={(e) => {
           e.preventDefault();

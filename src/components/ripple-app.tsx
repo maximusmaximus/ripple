@@ -186,13 +186,17 @@ export function RippleApp() {
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
 
   const showGate = bootDone && mode === "local" && choice === "pending" && Boolean(presence.session);
-  const showBoot = mode === "local" && !bootDone;
+  const showBoot = mode === "local" && !bootDone && viewportReady && !isDesktop;
   const showPairOverlay =
-    bootDone &&
     !showGate &&
     !host.isLive &&
     !showBoot &&
-    (pairForced || !pairDismissed);
+    (pairForced || !pairDismissed) &&
+    (bootDone || isDesktop);
+
+  useEffect(() => {
+    if (viewportReady && isDesktop) setBootDone(true);
+  }, [viewportReady, isDesktop]);
 
   useEffect(() => {
     if (!bootDone || mode !== "local" || choice !== "pending") return;
@@ -525,7 +529,7 @@ export function RippleApp() {
       {showPairOverlay && (
         <PairOverlay
           host={host}
-          skipHold
+          skipHold={!isDesktop}
           onDismiss={() => {
             setPairDismissed(true);
             setPairForced(false);

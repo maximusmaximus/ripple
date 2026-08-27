@@ -44,7 +44,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength.",
+    body: "Pick which layers inherit the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. Brush shadow rides on top of the painting and follows the live stroke.",
   },
   {
     id: "texture",
