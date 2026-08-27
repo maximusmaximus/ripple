@@ -38,7 +38,7 @@ There is **no PRESETS heading**. The **selected mix** sits at the top of the men
 
 Starter mixes and your saves share one inlaid well under that row: **oldest at the top**, newest at the bottom. Chips are **tall color previews** (two rows fill the window). Fades mark that there is more. **Save as** stays bottom-right in that window.
 
-Each starter (Lens, Voice, Noir, Easy, …) is a full mix: palette, thickness, wave, camera, and mic. Keyboard `←` `→` / `[` `]` still step through palettes on the canvas. The live gradient is the ink.
+Each starter is a full mix: palette, **width profile**, **Brush Color along the stroke**, shadow, texture, camera, and mic — a demo of what the engine can do. Easy is the clean first mark. The twenty worlds are the palettes as designed. Mixes after that stack a feature (Night paper, Copperplate, Taper noir, Shadow ember, Prism blade, Gyro flood, Camera stain, …). Keyboard `←` `→` / `[` `]` still step through palettes on the canvas.
 
 **Save as** always creates a **new** named preset at the bottom of the window. It never overwrites. Names must be unique. Uploaded textures and custom PNG stamps are stored with the preset for the next visitor.
 
