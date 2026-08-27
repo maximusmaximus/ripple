@@ -298,14 +298,14 @@ export function TexturePicker() {
           disabled={textureId === "none"}
           onClick={() => setTextureInvert(!textureInvert)}
           className={
-            "relative h-7 w-12 shrink-0 rounded-full border transition disabled:opacity-30 " +
+            "flex h-7 w-11 shrink-0 items-center rounded-full border p-0.5 transition disabled:opacity-30 " +
             (textureInvert ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
           }
         >
           <span
             className={
-              "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
-              (textureInvert ? "translate-x-6" : "translate-x-0.5")
+              "size-5 rounded-full bg-fg shadow-sm transition-transform " +
+              (textureInvert ? "translate-x-4" : "translate-x-0")
             }
           />
         </button>

@@ -22,14 +22,14 @@ export function BrushShadowPanel() {
           aria-checked={on}
           onClick={() => setOn(!on)}
           className={
-            "relative h-7 w-12 shrink-0 rounded-full border transition " +
+            "flex h-7 w-11 shrink-0 items-center rounded-full border p-0.5 transition " +
             (on ? "border-fg/70 bg-fg/25" : "border-line bg-fg/8")
           }
         >
           <span
             className={
-              "absolute top-0.5 size-5 rounded-full bg-fg transition-transform " +
-              (on ? "translate-x-6" : "translate-x-0.5")
+              "size-5 rounded-full bg-fg shadow-sm transition-transform " +
+              (on ? "translate-x-4" : "translate-x-0")
             }
           />
         </button>
