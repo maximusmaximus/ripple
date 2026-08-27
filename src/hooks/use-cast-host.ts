@@ -57,10 +57,12 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   const [state, setState] = useState<HostConnectionState>("idle");
   const [pairUrl, setPairUrl] = useState("");
   const [lastError, setLastError] = useState<string | null>(null);
+  const [viewerCount, setViewerCount] = useState(0);
   const p2pRef = useRef<P2PRoom | null>(null);
   const optsRef = useRef(opts);
   optsRef.current = opts;
   const wasLive = useRef(false);
+  const namesRef = useRef(new Map<string, string>());
 
   useLayoutEffect(() => {
     const next = code || makeCastCode();
@@ -77,10 +79,18 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       selfId,
       name: "wall",
       onPeersChanged: (peers) => {
-        const live = peers.some((p) => p.connectionState === "connected");
-        const waiting = peers.some(
-          (p) => p.connectionState === "connecting" || p.connectionState === "new",
+        namesRef.current = new Map(peers.map((p) => [p.id, p.name]));
+        const watches = peers.filter((p) => p.name === "watch" && p.connectionState === "connected");
+        setViewerCount(watches.length);
+        const pads = peers.filter(
+          (p) => p.name !== "watch" && p.name !== "wall" && p.connectionState === "connected",
         );
+        const waiting = peers.some(
+          (p) =>
+            p.name !== "watch" &&
+            (p.connectionState === "connecting" || p.connectionState === "new"),
+        );
+        const live = pads.length > 0;
         if (live) {
           wasLive.current = true;
           setState("connected");
@@ -95,15 +105,18 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
           setState((prev) => (prev === "reconnecting" ? prev : "idle"));
         }
       },
-      onMessage: (_from, data) => {
+      onMessage: (from, data) => {
         const msg = parseCastMsg(data);
         if (!msg) return;
+        const fromName = namesRef.current.get(from) ?? "";
         if (msg.t === "bye") {
+          if (fromName === "watch") return;
           wasLive.current = false;
           setState("reconnecting");
           setLastError("Phone dropped — scan again to take over");
           return;
         }
+        if (fromName === "watch" && msg.t !== "hello") return;
         handleMsg(msg, optsRef.current);
       },
       onConnected: () => setState((s) => (s === "idle" ? "idle" : s)),
@@ -152,6 +165,14 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     }
   }, []);
 
+  const broadcast = useCallback((msg: CastMsg) => {
+    try {
+      p2pRef.current?.broadcast(msg);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   return {
     code,
     pairUrl,
@@ -159,9 +180,11 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     isLive: state === "connected",
     showPairUI: state === "idle" || state === "reconnecting" || state === "waiting",
     lastError,
+    viewerCount,
     regenerateCode,
     disconnect,
     send,
+    broadcast,
   };
 }
 

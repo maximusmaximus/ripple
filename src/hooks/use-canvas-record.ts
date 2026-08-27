@@ -24,7 +24,7 @@ export function useCanvasRecord(
   optsRef.current = opts;
   const [state, setState] = useState<RecordState>("idle");
   const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [limitMs, setLimitMs] = useState(8_000);
+  const [limitMs, setLimitMs] = useState(30_000);
   const [remainingMs, setRemainingMs] = useState(0);
   const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ export function useCanvasRecord(
       setError("Couldn’t start the capture");
       return false;
     }
-    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_800_000 });
+    const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 1_200_000 });
     chunks.current = [];
     rec.ondataavailable = (e) => {
       if (e.data.size) chunks.current.push(e.data);

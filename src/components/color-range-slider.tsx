@@ -18,7 +18,7 @@ import {
   stopAlpha,
 } from "@/lib/ripple/palettes";
 import { useRippleStore } from "@/store/ripple";
-import { TipMark } from "./tip-mark";
+import { TipMark, TipCopy } from "./tip-mark";
 import { ColorSwatchButton } from "./color-wheel";
 
 export function ColorRangeSlider() {
@@ -351,13 +351,13 @@ export function ColorRangeSlider() {
           <span className="normal-case tracking-normal">
             {stops.length} stops
             {extraCount > 0 ? ` · +${extraCount} extra` : ""}
-            {canAdd ? " · click ramp to add" : ""}
           </span>
           <span>
             {(start * 100).toFixed(0)}–{(end * 100).toFixed(0)}%
           </span>
         </div>
       )}
+      {!selected && canAdd && <TipCopy>Click the ramp to add a stop.</TipCopy>}
     </div>
   );
 }

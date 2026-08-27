@@ -113,6 +113,7 @@ export type SplatU = {
   useStamp: WebGLUniformLocation | null;
   angle: WebGLUniformLocation | null;
   aspect: WebGLUniformLocation | null;
+  width: WebGLUniformLocation | null;
 };
 
 export type InkU = {
@@ -126,6 +127,7 @@ export type InkU = {
   useStamp: WebGLUniformLocation | null;
   angle: WebGLUniformLocation | null;
   aspect: WebGLUniformLocation | null;
+  width: WebGLUniformLocation | null;
 };
 
 export type DispU = {

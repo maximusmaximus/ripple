@@ -64,6 +64,7 @@ uniform sampler2D u_stamp;
 uniform float u_useStamp;
 uniform float u_angle;
 uniform float u_aspect;
+uniform float u_width;
 
 float stampMask() {
   vec2 d = v_uv - u_point;
@@ -71,6 +72,7 @@ float stampMask() {
   float c = cos(u_angle);
   float s = sin(u_angle);
   vec2 p = vec2(c * d.x + s * d.y, -s * d.x + c * d.y);
+  p.x /= max(0.18, u_width);
   float sR = max(1e-5, u_radius * 2.2);
   vec2 suv = p / sR + 0.5;
   if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) return 0.0;
@@ -84,7 +86,11 @@ void main() {
     influence = stampMask();
   } else {
     vec2 d = v_uv - u_point;
-    float dist = length(d);
+    float cA = cos(u_angle);
+    float sA = sin(u_angle);
+    vec2 p = vec2(cA * d.x + sA * d.y, -sA * d.x + cA * d.y);
+    p.x /= max(0.18, u_width);
+    float dist = length(p);
     influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
   }
   c.r += u_force * influence;
@@ -106,6 +112,7 @@ uniform sampler2D u_stamp;
 uniform float u_useStamp;
 uniform float u_angle;
 uniform float u_aspect;
+uniform float u_width;
 
 float stampMask() {
   vec2 d = v_uv - u_point;
@@ -113,6 +120,7 @@ float stampMask() {
   float c = cos(u_angle);
   float s = sin(u_angle);
   vec2 p = vec2(c * d.x + s * d.y, -s * d.x + c * d.y);
+  p.x /= max(0.18, u_width);
   float sR = max(1e-5, u_radius * 2.2);
   vec2 suv = p / sR + 0.5;
   if (suv.x < 0.0 || suv.x > 1.0 || suv.y < 0.0 || suv.y > 1.0) return 0.0;
@@ -126,7 +134,11 @@ void main() {
     influence = stampMask();
   } else {
     vec2 d = v_uv - u_point;
-    float dist = length(d);
+    float cA = cos(u_angle);
+    float sA = sin(u_angle);
+    vec2 p = vec2(cA * d.x + sA * d.y, -sA * d.x + cA * d.y);
+    p.x /= max(0.18, u_width);
+    float dist = length(p);
     influence = exp(-dist * dist / max(1e-6, u_radius * u_radius));
   }
   float gain = u_useStamp > 0.5 ? 1.8 : 3.2;

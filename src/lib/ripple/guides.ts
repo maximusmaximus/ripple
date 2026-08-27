@@ -14,7 +14,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "presets",
     title: "Presets",
-    body: "One inlaid window holds starter presets and your saves. It opens at the bottom — newest at the foot of the list. Scroll up for older chips. Fades at the top and bottom show there is more. Save as sits bottom-right in that window.",
+    body: "The name at the top is the live mix. Swipe it left or right — or tap the arrows — to step through. The well below lists every mix as tall color chips, oldest at the top. Two rows fill the window; later chips scroll.",
   },
   {
     id: "save",
@@ -24,17 +24,22 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "delete",
     title: "Remove a preset",
-    body: "Hold a chip for two seconds. An X appears on that chip — tap it, then confirm. Your saves are removed for everyone. Starter presets hide on this studio.",
+    body: "Hold a chip for two seconds. An X appears — tap it, then confirm. Your saves are removed for everyone. Starter presets hide on this studio.",
   },
   {
     id: "brushes",
     title: "Brushes",
-    body: "Round, soft, scatter, and script nibs. The swatch is the live stroke color. Custom PNGs live under Script, with angle and spin.",
+    body: "Round, soft, scatter, and script nibs. Each one ships with its own rotation and width. Hold a chip for two seconds to remove it — starters hide, your stamps delete. Custom PNGs ask for rotation and width before they join the set.",
   },
   {
     id: "diameter",
     title: "Diameter",
     body: "Two handles: smallest mark on the left, largest on the right. Each brush keeps its own pair. Strokes start fat and tail toward the small end as you draw.",
+  },
+  {
+    id: "brush-shape",
+    title: "Rotation and width",
+    body: "Rotation turns the mark. Width pinches it from a circle into a blade. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Changes stick to the selected brush.",
   },
   {
     id: "layerfx",
@@ -74,7 +79,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "gyro-sens",
     title: "Gyro sensitivity",
-    body: "How much device tilt sloshes the fluid. Defaults are quiet — raise this if you want a heavier pour.",
+    body: "How much device tilt sloshes the fluid. The default sits at 70% and is 90% quieter than the old mix. Raise it only if you want a heavier pour.",
   },
   {
     id: "gyro-zoom",
@@ -97,9 +102,14 @@ export const GUIDE_TIPS: GuideTip[] = [
     body: "The light next to REC opens pairing. On a desktop it shows a QR for your phone. On a phone it tells you to scan the desktop or primary screen — or type that screen’s six-character code. The menu then lives on the phone and the large display becomes a clean wall.",
   },
   {
+    id: "live",
+    title: "LIVE session",
+    body: "One public studio at a time. If a session is already going, pick Watch LIVE (view-only) or Make new session for a private mix. On a phone with nobody live, VOIDRIDE plays, then you drop straight into painting — no chooser, no QR. The number next to the light is how many others are watching.",
+  },
+  {
     id: "camera",
     title: "Camera",
-    body: "Top-left. Tap to cycle off → rear → front. The feed stays on this device and can stain the bed through Layer FX.",
+    body: "Top-left. Tap to cycle off → front (faces you) → rear. A single camera just turns on and off. The feed stays on this device and can stain the bed through Layer FX.",
   },
   {
     id: "mic",
@@ -112,9 +122,14 @@ export const GUIDE_TIPS: GuideTip[] = [
     body: "Top-left. Tap to cycle off → on → horizontal → vertical. Tilt sloshes the fluid; gyro zoom leans the camera.",
   },
   {
+    id: "feedback",
+    title: "Feature & bugs",
+    body: "Bottom of the menu. Pick Feature or Bug, write at least a sentence, then send. It is saved here and opened on the public GitHub list. First line becomes the title. Stay in the studio — the issue number is shown in the menu.",
+  },
+  {
     id: "rec",
     title: "Record",
-    body: "Top-right REC captures the wall canvas. The number counts down from a safe cap (about 6–12s, shorter on phones and large canvases) so the clip stays light. Tap again to stop early. Linked phone and wall both receive the same file — Save clip appears if the browser blocks an auto-download. Last three seconds pulse faster.",
+    body: "Top-right REC captures the wall canvas. The number counts down from 30 seconds. Tap again to stop early. Linked phone and wall both receive the same file — a save sheet appears on phones so you can download it. Last three seconds pulse faster.",
   },
 ];
 

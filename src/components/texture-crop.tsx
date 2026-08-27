@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { TEXTURE_FITS, type TextureFit } from "@/lib/ripple/studio";
+import { TipCopy } from "./tip-mark";
 
 function fitClass(fit: TextureFit): string {
   if (fit === "contain") return "h-full w-full object-contain";
@@ -142,9 +143,9 @@ export function TextureCrop({
           </button>
         ))}
       </div>
-      <p className="text-[10px] leading-snug text-subtle">
+      <TipCopy>
         {active.hint} Refresh restores the original photo — not the rest of the mix.
-      </p>
+      </TipCopy>
     </div>
   );
 }

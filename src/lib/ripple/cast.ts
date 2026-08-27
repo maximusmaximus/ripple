@@ -9,7 +9,7 @@
 import type { Splat } from "./pointer";
 import type { StudioSnapshot } from "./studio";
 
-export type CastRole = "host" | "pad";
+export type CastRole = "host" | "pad" | "watch";
 
 export type CastMsg =
   | { t: "hello"; role: CastRole; worldId?: string; code?: string }
@@ -20,6 +20,7 @@ export type CastMsg =
   | { t: "gyro"; alpha: number; beta: number; gamma: number; ang?: 0 | 90 | 180 | 270 }
   | { t: "mic"; level: number; bands?: number[] }
   | { t: "cam"; b64: string }
+  | { t: "view"; b64: string }
   | { t: "studio"; snap: StudioSnapshot }
   | { t: "clear" }
   | { t: "rec"; on: boolean }

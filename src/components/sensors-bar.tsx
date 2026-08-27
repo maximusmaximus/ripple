@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Camera,
   CameraOff,
@@ -10,9 +11,17 @@ import {
   Circle,
   Square,
   Lightbulb,
+  Eye,
 } from "lucide-react";
 import type { GyroMode, SensorsState } from "@/lib/ripple/media";
-import { mediaErrorMessage, nextGyroMode } from "@/lib/ripple/media";
+import {
+  cameraDeviceId,
+  countVideoCameras,
+  mediaErrorMessage,
+  nextGyroMode,
+  openCamera,
+  stopMediaStream,
+} from "@/lib/ripple/media";
 import { formatCountdown, savePendingClip, type PendingClip } from "@/lib/ripple/record";
 import { TipMark } from "./tip-mark";
 
@@ -31,21 +40,9 @@ type Props = {
   recordError?: string | null;
   linkState?: "off" | "waiting" | "live";
   onToggleLink?: () => void;
+  viewers?: number;
+  showViewers?: boolean;
 };
-
-async function openCamera(facing: "user" | "environment"): Promise<MediaStream> {
-  try {
-    return await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: facing } },
-      audio: false,
-    });
-  } catch {
-    return await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing },
-      audio: false,
-    });
-  }
-}
 
 export function SensorsBar({
   sensors,
@@ -53,7 +50,7 @@ export function SensorsBar({
   recording = false,
   onToggleRecord,
   recordStartedAt,
-  recordLimitMs = 8_000,
+  recordLimitMs = 30_000,
   recordRemainingMs,
   recordSaving = false,
   pendingClip,
@@ -62,6 +59,8 @@ export function SensorsBar({
   recordError,
   linkState,
   onToggleLink,
+  viewers = 0,
+  showViewers = false,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -78,48 +77,61 @@ export function SensorsBar({
         : 0;
   const tight = recording && remaining <= 3000;
 
-  /** Cycle: off → rear → front → off. One top-left button. */
+  /** Cycle: off → front (faces you) → rear → off. */
   const cycleCamera = useCallback(async () => {
     if (busy) return;
     setBusy(true);
+    const prev = sensors.cameraStream;
+    const prevId = cameraDeviceId(prev);
 
-    const stopTracks = () => {
-      sensors.cameraStream?.getTracks().forEach((t) => t.stop());
+    const close = async () => {
+      await stopMediaStream(prev);
+      onChange({
+        ...sensors,
+        cameraOn: false,
+        cameraStream: null,
+        error: null,
+      });
     };
 
     try {
       if (!sensors.cameraOn) {
-        try {
-          const stream = await openCamera("environment");
-          onChange({
-            ...sensors,
-            cameraOn: true,
-            cameraStream: stream,
-            facingMode: "environment",
-            error: null,
-          });
-        } catch {
-          const stream = await openCamera("user");
-          onChange({
-            ...sensors,
-            cameraOn: true,
-            cameraStream: stream,
-            facingMode: "user",
-            error: null,
-          });
-        }
+        const opened = await openCamera("user");
+        onChange({
+          ...sensors,
+          cameraOn: true,
+          cameraStream: opened.stream,
+          facingMode: opened.facing,
+          error: null,
+        });
         return;
       }
 
-      if (sensors.facingMode === "environment") {
-        stopTracks();
+      if (sensors.facingMode === "user") {
+        const cams = await countVideoCameras();
+        if (cams < 2) {
+          await close();
+          return;
+        }
+        await stopMediaStream(prev);
         try {
-          const stream = await openCamera("user");
+          const opened = await openCamera("environment", { excludeDeviceId: prevId });
+          if (prevId && cameraDeviceId(opened.stream) === prevId) {
+            await stopMediaStream(opened.stream);
+            onChange({
+              ...sensors,
+              cameraOn: false,
+              cameraStream: null,
+              facingMode: "user",
+              error: null,
+            });
+            return;
+          }
           onChange({
             ...sensors,
             cameraOn: true,
-            cameraStream: stream,
-            facingMode: "user",
+            cameraStream: opened.stream,
+            facingMode: opened.facing === "user" && cams > 1 ? "environment" : opened.facing,
             error: null,
           });
         } catch (err) {
@@ -134,14 +146,9 @@ export function SensorsBar({
         return;
       }
 
-      stopTracks();
-      onChange({
-        ...sensors,
-        cameraOn: false,
-        cameraStream: null,
-        error: null,
-      });
+      await close();
     } catch (err) {
+      await stopMediaStream(prev);
       onChange({
         ...sensors,
         cameraOn: false,
@@ -238,10 +245,10 @@ export function SensorsBar({
 
   const camLabel =
     camState === "off"
-      ? "Camera off — tap for rear"
-      : camState === "rear"
-        ? "Rear camera — tap for front"
-        : "Front camera — tap to turn off";
+      ? "Camera off — tap for front"
+      : camState === "front"
+        ? "Front camera — tap for rear"
+        : "Rear camera — tap to turn off";
 
   const CamIcon = camState === "off" ? CameraOff : camState === "rear" ? Camera : SwitchCamera;
 
@@ -331,9 +338,9 @@ export function SensorsBar({
           {sensors.error}
         </div>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
       {onToggleLink && (
-        <span className="relative max-md:hidden">
+        <span className="relative flex items-center gap-1.5">
         <button
           type="button"
           className={
@@ -356,17 +363,17 @@ export function SensorsBar({
           }}
           aria-label={
             linkState === "live"
-              ? "Phone connected — show link"
+              ? "Linked — show pairing"
               : linkState === "waiting"
-                ? "Waiting for a phone"
-                : "Connect a secondary device"
+                ? "Waiting for a link"
+                : "Pair with a larger screen"
           }
           title={
             linkState === "live"
-              ? "Phone connected"
+              ? "Linked"
               : linkState === "waiting"
-                ? "Waiting for a phone"
-                : "No secondary device"
+                ? "Waiting for a link"
+                : "Pair screens"
           }
         >
           <Lightbulb
@@ -385,6 +392,20 @@ export function SensorsBar({
           )}
         </button>
           <TipMark id="pair" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
+        </span>
+      )}
+      {(showViewers || viewers > 0) && (
+        <span className="relative">
+        <span
+          data-live-viewers={viewers}
+          className="pointer-events-none inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
+          title={viewers === 1 ? "1 watching" : `${viewers} watching`}
+          aria-label={viewers === 1 ? "1 watching" : `${viewers} watching`}
+        >
+          <Eye className="size-3.5" strokeWidth={1.75} />
+          {viewers}
+        </span>
+          <TipMark id="live" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
         </span>
       )}
       {onToggleRecord && (
@@ -438,18 +459,15 @@ export function SensorsBar({
         </span>
       )}
       {pendingClip && (
-        <button
-          type="button"
-          className="pointer-events-auto flex h-11 items-center rounded-full border border-emerald-300/70 bg-emerald-700/85 px-3 text-[11px] font-semibold text-white"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        <RecSavePopup
+          clip={pendingClip}
+          note={recNote}
+          onSave={() => {
             savePendingClip(pendingClip);
             onSaveClip?.();
           }}
-        >
-          Save clip
-        </button>
+          onDismiss={() => onSaveClip?.()}
+        />
       )}
       {recordError && (
         <span className="pointer-events-none max-w-[9rem] truncate rounded-full bg-rose-600/80 px-2 py-1 text-[10px] text-white">
@@ -463,5 +481,70 @@ export function SensorsBar({
       )}
       </div>
     </div>
+  );
+}
+
+function RecSavePopup({
+  clip,
+  note,
+  onSave,
+  onDismiss,
+}: {
+  clip: PendingClip;
+  note?: string | null;
+  onSave: () => void;
+  onDismiss: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      data-ui-chrome
+      className="fixed inset-0 z-[95] flex items-end justify-center p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:items-center"
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div
+        className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
+        aria-hidden
+        onPointerDown={onDismiss}
+      />
+      <div
+        role="dialog"
+        aria-labelledby="rec-save-title"
+        className="relative z-10 w-full max-w-sm rounded-3xl border border-line bg-ink p-5 shadow-2xl"
+      >
+        <h2 id="rec-save-title" className="text-lg font-semibold text-fg">
+          Recording ready
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          {note || "Your clip is ready. On a phone, tap Save — the browser will not download it on its own."}
+        </p>
+        <p className="mt-3 break-all rounded-xl bg-fg/8 px-3 py-2 font-mono text-[12px] leading-snug text-fg/85">
+          {clip.name}
+        </p>
+        <button
+          type="button"
+          className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-fg px-4 text-[15px] font-semibold text-ink"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSave();
+          }}
+        >
+          Save to this device
+        </button>
+        <button
+          type="button"
+          className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm text-muted hover:text-fg"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDismiss();
+          }}
+        >
+          Not now
+        </button>
+      </div>
+    </div>,
+    document.body,
   );
 }

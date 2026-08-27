@@ -342,7 +342,7 @@
 }
 
 .voidride-hold {
-  --hold-ms: 1800ms;
+  --hold-ms: 2000ms;
 }
 
 .voidride-hold.is-done .voidride-load-bar span {
@@ -415,6 +415,26 @@
   to {
     transform: scaleX(1);
   }
+}
+
+@keyframes voidride-edge-flash {
+  0%,
+  100% {
+    box-shadow: 0 25px 50px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.14);
+  }
+  22% {
+    box-shadow: 0 0 0 3px #fff, 0 0 28px 6px rgb(255 70 200 / 0.95);
+  }
+  48% {
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.35);
+  }
+  72% {
+    box-shadow: 0 0 0 3px #fff, 0 0 32px 8px rgb(80 220 255 / 0.9);
+  }
+}
+
+.voidride-edge-flash {
+  animation: voidride-edge-flash 0.55s ease-out 2;
 }
 
 @media (prefers-reduced-motion: reduce) {

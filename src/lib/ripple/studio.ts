@@ -1,4 +1,4 @@
-import type { BrushId, BrushSpan, CustomBrush } from "@/lib/ripple/brushes";
+import type { BrushId, BrushShape, BrushSpan, CustomBrush } from "@/lib/ripple/brushes";
 import type { BrushFxId, FxLayerId } from "@/lib/ripple/blend";
 import type { ColorPair, ColorStop, PaletteId } from "@/lib/ripple/palettes";
 import type { TextureId } from "@/lib/ripple/textures";
@@ -26,6 +26,7 @@ export type StudioSnapshot = {
   waveStrength: number;
   brushDiameter: number;
   brushSpan?: Partial<Record<string, BrushSpan>>;
+  brushShape?: Partial<Record<string, BrushShape>>;
   brushId: BrushId | string;
   brushFx: Partial<Record<string, BrushFxId | BrushFxId[]>>;
   brushFxOpacity: number;
@@ -96,7 +97,7 @@ export function easySnapshot(): StudioSnapshot {
     gradientFlip: false,
     cameraInteract: 0.85,
     micSensitivity: 0.4,
-    gyroSensitivity: 0.125,
+    gyroSensitivity: 0.7,
     gyroZoom: 0.55,
     customBrushes: [],
   };
@@ -169,16 +170,22 @@ async function fetchPresetList(url: string): Promise<NamedPreset[]> {
   }
 }
 
-/** Built-in catalog first, then local JSON, then GitHub — ids win first. */
+/** Built-in catalog first, then local JSON. GitHub only if the local file is empty. */
 export async function loadHomebasePresets(): Promise<NamedPreset[]> {
-  const [{ builtinPresets }, local, remote] = await Promise.all([
+  const [{ builtinPresets }, local] = await Promise.all([
     import("@/lib/ripple/showroom"),
     fetchPresetList("/studio/presets.json"),
-    fetchPresetList(GITHUB_HOMEBASE_URL),
   ]);
   const seen = new Set<string>();
   const merged: NamedPreset[] = [];
-  for (const p of [...builtinPresets(), ...local, ...remote]) {
+  for (const p of [...builtinPresets(), ...local]) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    merged.push(p);
+  }
+  if (local.length) return merged;
+  const remote = await fetchPresetList(GITHUB_HOMEBASE_URL);
+  for (const p of remote) {
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     merged.push(p);

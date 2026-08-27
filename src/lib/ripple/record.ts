@@ -23,16 +23,9 @@ export function recordFps(): number {
   return 20;
 }
 
-/** Cap so the blob stays browser-safe and shareable over the data channel. */
-export function recordLimitMs(canvas: HTMLCanvasElement | null): number {
-  if (typeof window === "undefined") return 8_000;
-  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-  const coarse = window.matchMedia("(pointer: coarse)").matches;
-  const pixels = canvas ? canvas.width * canvas.height : 1280 * 720;
-  if (pixels > 1920 * 1080 || mem <= 2) return 6_000;
-  if (coarse || pixels > 1400 * 900) return 8_000;
-  if (mem <= 4) return 10_000;
-  return 12_000;
+/** 30s cap — bitrate is kept low enough that the clip stays shareable. */
+export function recordLimitMs(_canvas?: HTMLCanvasElement | null): number {
+  return 30_000;
 }
 
 export function recFileName(mime: string): string {

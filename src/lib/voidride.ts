@@ -1,8 +1,8 @@
 /** Latest VOIDRIDE drop used while the pairing QR is waking. */
 export const VOIDRIDE_PROFILE = "https://soundcloud.com/ridethevoid";
 export const VOIDRIDE_CREDIT_MS = 400;
-export const VOIDRIDE_FAILSAFE_MS = 1800;
-export const VOIDRIDE_HOLD_MS = VOIDRIDE_FAILSAFE_MS;
+export const VOIDRIDE_FAILSAFE_MS = 2000;
+export const VOIDRIDE_HOLD_MS = 2000;
 
 export type VoidrideRelease = {
   title: string;
@@ -14,7 +14,7 @@ export type VoidrideRelease = {
 export const VOIDRIDE_LATEST: VoidrideRelease = {
   title: "EMBER RITE",
   url: "https://soundcloud.com/ridethevoid/ember-rite",
-  art: "https://i1.sndcdn.com/artworks-EBNFdPf8REoyKlxC-sn2PPg-t500x500.jpg",
+  art: "/studio/voidride-latest.jpg",
 };
 
 const OEMBED = `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(VOIDRIDE_LATEST.url)}`;

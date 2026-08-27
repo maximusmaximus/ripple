@@ -1,7 +1,8 @@
+import { Eye } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { QrMark } from "./qr-mark";
-import { VoidrideHold } from "./voidride-hold";
+import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import { emptySensorsState, type SensorsState } from "@/lib/ripple/media";
@@ -11,7 +12,10 @@ import type { Splat } from "@/lib/ripple/pointer";
 import { hydrateSnapshotMedia } from "@/lib/ripple/studio";
 import { useOrientation } from "@/hooks/use-orientation";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
+import { useLivePresence } from "@/hooks/use-live-presence";
+import { useViewStream } from "@/hooks/use-view-stream";
 import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
+import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
 import type { CastMsg } from "@/lib/ripple/cast";
 
 type Props = {
@@ -118,6 +122,12 @@ export function WallViewport({ preferredCode }: Props) {
   hostLiveRef.current = host.isLive;
   const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  useLivePresence({
+    role: "host",
+    code: host.code || null,
+    enabled: Boolean(host.code),
+  });
+  useViewStream(canvasRef, host.broadcast, host.viewerCount);
   const record = useCanvasRecord(() => canvasRef.current, {
     onBlob: async (blob, name) => {
       if (hostLiveRef.current) await sendRecBlob((m) => hostSendRef.current(m), blob, name);
@@ -126,10 +136,11 @@ export function WallViewport({ preferredCode }: Props) {
   recRef.current = record;
   const ready = Boolean(host.pairUrl && host.code);
   const [gaveUp, setGaveUp] = useState(false);
+  const { locked, flash, progress } = useVoidrideGate();
 
   useEffect(() => {
     if (ready) return;
-    const t = window.setTimeout(() => setGaveUp(true), 400);
+    const t = window.setTimeout(() => setGaveUp(true), VOIDRIDE_HOLD_MS + 800);
     return () => window.clearTimeout(t);
   }, [ready]);
 
@@ -166,6 +177,22 @@ export function WallViewport({ preferredCode }: Props) {
         onReady={splash.markReady}
       />
 
+      {host.viewerCount > 0 && (
+        <div
+          data-ui-chrome
+          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+        >
+          <span
+            data-live-viewers={host.viewerCount}
+            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
+            title={host.viewerCount === 1 ? "1 watching" : `${host.viewerCount} watching`}
+          >
+            <Eye className="size-3.5" strokeWidth={1.75} />
+            {host.viewerCount}
+          </span>
+        </div>
+      )}
+
       {record.state === "recording" && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
@@ -185,7 +212,12 @@ export function WallViewport({ preferredCode }: Props) {
           style={{ background: "radial-gradient(ellipse at 50% 40%, #1a1a2e 0%, #07070c 70%)" }}
         />
 
-        <div className="relative z-10 flex max-w-[min(92vw,480px)] flex-col items-center gap-5 rounded-3xl border border-line bg-ink/70 p-6 shadow-2xl backdrop-blur-xl">
+        <div
+          className={
+            "relative z-10 flex max-w-[min(92vw,480px)] flex-col items-center gap-5 rounded-3xl border border-line bg-ink/70 p-6 shadow-2xl backdrop-blur-xl" +
+            (flash ? " voidride-edge-flash" : "")
+          }
+        >
           <div className="text-center">
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">
               Second display
@@ -204,13 +236,13 @@ export function WallViewport({ preferredCode }: Props) {
             </p>
           </div>
 
-          {host.pairUrl && (ready || gaveUp) ? (
-            <div className="rounded-2xl bg-fg p-3 shadow-inner">
-              <QrMark value={host.pairUrl} size={280} />
+          {locked || !(host.pairUrl && (ready || gaveUp)) ? (
+            <div className="w-full overflow-hidden rounded-2xl">
+              <VoidrideHold progress={progress} />
             </div>
           ) : (
-            <div className="w-full overflow-hidden rounded-2xl">
-              <VoidrideHold />
+            <div className="rounded-2xl bg-fg p-3 shadow-inner">
+              <QrMark value={host.pairUrl} size={280} />
             </div>
           )}
 
@@ -254,7 +286,7 @@ export function WallViewport({ preferredCode }: Props) {
         </div>
       </div>
 
-      {splash.show && (
+      {splash.show && !showPair && (
         <RippleSplash
           fading={splash.fading}
           progress={splash.progress}

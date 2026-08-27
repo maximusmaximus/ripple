@@ -189,7 +189,7 @@ export function mapTiltToScreen(
   }
 }
 
-/** Convert screen tilt (deg from rest) into sim gravity. Very sensitive by default. */
+/** Convert screen tilt (deg from rest) into sim gravity. 70% slider is the quiet default. */
 export function tiltToGravity(
   dx: number,
   dy: number,
@@ -200,13 +200,14 @@ export function tiltToGravity(
   let y = dy;
   if (axis === "horizontal") y = 0;
   if (axis === "vertical") x = 0;
-  const sens = Math.max(0, Math.min(1.5, sensitivity));
-  const span = Math.max(4.2, 22 - sens * 14);
+  const slider = Math.max(0, Math.min(1, sensitivity));
+  const span = Math.max(6, 24 - slider * 10);
   let nx = Math.max(-1, Math.min(1, x / span));
   let ny = Math.max(-1, Math.min(1, y / span));
-  const dead = 0.018;
+  const dead = 0.03;
   if (Math.abs(nx) < dead) nx = 0;
   if (Math.abs(ny) < dead) ny = 0;
-  const gain = 0.012 + sens * 0.028;
+  // Slider 70% is 10% of the previous default slosh.
+  const gain = 0.0021 * slider;
   return { gx: nx * gain, gy: ny * gain };
 }

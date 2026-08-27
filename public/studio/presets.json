@@ -2889,6 +2889,470 @@
       }
     },
     {
+      "id": "p_mt9ffpus_tgzq28",
+      "name": "🐱",
+      "createdAt": "2026-08-26T01:40:21.740Z",
+      "snapshot": {
+        "worldId": "riot",
+        "colorRanges": {
+          "prism": {
+            "end": 0.8666666666666667,
+            "start": 0
+          },
+          "riot": {
+            "start": 0,
+            "end": 1
+          }
+        },
+        "colorPairs": {
+          "prism": {
+            "key": "#f4e8ff",
+            "shadow": "#8000ff"
+          },
+          "riot": {
+            "key": "#ff008f",
+            "shadow": "#0a0018"
+          }
+        },
+        "colorStops": {
+          "prism": [
+            {
+              "t": 0,
+              "id": "prism-5",
+              "alpha": 0,
+              "color": "#ff4ad2"
+            },
+            {
+              "t": 0.10909090909090913,
+              "id": "smt9b39zt_1",
+              "alpha": 1,
+              "color": "#8c00ff"
+            },
+            {
+              "t": 0.3666666666666667,
+              "id": "prism-4",
+              "alpha": 1,
+              "color": "#ff006f"
+            },
+            {
+              "t": 0.6333333333333333,
+              "id": "prism-0",
+              "color": "#0a0414"
+            },
+            {
+              "t": 0.7181818181818181,
+              "id": "smt9b8qdc_2",
+              "alpha": 1,
+              "color": "#00ffaa"
+            }
+          ],
+          "riot": [
+            {
+              "id": "riot-4",
+              "t": 0.18787878787878787,
+              "color": "#ffe14a",
+              "alpha": 1
+            },
+            {
+              "id": "riot-5",
+              "t": 0.31212121212121213,
+              "color": "#00f0ff",
+              "alpha": 0
+            },
+            {
+              "id": "riot-0",
+              "t": 0.38484848484848483,
+              "color": "#0a0010",
+              "alpha": 0
+            },
+            {
+              "id": "smt9fcvwq_3",
+              "t": 0.4909090909090909,
+              "color": "#10eff3",
+              "alpha": 0
+            },
+            {
+              "id": "smt9f8t0c_1",
+              "t": 0.5151515151515151,
+              "color": "#12eff2"
+            },
+            {
+              "id": "smt9fdamo_4",
+              "t": 0.5484848484848485,
+              "color": "#ffa328",
+              "alpha": 0
+            },
+            {
+              "id": "riot-3",
+              "t": 0.5757575757575757,
+              "color": "#ff5a00"
+            },
+            {
+              "id": "riot-2",
+              "t": 0.6575757575757576,
+              "color": "#d4007a",
+              "alpha": 0
+            },
+            {
+              "id": "riot-1",
+              "t": 0.7303030303030303,
+              "color": "#180b00",
+              "alpha": 1
+            },
+            {
+              "id": "smt9fethx_5",
+              "t": 0.8206912878787879,
+              "color": "#ff3e59",
+              "alpha": 1
+            }
+          ]
+        },
+        "viscosity": 0.865,
+        "waveStrength": 0.1,
+        "brushDiameter": 0.04032,
+        "brushSpan": {
+          "swell": {
+            "min": 0.018719999999999997,
+            "max": 0.05824
+          },
+          "grit": {
+            "min": 0.01296,
+            "max": 0.04032
+          }
+        },
+        "brushId": "grit",
+        "brushFx": {
+          "grit": [
+            "inversion",
+            "overlay",
+            "lighten",
+            "screen"
+          ],
+          "spark": [
+            "component",
+            "overlay"
+          ],
+          "copper": [
+            "contrast"
+          ]
+        },
+        "brushFxOpacity": 0.94,
+        "fxLayers": [
+          "texture"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "custom",
+        "textureFit": "stretch",
+        "customTexture": {
+          "mime": "image/jpeg",
+          "dataUrl": "",
+          "width": 526,
+          "height": 526,
+          "path": "/studio/media/p_mt9ffpus_tgzq28_tex.jpg"
+        },
+        "textureLevels": 0,
+        "textureInvert": false,
+        "gradientFlip": false,
+        "cameraInteract": 0.8,
+        "micSensitivity": 1.42,
+        "gyroSensitivity": 0.345,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
+    },
+    {
+      "id": "p_mt9f9pa5_7t7udx",
+      "name": "🐍",
+      "createdAt": "2026-08-26T01:35:40.973Z",
+      "snapshot": {
+        "worldId": "riot",
+        "colorRanges": {
+          "prism": {
+            "end": 0.8666666666666667,
+            "start": 0
+          },
+          "riot": {
+            "start": 0,
+            "end": 1
+          }
+        },
+        "colorPairs": {
+          "prism": {
+            "key": "#f4e8ff",
+            "shadow": "#8000ff"
+          },
+          "riot": {
+            "key": "#ff0006",
+            "shadow": "#180600"
+          }
+        },
+        "colorStops": {
+          "prism": [
+            {
+              "t": 0,
+              "id": "prism-5",
+              "alpha": 0,
+              "color": "#ff4ad2"
+            },
+            {
+              "t": 0.10909090909090913,
+              "id": "smt9b39zt_1",
+              "alpha": 1,
+              "color": "#8c00ff"
+            },
+            {
+              "t": 0.3666666666666667,
+              "id": "prism-4",
+              "alpha": 1,
+              "color": "#ff006f"
+            },
+            {
+              "t": 0.6333333333333333,
+              "id": "prism-0",
+              "color": "#0a0414"
+            },
+            {
+              "t": 0.7181818181818181,
+              "id": "smt9b8qdc_2",
+              "alpha": 1,
+              "color": "#00ffaa"
+            }
+          ],
+          "riot": [
+            {
+              "id": "riot-0",
+              "t": 0.3575757575757576,
+              "color": "#0a0010",
+              "alpha": 0
+            },
+            {
+              "id": "riot-1",
+              "t": 0.39090909090909093,
+              "color": "#120018"
+            },
+            {
+              "id": "riot-2",
+              "t": 0.4,
+              "color": "#d4007a"
+            },
+            {
+              "id": "riot-3",
+              "t": 0.42424242424242425,
+              "color": "#ff5a00"
+            },
+            {
+              "id": "riot-4",
+              "t": 0.47575757575757577,
+              "color": "#ffe14a"
+            },
+            {
+              "id": "smt9f8t0c_1",
+              "t": 0.49696969696969695,
+              "color": "#12eff2"
+            },
+            {
+              "id": "riot-5",
+              "t": 0.5575757575757576,
+              "color": "#00f0ff",
+              "alpha": 0
+            }
+          ]
+        },
+        "viscosity": 0.936,
+        "waveStrength": 1.24,
+        "brushDiameter": 0.036,
+        "brushSpan": {},
+        "brushId": "grit",
+        "brushFx": {
+          "grit": [
+            "inversion",
+            "overlay"
+          ],
+          "spark": [
+            "component",
+            "overlay"
+          ],
+          "copper": [
+            "contrast"
+          ]
+        },
+        "brushFxOpacity": 0.94,
+        "fxLayers": [
+          "texture"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "none",
+        "textureFit": "cover",
+        "customTexture": null,
+        "textureLevels": 0,
+        "textureInvert": false,
+        "gradientFlip": true,
+        "cameraInteract": 0.8,
+        "micSensitivity": 1.42,
+        "gyroSensitivity": 0.345,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
+    },
+    {
+      "id": "p_mt9eohhv_3gzj9t",
+      "name": "🍓",
+      "createdAt": "2026-08-26T01:19:11.105Z",
+      "snapshot": {
+        "worldId": "riot",
+        "colorRanges": {
+          "riot": {
+            "start": 0,
+            "end": 1
+          },
+          "prism": {
+            "end": 0.8666666666666667,
+            "start": 0
+          }
+        },
+        "colorPairs": {
+          "prism": {
+            "key": "#f4e8ff",
+            "shadow": "#8000ff"
+          }
+        },
+        "colorStops": {
+          "riot": [
+            {
+              "t": 0,
+              "id": "riot-5",
+              "color": "#00f0ff"
+            },
+            {
+              "t": 0.19999999999999996,
+              "id": "riot-4",
+              "color": "#ffe14a"
+            },
+            {
+              "t": 0.4,
+              "id": "riot-3",
+              "color": "#ff5a00"
+            },
+            {
+              "t": 0.6,
+              "id": "riot-2",
+              "color": "#d4007a"
+            },
+            {
+              "t": 0.8,
+              "id": "riot-1",
+              "color": "#120018"
+            },
+            {
+              "t": 1,
+              "id": "riot-0",
+              "color": "#0a0010"
+            }
+          ],
+          "prism": [
+            {
+              "t": 0,
+              "id": "prism-5",
+              "alpha": 0,
+              "color": "#ff4ad2"
+            },
+            {
+              "t": 0.10909090909090913,
+              "id": "smt9b39zt_1",
+              "alpha": 1,
+              "color": "#8c00ff"
+            },
+            {
+              "t": 0.3666666666666667,
+              "id": "prism-4",
+              "alpha": 1,
+              "color": "#ff006f"
+            },
+            {
+              "t": 0.6333333333333333,
+              "id": "prism-0",
+              "color": "#0a0414"
+            },
+            {
+              "t": 0.7181818181818181,
+              "id": "smt9b8qdc_2",
+              "alpha": 1,
+              "color": "#00ffaa"
+            }
+          ]
+        },
+        "viscosity": 0.878,
+        "waveStrength": 0.16,
+        "brushDiameter": 0.016,
+        "brushSpan": {
+          "taper": {
+            "min": 0.0399030303030303,
+            "max": 0.06603636363636363
+          },
+          "bold": {
+            "min": 0.03456,
+            "max": 0.10752000000000002
+          },
+          "needle": {
+            "min": 0.053478787878787876,
+            "max": 0.08294772727272726
+          },
+          "spray": {
+            "min": 0.009357575757575757,
+            "max": 0.12
+          },
+          "hair": {
+            "min": 0.008,
+            "max": 0.016
+          }
+        },
+        "brushId": "hair",
+        "brushFx": {
+          "grit": [
+            "inversion",
+            "overlay"
+          ],
+          "spark": [
+            "component",
+            "overlay"
+          ],
+          "copper": [
+            "contrast"
+          ]
+        },
+        "brushFxOpacity": 0.94,
+        "fxLayers": [
+          "texture",
+          "brush",
+          "camera"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "textureId": "none",
+        "textureFit": "cover",
+        "customTexture": null,
+        "textureLevels": 0,
+        "textureInvert": false,
+        "gradientFlip": false,
+        "cameraInteract": 0.8,
+        "micSensitivity": 1.42,
+        "gyroSensitivity": 0.345,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
+    },
+    {
       "id": "p_mt9ct3km_u8wuhu",
       "name": "💙",
       "createdAt": "2026-08-26T00:26:47.577Z",
@@ -4044,127 +4508,6 @@
         "cameraInteract": 0.9,
         "micSensitivity": 0.58,
         "gyroSensitivity": 0.125,
-        "gyroZoom": 0.55,
-        "customBrushes": []
-      },
-      "source": "studio"
-    },
-    {
-      "id": "p_mt81r6na_ohaytr",
-      "name": "Marisol",
-      "createdAt": "2026-08-25T02:29:35.808Z",
-      "snapshot": {
-        "worldId": "halo",
-        "colorRanges": {},
-        "colorPairs": {
-          "halo": {
-            "key": "#000000",
-            "shadow": "#1a1008"
-          }
-        },
-        "colorStops": {
-          "halo": [
-            {
-              "t": 0,
-              "id": "halo-0",
-              "color": "#0c0804"
-            },
-            {
-              "t": 0.2,
-              "id": "halo-1",
-              "color": "#1a1008"
-            },
-            {
-              "t": 0.4,
-              "id": "halo-2",
-              "alpha": 1,
-              "color": "#fbff00"
-            },
-            {
-              "t": 0.6,
-              "id": "halo-3",
-              "alpha": 0,
-              "color": "#d4a04a"
-            },
-            {
-              "t": 0.7820895522388059,
-              "id": "halo-4",
-              "alpha": 1,
-              "color": "#000000"
-            },
-            {
-              "t": 1,
-              "id": "halo-5",
-              "color": "#fff8e8"
-            }
-          ]
-        },
-        "viscosity": 0.905,
-        "waveStrength": 0.25,
-        "brushDiameter": 0.076,
-        "brushId": "grit",
-        "brushFx": {
-          "ink": [
-            "darken",
-            "multiply"
-          ],
-          "grit": [
-            "normal"
-          ],
-          "soft": [
-            "screen",
-            "color"
-          ],
-          "wash": [
-            "multiply"
-          ],
-          "cloud": [
-            "color"
-          ],
-          "flood": [
-            "normal"
-          ],
-          "pulse": [
-            "overlay"
-          ],
-          "sable": [
-            "screen",
-            "overlay"
-          ],
-          "spark": [
-            "component",
-            "overlay"
-          ],
-          "spray": [
-            "screen",
-            "overlay"
-          ],
-          "stamp": [
-            "multiply",
-            "contrast"
-          ],
-          "ribbon": [
-            "color",
-            "overlay"
-          ]
-        },
-        "brushFxOpacity": 0.5,
-        "fxLayers": [
-          "brush",
-          "camera",
-          "texture"
-        ],
-        "shadowOn": false,
-        "shadowColor": "#0a0810",
-        "shadowAngle": 135,
-        "shadowOpacity": 0.45,
-        "textureId": "none",
-        "textureFit": "stretch",
-        "customTexture": null,
-        "textureLevels": 0.95,
-        "cameraInteract": 0.29,
-        "micSensitivity": 1.06,
-        "gyroSensitivity": 0.28,
         "gyroZoom": 0.55,
         "customBrushes": []
       },

@@ -181,3 +181,98 @@ export function tickMicEnvelope(env: MicFrame, raw: MicFrame, sensitivity: numbe
     high: follow(env.high, raw.high, 0.45, 0.82, highScale),
   }
 }
+
+export type CamFacing = "user" | "environment";
+
+export function cameraDeviceId(stream: MediaStream | null): string | undefined {
+  return stream?.getVideoTracks()[0]?.getSettings().deviceId;
+}
+
+export function readCameraFacing(stream: MediaStream | null): CamFacing {
+  const track = stream?.getVideoTracks()[0];
+  if (!track) return "user";
+  const mode = track.getSettings().facingMode;
+  if (mode === "environment" || mode === "user") return mode;
+  const label = `${track.label} ${track.getSettings().deviceId ?? ""}`.toLowerCase();
+  if (/back|rear|environment|world|ultra.?wide/.test(label)) return "environment";
+  return "user";
+}
+
+export async function stopMediaStream(stream: MediaStream | null) {
+  if (!stream) return;
+  for (const t of stream.getTracks()) {
+    try {
+      t.stop();
+    } catch {
+      /* ignore */
+    }
+  }
+  await new Promise((r) => window.setTimeout(r, 140));
+}
+
+async function videoInputs(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return [];
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all.filter((d) => d.kind === "videoinput");
+  } catch {
+    return [];
+  }
+}
+
+function facingFromLabel(label: string): CamFacing | null {
+  const l = label.toLowerCase();
+  if (/back|rear|environment|world|ultra.?wide/.test(l)) return "environment";
+  if (/front|user|face|facetime|selfie/.test(l)) return "user";
+  return null;
+}
+
+async function openWith(constraints: MediaTrackConstraints): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({ video: constraints, audio: false });
+}
+
+export async function openCamera(
+  want: CamFacing,
+  opts: { excludeDeviceId?: string } = {},
+): Promise<{ stream: MediaStream; facing: CamFacing }> {
+  const exclude = opts.excludeDeviceId;
+
+  const attempts: MediaTrackConstraints[] = [
+    { facingMode: { exact: want } },
+    { facingMode: { ideal: want } },
+    { facingMode: want },
+  ];
+
+  for (const video of attempts) {
+    try {
+      const stream = await openWith(video);
+      const id = cameraDeviceId(stream);
+      if (exclude && id && id === exclude) {
+        await stopMediaStream(stream);
+        continue;
+      }
+      const facing = readCameraFacing(stream);
+      if (facing === want) return { stream, facing };
+      await stopMediaStream(stream);
+    } catch {
+      /* try next */
+    }
+  }
+
+  const devices = await videoInputs();
+  const ranked = devices.filter((d) => d.deviceId && d.deviceId !== exclude);
+  const named = ranked.find((d) => facingFromLabel(d.label) === want);
+  const pick = named ?? (want === "user" ? ranked[0] : ranked[ranked.length - 1]);
+  if (pick?.deviceId) {
+    const stream = await openWith({ deviceId: { exact: pick.deviceId } });
+    return { stream, facing: readCameraFacing(stream) };
+  }
+
+  const stream = await openWith({ facingMode: { ideal: want } });
+  return { stream, facing: readCameraFacing(stream) };
+}
+
+export async function countVideoCameras(): Promise<number> {
+  const list = await videoInputs();
+  return list.length;
+}

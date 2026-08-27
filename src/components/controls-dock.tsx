@@ -7,7 +7,8 @@ import { BrushSpanSlider } from "./brush-span-slider";
 import { LayerFxPicker } from "./brush-fx";
 import { PresetStrip } from "./preset-strip";
 import { FeedbackFooter } from "./feedback-form";
-import { TipMark } from "./tip-mark";
+import { StudioCredit } from "./studio-credit";
+import { TipMark, TipCopy } from "./tip-mark";
 import { useRippleStore } from "@/store/ripple";
 
 export function ControlsDock({
@@ -31,7 +32,6 @@ export function ControlsDock({
   const setGyroZoom = useRippleStore((s) => s.setGyroZoom);
   const clearSurface = useRippleStore((s) => s.clearSurface);
   const cleanSession = useRippleStore((s) => s.cleanSession);
-  const setDockOpen = useRippleStore((s) => s.setDockOpen);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const page = (dir: -1 | 1) => {
@@ -50,22 +50,10 @@ export function ControlsDock({
 
   return (
     <div className="controls-dock relative flex w-full max-w-sm max-h-[min(72dvh,36rem)] flex-col rounded-3xl border border-line bg-ink/85 shadow-2xl backdrop-blur-xl">
-      <div className="flex shrink-0 items-center justify-end px-3 pb-1 pt-3">
-        <button
-          type="button"
-          onClick={() => setDockOpen(false)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-fg/10 text-subtle hover:bg-fg/20 hover:text-fg"
-          aria-label="Hide menu"
-          title="Hide"
-        >
-          <ChevronDown className="size-4" />
-        </button>
-      </div>
-
       <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
-          className="controls-dock-scroll flex max-h-[min(62dvh,31rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-4 pr-9"
+          className="controls-dock-scroll flex max-h-[min(54dvh,27rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-4 pr-9 pt-4"
         >
           <PresetStrip />
 
@@ -177,7 +165,7 @@ export function ControlsDock({
               <input
                 type="range"
                 min={0}
-                max={1.5}
+                max={1}
                 step={0.01}
                 value={gyroSensitivity}
                 onChange={(e) => setGyroSensitivity(parseFloat(e.target.value))}
@@ -228,32 +216,56 @@ export function ControlsDock({
             </button>
               <TipMark id="clean" />
             </div>
-            <p className="-mt-1 text-[10px] leading-snug text-subtle">
+            <TipCopy>
               Resets the live mix for the next person. Saved presets stay.
-            </p>
+            </TipCopy>
             {showPairButton && (
-              <div className="relative max-md:hidden">
-              <button
-                type="button"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onShowPair?.();
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onShowPair?.();
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
-              >
-                <Smartphone className="size-4" />
-                Control With Secondary Device
-              </button>
-              <span className="absolute right-2 top-1/2 -translate-y-1/2">
-                <TipMark id="pair" />
-              </span>
-              </div>
+              <>
+                <div className="relative md:hidden">
+                  <button
+                    type="button"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShowPair?.();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShowPair?.();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
+                  >
+                    <Smartphone className="size-4" />
+                    Pair with a larger screen
+                  </button>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <TipMark id="pair" />
+                  </span>
+                </div>
+                <div className="relative max-md:hidden">
+                  <button
+                    type="button"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShowPair?.();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onShowPair?.();
+                    }}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
+                  >
+                    <Smartphone className="size-4" />
+                    Control With Secondary Device
+                  </button>
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <TipMark id="pair" />
+                  </span>
+                </div>
+              </>
             )}
             <FeedbackFooter />
           </section>
@@ -284,6 +296,7 @@ export function ControlsDock({
           </button>
         </div>
       </div>
+      <StudioCredit />
     </div>
   );
 }

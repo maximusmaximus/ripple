@@ -127,7 +127,7 @@ export class RippleEngineBase {
       alpha: false,
       antialias: false,
       powerPreference: "high-performance",
-      preserveDrawingBuffer: false,
+      preserveDrawingBuffer: true,
     });
     if (!gl) throw new Error("WebGL2 required");
     this.gl = gl;
@@ -226,6 +226,7 @@ export class RippleEngineBase {
       useStamp: gl.getUniformLocation(this.splatProg, "u_useStamp"),
       angle: gl.getUniformLocation(this.splatProg, "u_angle"),
       aspect: gl.getUniformLocation(this.splatProg, "u_aspect"),
+      width: gl.getUniformLocation(this.splatProg, "u_width"),
     };
     this.inkU = {
       prev: gl.getUniformLocation(this.inkProg, "u_prev"),
@@ -238,6 +239,7 @@ export class RippleEngineBase {
       useStamp: gl.getUniformLocation(this.inkProg, "u_useStamp"),
       angle: gl.getUniformLocation(this.inkProg, "u_angle"),
       aspect: gl.getUniformLocation(this.inkProg, "u_aspect"),
+      width: gl.getUniformLocation(this.inkProg, "u_width"),
     };
     this.inkFlowU = {
       prev: gl.getUniformLocation(this.inkFlowProg, "u_prev"),
@@ -456,6 +458,8 @@ export class RippleEngineBase {
     aspectLoc: WebGLUniformLocation | null,
     use: boolean,
     angle: number,
+    widthLoc: WebGLUniformLocation | null,
+    width = 1,
   ) {
     const gl = this.gl;
     const tex = use && this.stampReady && this.stampTex ? this.stampTex : this.stampDummy;
@@ -465,6 +469,7 @@ export class RippleEngineBase {
     gl.uniform1f(useLoc, use && this.stampReady ? 1 : 0);
     gl.uniform1f(angleLoc, angle);
     gl.uniform1f(aspectLoc, this.simW / Math.max(1, this.simH));
+    gl.uniform1f(widthLoc, Math.max(0.18, Math.min(1, width)));
   }
 
   setGravity(x: number, y: number) {

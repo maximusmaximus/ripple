@@ -16,7 +16,7 @@ import {
   type ColorPair,
   type ColorStop,
 } from "@/lib/ripple/palettes";
-import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, normalizeBrushSpan, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
+import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaultShapeFor, normalizeBrushShape, normalizeBrushSpan, type BrushShape, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 import { hasMediaPayload, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
@@ -41,6 +41,7 @@ interface RippleState {
   brushDiameter: number;
   /** Per-brush small/large mark size. Tail interpolates between them along a stroke. */
   brushSpan: Partial<Record<string, BrushSpan>>;
+  brushShape: Partial<Record<string, BrushShape>>;
   /** Active brush preset (builtin id or cb_*). */
   brushId: string;
   /** Per-brush mix with bed + camera. One or more compatible modes. */
@@ -67,7 +68,7 @@ interface RippleState {
   cameraInteract: number;
   /** 0–1.5 — how hard the mic throbs painted marks. */
   micSensitivity: number;
-  /** 0–1.5 — gyro slosh. Defaults are 75% quieter than the original mix. */
+  /** 0–1 — gyro slosh. 70% is the quiet default (90% less than the old mix). */
   gyroSensitivity: number;
   /** 0–1.5 — how hard tilt punches the camera in. Independent of slosh. */
   gyroZoom: number;
@@ -77,6 +78,7 @@ interface RippleState {
   tipsOn: boolean;
   openTipId: string | null;
   hiddenPresetIds: string[];
+  hiddenBrushIds: string[];
 
   setWorld: (id: WorldId) => void;
   nextWorld: () => void;
@@ -95,9 +97,11 @@ interface RippleState {
   setBrushDiameter: (v: number) => void;
   setBrushSpan: (span: BrushSpan) => void;
   getActiveSpan: () => BrushSpan;
+  setBrushShape: (shape: Partial<BrushShape>) => void;
+  getActiveShape: () => BrushShape;
   setBrushId: (id: string) => void;
   addCustomBrush: (brush: CustomBrush) => void;
-  updateCustomBrush: (id: string, patch: Partial<Pick<CustomBrush, "name" | "angle" | "spin">>) => void;
+  updateCustomBrush: (id: string, patch: Partial<Pick<CustomBrush, "name" | "angle" | "spin" | "markWidth">>) => void;
   removeCustomBrush: (id: string) => void;
   setBrushFx: (id: BrushFxId) => void;
   getActiveBrushFx: () => BrushFxId[];
@@ -128,6 +132,7 @@ interface RippleState {
   setTipsOn: (v: boolean) => void;
   setOpenTip: (id: string | null) => void;
   hidePreset: (id: string) => void;
+  hideBrush: (id: string) => void;
 
   getActiveRange: () => ColorRange;
   getActivePair: () => ColorPair;
@@ -195,6 +200,7 @@ export const useRippleStore = create<RippleState>()(
       waveStrength: PALETTES.lens.waveStrength,
       brushDiameter: getBrush(PALETTES.lens.brushId).radius * 2,
       brushSpan: {},
+      brushShape: {},
       brushId: PALETTES.lens.brushId,
       brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
       brushFxOpacity: PALETTES.lens.brushFxOpacity,
@@ -221,6 +227,7 @@ export const useRippleStore = create<RippleState>()(
       tipsOn: false,
       openTipId: null,
       hiddenPresetIds: [],
+      hiddenBrushIds: [],
 
       setWorld: (id) =>
         set((s) => {
@@ -368,6 +375,24 @@ export const useRippleStore = create<RippleState>()(
         const b = getBrush(s.brushId, s.customBrushes);
         return normalizeBrushSpan(s.brushSpan[s.brushId] ?? defaultBrushSpan(b.radius));
       },
+      setBrushShape: (shape) => {
+        const id = get().brushId;
+        const b = getBrush(id, get().customBrushes);
+        const custom = get().customBrushes.find((c) => c.id === id);
+        const fallback = custom ? defaultShapeFor(custom) : defaultShapeFor(b);
+        const next = normalizeBrushShape({ ...get().brushShape[id], ...shape }, fallback);
+        if (custom) {
+          get().updateCustomBrush(id, { angle: next.angle, markWidth: next.width, spin: next.spin });
+        }
+        set({ brushShape: { ...get().brushShape, [id]: next } });
+      },
+      getActiveShape: () => {
+        const s = get();
+        const b = getBrush(s.brushId, s.customBrushes);
+        const custom = s.customBrushes.find((c) => c.id === s.brushId);
+        const fallback = custom ? defaultShapeFor(custom) : defaultShapeFor(b);
+        return normalizeBrushShape(s.brushShape[s.brushId], fallback);
+      },
       setBrushId: (id) => {
         const customs = get().customBrushes;
         const b = getBrush(id, customs);
@@ -383,11 +408,13 @@ export const useRippleStore = create<RippleState>()(
         const list = get().customBrushes;
         if (list.length >= MAX_CUSTOM_BRUSHES) return;
         if (list.some((c) => c.id === brush.id)) return;
+        const shape = defaultShapeFor(brush);
         set({
-          customBrushes: [...list, brush],
+          customBrushes: [...list, { ...brush, markWidth: shape.width }],
           brushId: brush.id,
           brushDiameter: 0.06,
           brushSpan: { ...get().brushSpan, [brush.id]: { min: 0.02, max: 0.06 } },
+          brushShape: { ...get().brushShape, [brush.id]: shape },
         });
       },
       updateCustomBrush: (id, patch) => {
@@ -485,6 +512,7 @@ export const useRippleStore = create<RippleState>()(
           waveStrength: s.waveStrength,
           brushDiameter: s.brushDiameter,
           brushSpan: s.brushSpan,
+          brushShape: s.brushShape,
           brushId: s.brushId,
           brushFx: s.brushFx,
           brushFxOpacity: s.brushFxOpacity,
@@ -506,6 +534,7 @@ export const useRippleStore = create<RippleState>()(
           customBrushes: s.customBrushes.map((c) => ({
             ...c,
             name: c.name.trim() || "Stamp",
+            markWidth: typeof c.markWidth === "number" ? c.markWidth : 1,
           })),
         };
       },
@@ -535,6 +564,7 @@ export const useRippleStore = create<RippleState>()(
           waveStrength: snap.waveStrength,
           brushDiameter: snap.brushDiameter ?? Math.max(0.01, Math.min(0.12, brush.radius * 2)),
           brushSpan: snap.brushSpan ?? {},
+          brushShape: snap.brushShape ?? {},
           brushId: keepCustom ? snap.brushId : brush.id,
           brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
           brushFxOpacity: snap.brushFxOpacity,
@@ -556,7 +586,7 @@ export const useRippleStore = create<RippleState>()(
           gradientFlip: Boolean(snap.gradientFlip),
           cameraInteract: snap.cameraInteract,
           micSensitivity: snap.micSensitivity,
-          gyroSensitivity: snap.gyroSensitivity,
+          gyroSensitivity: Math.max(0, Math.min(1, snap.gyroSensitivity > 1 ? 0.7 : snap.gyroSensitivity)),
           gyroZoom: snap.gyroZoom ?? 0.55,
           customBrushes: customs,
         });
@@ -581,6 +611,7 @@ export const useRippleStore = create<RippleState>()(
           waveStrength: p.waveStrength,
           brushDiameter: Math.max(0.01, Math.min(0.12, brush.radius * 2)),
           brushSpan: {},
+          brushShape: {},
           brushId: brush.id,
           brushFx: { [brush.id]: p.brushFx },
           brushFxOpacity: p.brushFxOpacity,
@@ -606,7 +637,7 @@ export const useRippleStore = create<RippleState>()(
       },
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
-      setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1.5, v)) }),
+      setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1, v)) }),
       setGyroZoom: (v) => set({ gyroZoom: Math.max(0, Math.min(1.5, v)) }),
       clearSurface: () => set((s) => ({ clearToken: s.clearToken + 1 })),
       setCastPinned: (v) => set({ castPinned: v }),
@@ -617,6 +648,17 @@ export const useRippleStore = create<RippleState>()(
         set((s) => ({
           hiddenPresetIds: s.hiddenPresetIds.includes(id) ? s.hiddenPresetIds : [...s.hiddenPresetIds, id],
         })),
+      hideBrush: (id) =>
+        set((s) => {
+          const hiddenBrushIds = s.hiddenBrushIds.includes(id) ? s.hiddenBrushIds : [...s.hiddenBrushIds, id];
+          if (isCustomBrushId(id)) {
+            const next = s.customBrushes.filter((c) => c.id !== id);
+            const brushId = s.brushId === id ? getBrush(undefined).id : s.brushId;
+            return { hiddenBrushIds, customBrushes: next, brushId };
+          }
+          const brushId = s.brushId === id ? getBrush(undefined).id : s.brushId;
+          return { hiddenBrushIds, brushId };
+        }),
 
       getActiveRange: () => {
         const { worldId, colorRanges } = get();
@@ -658,6 +700,7 @@ export const useRippleStore = create<RippleState>()(
         waveStrength: s.waveStrength,
         brushDiameter: s.brushDiameter,
         brushSpan: s.brushSpan,
+        brushShape: s.brushShape,
         brushId: s.brushId,
         brushFx: s.brushFx,
         brushFxOpacity: s.brushFxOpacity,
@@ -676,29 +719,42 @@ export const useRippleStore = create<RippleState>()(
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,
         gyroCalibrated: true as const,
+        gyroQuietV2: true as const,
         gyroZoom: s.gyroZoom,
         customBrushes: s.customBrushes,
         hiddenPresetIds: s.hiddenPresetIds,
+        hiddenBrushIds: s.hiddenBrushIds,
       }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean };
+        const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean; gyroQuietV2?: boolean };
         const fxLayers = asFxLayers(p.fxLayers ?? current.fxLayers);
         const shadowOn = Boolean(p.shadowOn);
         let gyroSensitivity = typeof p.gyroSensitivity === "number" ? p.gyroSensitivity : current.gyroSensitivity;
-        if (!p.gyroCalibrated && typeof p.gyroSensitivity === "number") {
-          gyroSensitivity = Math.max(0, Math.min(1.5, p.gyroSensitivity * 0.25));
+        if (!p.gyroQuietV2) {
+          gyroSensitivity = 0.7;
+        } else {
+          gyroSensitivity = Math.max(0, Math.min(1, gyroSensitivity > 1 ? 0.7 : gyroSensitivity));
         }
+        const rawBrushes = Array.isArray(p.customBrushes) ? p.customBrushes : current.customBrushes;
+        const customBrushes = rawBrushes.map((c) => ({
+          ...c,
+          markWidth: typeof c.markWidth === "number" ? c.markWidth : 1,
+        }));
         return {
           ...current,
           ...p,
           gyroSensitivity,
+          brushShape: p.brushShape ?? current.brushShape,
           textureInvert: Boolean(p.textureInvert),
           gradientFlip: Boolean(p.gradientFlip),
           fxLayers: shadowOn && !fxLayers.includes("shadow") ? [...fxLayers, "shadow"] : fxLayers,
-          customBrushes: Array.isArray(p.customBrushes) ? p.customBrushes : current.customBrushes,
+          customBrushes,
           hiddenPresetIds: Array.isArray((p as { hiddenPresetIds?: string[] }).hiddenPresetIds)
             ? (p as { hiddenPresetIds: string[] }).hiddenPresetIds
             : current.hiddenPresetIds,
+          hiddenBrushIds: Array.isArray((p as { hiddenBrushIds?: string[] }).hiddenBrushIds)
+            ? (p as { hiddenBrushIds: string[] }).hiddenBrushIds
+            : current.hiddenBrushIds,
         };
       },
     },

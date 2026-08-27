@@ -35,7 +35,7 @@ export function useCastPad(opts: UseCastPadOptions) {
   const recInbox = useRef(createRecInbox());
   const [recOn, setRecOn] = useState(false);
   const [recStartedAt, setRecStartedAt] = useState<number | null>(null);
-  const [recLimitMs, setRecLimitMs] = useState(8_000);
+  const [recLimitMs, setRecLimitMs] = useState(30_000);
   const [recRemainingMs, setRecRemainingMs] = useState(0);
   const [recSaving, setRecSaving] = useState(false);
   const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
@@ -55,39 +55,46 @@ export function useCastPad(opts: UseCastPadOptions) {
   const stopMedia = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
+    encodingRef.current = false;
+    if (videoRef.current) videoRef.current.srcObject = null;
+  }, []);
+
+  const stopOwnedStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
   }, []);
 
   const cleanup = useCallback(() => {
     stopMedia();
+    stopOwnedStream();
     p2pRef.current?.close();
     p2pRef.current = null;
-  }, [stopMedia]);
+  }, [stopMedia, stopOwnedStream]);
 
-  const startCameraLoop = useCallback(async () => {
-    if (streamRef.current) return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: frameWidth },
-          height: { ideal: frameHeight },
-          facingMode: "environment",
-        },
-        audio: false,
-      });
-      streamRef.current = stream;
-      const video = document.createElement("video");
-      video.playsInline = true;
-      video.muted = true;
+  const bindCameraStream = useCallback(
+    (stream: MediaStream | null) => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      encodingRef.current = false;
+      if (!stream) {
+        if (videoRef.current) videoRef.current.srcObject = null;
+        return;
+      }
+      let video = videoRef.current;
+      if (!video) {
+        video = document.createElement("video");
+        video.playsInline = true;
+        video.muted = true;
+        video.autoplay = true;
+        videoRef.current = video;
+      }
       video.srcObject = stream;
-      await video.play();
-      videoRef.current = video;
+      void video.play().catch(() => {});
       const canvas = document.createElement("canvas");
       canvas.width = frameWidth;
       canvas.height = frameHeight;
-      const ctx = canvas.getContext("2d")!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
       const interval = 1000 / fps;
       const tick = () => {
         rafRef.current = requestAnimationFrame(tick);
@@ -95,7 +102,11 @@ export function useCastPad(opts: UseCastPadOptions) {
         if (now - lastFrameAt.current < interval) return;
         if (encodingRef.current) return;
         lastFrameAt.current = now;
-        ctx.drawImage(video, 0, 0, frameWidth, frameHeight);
+        try {
+          ctx.drawImage(video, 0, 0, frameWidth, frameHeight);
+        } catch {
+          return;
+        }
         encodingRef.current = true;
         canvas.toBlob(
           async (blob) => {
@@ -109,10 +120,13 @@ export function useCastPad(opts: UseCastPadOptions) {
         );
       };
       rafRef.current = requestAnimationFrame(tick);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, [frameHeight, frameWidth, fps, jpegQuality, sendJson]);
+    },
+    [frameHeight, frameWidth, fps, jpegQuality, sendJson],
+  );
+
+  const startCameraLoop = useCallback(async () => {
+    /* Camera is opened from the HUD so front/rear cycling owns the tracks. */
+  }, []);
 
   const connect = useCallback(async () => {
     setState("connecting");
@@ -284,6 +298,7 @@ export function useCastPad(opts: UseCastPadOptions) {
     recNote,
     clearPendingClip: () => setPendingClip(null),
     startCameraLoop,
+    bindCameraStream,
     stopMedia,
   };
 }

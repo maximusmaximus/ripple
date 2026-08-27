@@ -74,9 +74,11 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const spanMax = useRippleStore((s) => s.getActiveSpan().max);
   const brushId = useRippleStore((s) => s.brushId);
   const customBrushes = useRippleStore((s) => s.customBrushes);
+  const shape = useRippleStore((s) => s.getActiveShape());
   const customBrushSig = customBrushes
-    .map((c) => `${c.id}:${c.angle}:${c.spin}:${c.dataUrl?.length ?? 0}:${c.path ?? ""}`)
+    .map((c) => `${c.id}:${c.angle}:${c.markWidth ?? 1}:${c.spin}:${c.dataUrl?.length ?? 0}:${c.path ?? ""}`)
     .join("|");
+  const shapeSig = `${shape.angle}:${shape.width}:${shape.spin}`;
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
   const fxLayerSig = useRippleStore((s) => asFxLayers(s.fxLayers).join(","));
@@ -145,7 +147,6 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     const painter = painterRef.current;
     const customs = useRippleStore.getState().customBrushes;
     const brush = getBrush(brushId, customs);
-    const custom = getCustomBrush(brushId, customs);
     painter.setBrush(
       spanMin / 2,
       spanMax / 2,
@@ -155,8 +156,9 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brush.grains ?? 4,
       brush.feel ?? "steady",
       brush.nib ?? Math.PI / 4,
-      custom?.angle ?? 0,
-      custom?.spin ?? 0,
+      useRippleStore.getState().getActiveShape().angle,
+      useRippleStore.getState().getActiveShape().spin,
+      useRippleStore.getState().getActiveShape().width,
     );
     const swipe = createStrokeTracker();
 
@@ -292,7 +294,6 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   useEffect(() => {
     const customs = useRippleStore.getState().customBrushes;
     const brush = getBrush(brushId, customs);
-    const custom = getCustomBrush(brushId, customs);
     painterRef.current.setBrush(
       spanMin / 2,
       spanMax / 2,
@@ -302,10 +303,11 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       brush.grains ?? 4,
       brush.feel ?? "steady",
       brush.nib ?? Math.PI / 4,
-      custom?.angle ?? 0,
-      custom?.spin ?? 0,
+      useRippleStore.getState().getActiveShape().angle,
+      useRippleStore.getState().getActiveShape().spin,
+      useRippleStore.getState().getActiveShape().width,
     );
-  }, [spanMin, spanMax, brushId, customBrushSig]);
+  }, [spanMin, spanMax, brushId, customBrushSig, shapeSig]);
 
   useEffect(() => {
     const engine = engineRef.current;

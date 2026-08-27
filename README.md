@@ -17,11 +17,12 @@ npm run preview      # production build
 
 A round **i** control sits at the bottom-right of the canvas.
 
-- Tap it to turn **tips on**. Mini **i** marks appear on the menu and HUD.
-- Helper lines in the menu (how Layer FX stacks, save notes, and similar) only show while tips are on, so the dock stays short.
-- A walkthrough card steps through every feature (Back / Next).
-- Tap any mini **i** to jump that card to that control.
+- Tap it to turn **tips on**. Mini **i** marks appear on the menu and HUD, and a walkthrough card steps through every feature (Back / Next).
+- **Helper copy in the menu is hidden until tips are on** — Layer FX notes, texture hints, save/delete help, clean-session, feature-form, “click the ramp,” and similar lines. The dock stays short while you paint.
+- Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
+
+The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, width, hold to remove), diameter, Layer FX, texture, gradient, viscosity, wave, sensors, pairing, LIVE, record, and the feature/bug form.
 
 ## Studio
 
@@ -31,9 +32,11 @@ Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the 
 
 ### Presets
 
-Starter presets and your saves share one inlaid window. It opens scrolled to the **bottom** — newest chips sit at the foot of the list, older ones above. Scroll up for the catalog; fades at the top and bottom of the window mark that there is more. **Save as** stays bottom-right in that window. The large color bar is the live selection; the selected chip grows a taller bar.
+There is **no PRESETS heading**. The **selected mix** sits at the top of the menu — **swipe it left or right** (or tap the arrows) to step through. Keyboard arrows work while that row is focused.
 
-Each starter (Lens, Voice, Noir, Easy, …) is a full mix: palette, thickness, wave, camera, and mic. Keyboard `←` `→` / `[` `]` still step through palettes. The live gradient is the ink.
+Starter mixes and your saves share one inlaid well under that row: **oldest at the top**, newest at the bottom. Chips are **tall color previews** (two rows fill the window). Fades mark that there is more. **Save as** stays bottom-right in that window.
+
+Each starter (Lens, Voice, Noir, Easy, …) is a full mix: palette, thickness, wave, camera, and mic. Keyboard `←` `→` / `[` `]` still step through palettes on the canvas. The live gradient is the ink.
 
 **Save as** always creates a **new** named preset at the bottom of the window. It never overwrites. Names must be unique. Uploaded textures and custom PNG stamps are stored with the preset for the next visitor.
 
@@ -41,7 +44,11 @@ Each starter (Lens, Voice, Noir, Easy, …) is a full mix: palette, thickness, w
 
 ### Brushes
 
-Round, soft, scatter, and script nibs. Custom PNG stamps live under Script (name, angle, spin). Stroke color follows the live gradient.
+Round, soft, scatter, and script nibs. Every starter has a baked-in **rotation** and **width**. The selected brush keeps those sliders under the grid. Custom PNG stamps live under Script — on import you set name, rotation, and width before the stamp is added.
+
+**Hold a brush chip for two seconds** — an **X** appears. Tap it, then confirm. Your stamps are deleted. Starter brushes hide on this studio.
+
+Stroke color follows the live gradient.
 
 ### Layer FX
 
@@ -55,31 +62,43 @@ Textures (paper, silk, mesh, and more) plus upload (JPG, PNG, GIF, WebP). Invert
 
 On-device only. Top-left HUD:
 
-- **Camera** — tap to cycle off → rear → front
+- **Camera** — tap to cycle off → front (faces you) → rear. One camera (laptop) is just on / off.
 - **Mic** — on / off
 - **Gyro** — off → on → horizontal → vertical
 
-Menu sliders: camera interact, mic sensitivity, gyro sensitivity, gyro zoom. Layer FX decides which of those layers inherit the mix.
+Menu sliders: camera interact, mic sensitivity, gyro sensitivity, gyro zoom. **Gyro sensitivity** defaults to **70%**, which is **90% quieter** than the previous mix. Layer FX decides which of those layers inherit the mix.
 
 ### Session
 
-**Clear surface** wipes paint. **Clean session** resets the live mix for the next person; saved presets stay. **Control With Secondary Device** (wide screens) opens the pairing card.
+**Clear surface** wipes paint. **Clean session** resets the live mix for the next person; saved presets stay. **Control With Secondary Device** (wide screens) or **Pair with a larger screen** (phones) opens the pairing card.
+
+**Feature & bugs** at the bottom of the menu: pick Feature or Bug, write a sentence, send. It is stored here and opened as a GitHub issue (`bug` or `enhancement` + `from-studio`). The menu stays in the studio and shows **Sent as #N** — it does not navigate the preview away. Copy link if you want the URL.
+
+The **Ripple** mark sits under that, with a link to the public repo [maximusmaximus/ripple](https://github.com/maximusmaximus/ripple). It opens in a new tab so the studio stays put.
 
 ### Pairing
 
 On a desktop-width studio the pairing card can open automatically or from the light icon / menu. Scan the QR, or open the same site on a phone with the six-character code. Click the dimmed area around the card (or Escape) to close it. **New code** mints a fresh room.
 
+On a phone the light is also top-right. It does **not** auto-open. Tap it after you are in the studio for instructions to scan the desktop / primary screen, or type that screen’s six-character code.
+
 Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again.
 
-The pairing card’s **LOADING** screen tracks the real wait for a room code (lava lamp while it works, percent on the bar). It hands off to the QR as soon as the code exists — it does not sit on a fake timer.
+The pairing card opens with a **VOIDRIDE** loading screen for a few seconds so you can tap Listen Now. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears.
 
 Phone landscape still hides chrome when you are drawing on the phone itself (not paired as a pad).
 
+### LIVE session
+
+One public studio at a time. If someone is already live, a chooser offers **Watch LIVE session** (view-only JPEG stream of the wall) or **Make new session** (private mix on this device). On a **phone with nobody live**, there is no chooser and no QR — VOIDRIDE plays, then you drop into painting. The number next to the connectivity light is how many other people are watching.
+
+Watchers cannot paint. **My session** on the watch screen starts a private mix. Phone pads still pair through the QR as controllers — they are not watchers.
+
 ### Record
 
-Top-right **REC** captures the live canvas. The label is a **countdown** from a safe cap (about 6–12 seconds): shorter on phones, low-memory devices, and huge canvases so the browser stays happy. It auto-stops at zero. Tap REC again to stop early.
+Top-right **REC** captures the live canvas for up to **30 seconds**. The label is a countdown. It auto-stops at zero. Tap REC again to stop early.
 
-When a phone is linked, REC on the phone records the **wall** (the picture on the big screen). Both devices receive the same clip — desktop usually auto-downloads; phones show **Save clip** if the browser blocks a silent download. If the file is too large to send, it still saves on the wall.
+When a phone is linked, REC on the phone records the **wall** (the picture on the big screen). Both devices receive the same clip — desktop usually auto-downloads; phones open a **save sheet** so you can download it with a full tap. If the file is too large to send, it still saves on the wall.
 
 Last three seconds pulse faster so you know the cap is close.
 
@@ -92,8 +111,9 @@ The menu uses one wide rail on the right. Tap the chevrons or the track to jump.
 | URL | Mode |
 |-----|------|
 | `/` | Local interactive surface |
-| `/?mode=wall` | Wall / second display (QR pairing) |
+| `/?mode=wall` | Wall / second display (QR pairing, claims the public LIVE slot) |
 | `/?mode=pad&c=CODE` | Phone pad (from QR) |
+| `/?mode=watch&c=CODE` | Watch-only live stream |
 
 ## Keyboard
 
@@ -105,7 +125,7 @@ The menu uses one wide rail on the right. Tap the chevrons or the track to jump.
 
 React 19 · TanStack Start · Vite · Zustand · Tailwind v4 · WebGL2 height-field · WebRTC (P2P, STUN) for cast · unowned Postgres / PGLite for shared studio session, presets, and feedback
 
-Feature / bug notes from the in-app form write to `studio_feedback` and open a GitHub issue on [maximusmaximus/ripple](https://github.com/maximusmaximus/ripple/issues) (`bug` or `enhancement` + `from-studio`). Deployed hosts need `GITHUB_TOKEN` (issues:write) or `GH_TOKEN`; this sandbox uses the `gh` CLI. Override the repo with `GITHUB_FEEDBACK_REPO`.
+Feature and bug notes from the in-app form (Session → Feature & bugs) write to `studio_feedback` and open a GitHub issue on [maximusmaximus/ripple](https://github.com/maximusmaximus/ripple/issues) (`bug` or `enhancement` + `from-studio`). The menu stays in the studio and shows the issue number — it does not navigate the preview away. Deployed hosts need `GITHUB_TOKEN` (issues:write) or `GH_TOKEN`; this sandbox uses the `gh` CLI. Override the repo with `GITHUB_FEEDBACK_REPO`.
 
 ## Deploy
 

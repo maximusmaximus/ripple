@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useCastPad } from "@/hooks/use-cast-pad";
+import { useLivePresence } from "@/hooks/use-live-presence";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
 import type { PendingClip } from "@/lib/ripple/record";
@@ -23,6 +24,7 @@ export type PadHandle = {
   recNote: string | null;
   clearPendingClip: () => void;
   startCameraLoop: () => Promise<void>;
+  bindCameraStream: (stream: MediaStream | null) => void;
 };
 
 type Props = {
@@ -32,6 +34,7 @@ type Props = {
 
 export function PadGate({ code, children }: Props) {
   const pad = useCastPad({ code });
+  useLivePresence({ role: "pad", code, enabled: Boolean(code) });
   const connect = pad.connect;
   const startCameraLoop = pad.startCameraLoop;
   const autoStarted = useRef(false);
@@ -74,6 +77,7 @@ export function PadGate({ code, children }: Props) {
           recNote: pad.recNote,
           clearPendingClip: pad.clearPendingClip,
           startCameraLoop: pad.startCameraLoop,
+          bindCameraStream: pad.bindCameraStream,
         })}
       </>
     );

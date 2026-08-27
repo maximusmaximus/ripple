@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { BookmarkPlus, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { BookmarkPlus, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useRippleStore } from "@/store/ripple";
 import {
   EASY_PRESET_ID,
@@ -19,20 +19,26 @@ import { TipMark, TipCopy } from "./tip-mark";
 import { EmojiNameField } from "./emoji-suggest";
 
 const HOLD_MS = 2000;
+const SWIPE_LOCK_PX = 10;
+const SWIPE_COMMIT_PX = 40;
 
 function mergePresets(home: NamedPreset[], studio: NamedPreset[]): NamedPreset[] {
   const seen = new Set<string>();
   const out: NamedPreset[] = [];
-  for (const p of home) {
+  for (const p of [...home, ...studio]) {
     if (seen.has(p.id)) continue;
     seen.add(p.id);
     out.push(p);
   }
-  if (!out.some((p) => p.id === EASY_PRESET_ID)) out.unshift(easyPreset());
-  const users = studio
-    .filter((p) => !seen.has(p.id) && !isBuiltinPresetId(p.id))
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return [...out, ...users];
+  if (!out.some((p) => p.id === EASY_PRESET_ID)) out.push(easyPreset());
+  out.sort((a, b) => {
+    if (a.id === EASY_PRESET_ID) return -1;
+    if (b.id === EASY_PRESET_ID) return 1;
+    const t = a.createdAt.localeCompare(b.createdAt);
+    if (t !== 0) return t;
+    return a.name.localeCompare(b.name);
+  });
+  return out;
 }
 
 function sameLabel(a: string, b: string) {
@@ -62,7 +68,15 @@ export function PresetStrip() {
   const holdTimer = useRef<number | null>(null);
   const held = useRef(false);
   const wellRef = useRef<HTMLDivElement>(null);
-  const pinBottom = useRef(true);
+  const pinBottom = useRef(false);
+  const nameRef = useRef<HTMLParagraphElement>(null);
+  const swipe = useRef({
+    pointer: -1,
+    x: 0,
+    y: 0,
+    lock: null as null | "x" | "y",
+    dx: 0,
+  });
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -119,10 +133,66 @@ export function PresetStrip() {
     }
   };
 
+  const revealChip = (id: string) => {
+    requestAnimationFrame(() => {
+      const chip = wellRef.current?.querySelector(`[data-preset-id="${CSS.escape(id)}"]`);
+      chip?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  };
+
   const load = async (p: NamedPreset) => {
     const snap = await hydrateSnapshotMedia(p.snapshot);
     applySnapshot(snap);
     setActiveId(p.id);
+    revealChip(p.id);
+  };
+
+  const step = async (dir: -1 | 1) => {
+    if (busy || visible.length < 2) return;
+    const i = Math.max(0, visible.findIndex((p) => p.id === activeId));
+    const next = visible[(i + dir + visible.length) % visible.length];
+    if (!next || next.id === activeId) return;
+    await load(next);
+  };
+
+  const shiftName = (px: number, animate: boolean) => {
+    const el = nameRef.current;
+    if (!el) return;
+    el.style.transition = animate ? "transform 160ms ease-out" : "none";
+    el.style.transform = `translate3d(${px}px,0,0)`;
+  };
+
+  const onSwipeDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (busy) return;
+    if ((e.target as HTMLElement).closest("button")) return;
+    swipe.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY, lock: null, dx: 0 };
+    shiftName(0, false);
+  };
+
+  const onSwipeMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = swipe.current;
+    if (s.pointer !== e.pointerId) return;
+    const dx = e.clientX - s.x;
+    const dy = e.clientY - s.y;
+    if (!s.lock) {
+      if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return;
+      s.lock = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+      if (s.lock === "x") e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    if (s.lock !== "x") return;
+    e.preventDefault();
+    s.dx = dx;
+    shiftName(dx, false);
+  };
+
+  const onSwipeUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const s = swipe.current;
+    if (s.pointer !== e.pointerId) return;
+    const commit = s.lock === "x" && Math.abs(s.dx) >= SWIPE_COMMIT_PX && visible.length > 1;
+    const dir: -1 | 1 | 0 = commit ? (s.dx < 0 ? 1 : -1) : 0;
+    swipe.current = { pointer: -1, x: 0, y: 0, lock: null, dx: 0 };
+    shiftName(0, true);
+    if (dir) void step(dir);
   };
 
   const beginSave = () => {
@@ -190,6 +260,7 @@ export function PresetStrip() {
       const next = visible.find((p) => p.id !== id) ?? easyPreset();
       setActiveId(next.id);
       applySnapshot(next.snapshot);
+      revealChip(next.id);
       setMsg({
         text: isBuiltinPresetId(id) ? "Starter preset hidden on this studio." : "Preset removed.",
         tone: "info",
@@ -215,14 +286,6 @@ export function PresetStrip() {
 
   return (
     <section className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between">
-        <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
-          Presets
-          <TipMark id="presets" />
-          <TipMark id="delete" />
-          <TipMark id="save" />
-        </h3>
-      </div>
       {open && (
         <div ref={formRef} className="flex flex-col gap-1.5 rounded-xl border border-line bg-fg/5 p-2">
           <TipCopy className="text-[10px] leading-snug text-amber-200/90">
@@ -248,114 +311,162 @@ export function PresetStrip() {
           </div>
         </div>
       )}
-      <div className="overflow-hidden rounded-2xl border border-line/80">
-        {active && (
-          <div className="overflow-hidden border-b border-line/60">
-            <div className="h-3 w-full" style={{ background: barFor(active) }} aria-hidden="true" />
-            <p className="truncate px-2.5 py-1.5 text-[12px] font-medium text-fg">{active.name}</p>
+      {active && (
+        <div
+          className="touch-pan-x select-none overflow-hidden rounded-xl border border-fg/35 bg-fg/8"
+          role="group"
+          tabIndex={0}
+          aria-label={`${active.name}. Swipe left or right to change presets.`}
+          onPointerDown={onSwipeDown}
+          onPointerMove={onSwipeMove}
+          onPointerUp={onSwipeUp}
+          onPointerCancel={onSwipeUp}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft") {
+              e.preventDefault();
+              void step(-1);
+            } else if (e.key === "ArrowRight") {
+              e.preventDefault();
+              void step(1);
+            }
+          }}
+        >
+          <div className="h-3 w-full" style={{ background: barFor(active) }} aria-hidden="true" />
+          <div className="flex items-center gap-0.5 px-0.5">
+            <button
+              type="button"
+              aria-label="Previous preset"
+              disabled={busy || visible.length < 2}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => void step(-1)}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <p
+              ref={nameRef}
+              className="min-w-0 flex-1 truncate py-1.5 text-center text-[12px] font-medium text-fg will-change-transform"
+            >
+              {active.name}
+            </p>
+            <span className="inline-flex shrink-0 items-center gap-0.5">
+              <TipMark id="presets" />
+              <TipMark id="delete" />
+            </span>
+            <button
+              type="button"
+              aria-label="Next preset"
+              disabled={busy || visible.length < 2}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => void step(1)}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
+            >
+              <ChevronRight className="size-4" />
+            </button>
           </div>
-        )}
-        <div className="preset-well relative">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-12 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-300"
-            style={{ opacity: upHint }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300"
-            style={{ opacity: downHint }}
-          />
-          <div
-            ref={wellRef}
-            className="preset-well-scroll grid h-[9rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pb-10 pr-6"
-            role="list"
-            aria-label="Presets"
-            onScroll={syncHints}
-            onWheel={(e) => e.stopPropagation()}
-          >
-            {visible.map((p) => {
-              const on = activeId === p.id;
-              const armed = armedId === p.id;
-              return (
-                <div key={p.id} data-preset-id={p.id} className="relative min-w-0">
+        </div>
+      )}
+      <div className="preset-well relative overflow-hidden rounded-2xl border border-line/80">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-12 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-300"
+          style={{ opacity: upHint }}
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300"
+          style={{ opacity: downHint }}
+        />
+        <div
+          ref={wellRef}
+          className="preset-well-scroll grid h-[6.5rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          role="list"
+          aria-label="Presets"
+          onScroll={syncHints}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          {visible.map((p) => {
+            const on = activeId === p.id;
+            const armed = armedId === p.id;
+            return (
+              <div key={p.id} data-preset-id={p.id} className="relative min-w-0">
+                <button
+                  type="button"
+                  title={
+                    p.id === EASY_PRESET_ID
+                      ? "Starter mix — hold to remove"
+                      : `${p.name} — hold to remove`
+                  }
+                  onPointerDown={() => {
+                    held.current = false;
+                    clearHold();
+                    holdTimer.current = window.setTimeout(() => {
+                      held.current = true;
+                      setArmedId(p.id);
+                    }, HOLD_MS);
+                  }}
+                  onPointerUp={clearHold}
+                  onPointerCancel={clearHold}
+                  onPointerLeave={clearHold}
+                  onClick={() => {
+                    if (held.current) {
+                      held.current = false;
+                      return;
+                    }
+                    void load(p);
+                  }}
+                  className={
+                    "flex min-h-11 w-full flex-col overflow-hidden rounded-lg border text-left text-[10px] leading-tight " +
+                    (on
+                      ? "border-fg bg-fg/18 text-fg"
+                      : armed
+                        ? "border-fg/50 bg-fg/12 text-fg"
+                        : "border-line/80 bg-fg/8 text-fg/85 hover:border-fg/40 hover:bg-fg/15")
+                  }
+                >
+                  <span
+                    className={on ? "block h-5 w-full" : "block h-4 w-full"}
+                    style={{ background: barFor(p) }}
+                    aria-hidden="true"
+                  />
+                  <span className={"min-h-0 flex-1 truncate px-1.5 " + (on ? "py-1.5 font-medium" : "py-1")}>{p.name}</span>
+                </button>
+                {armed && (
                   <button
                     type="button"
-                    title={
-                      p.id === EASY_PRESET_ID
-                        ? "Starter mix — hold to remove"
-                        : `${p.name} — hold to remove`
-                    }
-                    onPointerDown={() => {
-                      held.current = false;
-                      clearHold();
-                      holdTimer.current = window.setTimeout(() => {
-                        held.current = true;
-                        setArmedId(p.id);
-                      }, HOLD_MS);
-                    }}
-                    onPointerUp={clearHold}
-                    onPointerCancel={clearHold}
-                    onPointerLeave={clearHold}
-                    onClick={() => {
-                      if (held.current) {
-                        held.current = false;
-                        return;
-                      }
-                      void load(p);
-                    }}
-                    className={
-                      "flex w-full flex-col overflow-hidden rounded-lg border text-left text-[10px] leading-tight " +
-                      (on
-                        ? "border-fg bg-fg/18 text-fg"
-                        : armed
-                          ? "border-fg/50 bg-fg/12 text-fg"
-                          : "border-line/80 bg-fg/8 text-fg/85 hover:border-fg/40 hover:bg-fg/15")
-                    }
+                    aria-label={`Delete ${p.name}`}
+                    onClick={() => setConfirmId(p.id)}
+                    className="absolute -right-1 -top-1 z-10 flex size-4 items-center justify-center rounded-full bg-fg text-ink"
                   >
-                    <span
-                      className={on ? "block h-2.5 w-full" : "block h-1 w-full"}
-                      style={{ background: barFor(p) }}
-                      aria-hidden="true"
-                    />
-                    <span className={"truncate px-1.5 " + (on ? "py-1 font-medium" : "py-0.5")}>{p.name}</span>
+                    <X className="size-2.5" strokeWidth={3} />
                   </button>
-                  {armed && (
-                    <button
-                      type="button"
-                      aria-label={`Delete ${p.name}`}
-                      onClick={() => setConfirmId(p.id)}
-                      className="absolute -right-1 -top-1 z-10 flex size-4 items-center justify-center rounded-full bg-fg text-ink"
-                    >
-                      <X className="size-2.5" strokeWidth={3} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            className="dock-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
-            aria-label="Scroll presets"
-            onClick={(e) => jumpInWell(e.clientY, e.currentTarget)}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              if (open) {
-                setOpen(false);
-                setMsg(null);
-              } else {
-                beginSave();
-              }
-            }}
-            className="absolute bottom-1.5 right-6 z-[3] inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg"
-          >
-            <BookmarkPlus className="size-3" />
-            Save as
-          </button>
+                )}
+              </div>
+            );
+          })}
         </div>
+        <button
+          type="button"
+          className="dock-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
+          aria-label="Scroll presets"
+          onClick={(e) => jumpInWell(e.clientY, e.currentTarget)}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              setMsg(null);
+            } else {
+              beginSave();
+            }
+          }}
+          className="absolute bottom-1.5 right-6 z-[3] inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg"
+        >
+          <BookmarkPlus className="size-3" />
+          Save as
+          <TipMark id="save" />
+        </button>
       </div>
       {confirmId && (
         <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-fg/8 px-2 py-1.5">

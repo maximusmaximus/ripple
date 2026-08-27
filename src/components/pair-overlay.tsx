@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Lightbulb, Monitor } from "lucide-react";
 import type { useCastHost } from "@/hooks/use-cast-host";
+import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
 import { QrMark } from "./qr-mark";
-import { VoidrideHold } from "./voidride-hold";
+import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
 
 type Host = ReturnType<typeof useCastHost>;
 
@@ -27,22 +28,30 @@ export function PairOverlay({
   const [gaveUp, setGaveUp] = useState(false);
   const [codeIn, setCodeIn] = useState("");
   const navigate = useNavigate({ from: "/" });
+  const { locked, flash, nudge, progress } = useVoidrideGate();
 
   useEffect(() => {
     if (ready) return;
-    const t = window.setTimeout(() => setGaveUp(true), 400);
+    const t = window.setTimeout(() => setGaveUp(true), VOIDRIDE_HOLD_MS + 800);
     return () => window.clearTimeout(t);
   }, [ready]);
 
+  const tryDismiss = () => {
+    if (nudge()) return;
+    onDismiss();
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onDismiss();
+      if (e.key !== "Escape") return;
+      if (nudge()) return;
+      onDismiss();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onDismiss]);
+  }, [nudge, onDismiss]);
 
-  const showHold = !ready && !gaveUp;
+  const showHold = locked || (!ready && !gaveUp);
   const joinCode = codeIn.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
   const joinDesktop = () => {
@@ -63,7 +72,7 @@ export function PairOverlay({
         onPointerDown={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          onDismiss();
+          tryDismiss();
         }}
       />
 
@@ -130,17 +139,22 @@ export function PairOverlay({
             Connect to desktop
           </button>
         </form>
-        <p className="text-center text-[11px] text-subtle">Tap outside to close. You can keep painting on this phone until you connect.</p>
+        <p className="text-center text-[11px] text-subtle">
+          Tap outside to close. You can keep painting on this phone until you connect.
+        </p>
       </div>
 
       <div
         role="dialog"
         aria-label="Connect secondary device"
-        className="relative z-10 hidden w-full max-w-[min(92vw,420px)] flex-col items-center overflow-hidden rounded-3xl border border-line bg-ink/85 shadow-2xl backdrop-blur-xl md:flex"
+        className={
+          "relative z-10 hidden w-full max-w-[min(92vw,420px)] flex-col items-center overflow-hidden rounded-3xl border border-line bg-ink/85 shadow-2xl backdrop-blur-xl md:flex" +
+          (flash ? " voidride-edge-flash" : "")
+        }
         onPointerDown={(e) => e.stopPropagation()}
       >
         {showHold ? (
-          <VoidrideHold />
+          <VoidrideHold progress={progress} />
         ) : (
           <div className="flex w-full flex-col items-center gap-4 p-6">
             <div className="text-center">
@@ -149,7 +163,7 @@ export function PairOverlay({
               <p className="mt-1 text-sm text-muted">
                 {host.state === "reconnecting"
                   ? "Scan again to take over. The menu will move back to the phone."
-                  : "Scan with your phone to take the menu there. This screen becomes a clean wall. Click outside to close."}
+                  : "Scan to take the menu onto your phone. This screen becomes a clean wall. Click outside to close."}
               </p>
             </div>
 

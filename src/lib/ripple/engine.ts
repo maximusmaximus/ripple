@@ -15,6 +15,7 @@ export class RippleEngine extends RippleEngineBase {
       const uy = 1 - s.y;
       const useStamp = Boolean(s.stamp);
       const ang = s.angle ?? 0;
+      const width = s.width ?? 1;
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.pong.fbo);
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.ping.tex);
@@ -22,7 +23,7 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform2f(this.splatU.point, ux, uy);
       gl.uniform1f(this.splatU.force, s.force);
       gl.uniform1f(this.splatU.radius, Math.max(0.004, s.radius));
-      this.bindStamp(this.splatU.stamp, this.splatU.useStamp, this.splatU.angle, this.splatU.aspect, useStamp, ang);
+      this.bindStamp(this.splatU.stamp, this.splatU.useStamp, this.splatU.angle, this.splatU.aspect, useStamp, ang, this.splatU.width, width);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const tmp = this.ping;
       this.ping = this.pong;
@@ -38,7 +39,7 @@ export class RippleEngine extends RippleEngineBase {
       gl.uniform1f(this.inkU.radius, Math.max(0.004, s.radius));
       gl.uniform1f(this.inkU.t, this.strokeT(s.force));
       gl.uniform1f(this.inkU.colorA, this.strokeAlpha(s.force));
-      this.bindStamp(this.inkU.stamp, this.inkU.useStamp, this.inkU.angle, this.inkU.aspect, useStamp, ang);
+      this.bindStamp(this.inkU.stamp, this.inkU.useStamp, this.inkU.angle, this.inkU.aspect, useStamp, ang, this.inkU.width, width);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       const inkTmp = this.inkPing;
       this.inkPing = this.inkPong;

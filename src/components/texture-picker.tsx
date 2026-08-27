@@ -5,7 +5,7 @@ import { MAX_UPLOAD_BYTES, mediaSrc } from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
 import { useRippleStore } from "@/store/ripple";
 import { TextureCrop } from "./texture-crop";
-import { TipMark } from "./tip-mark";
+import { TipMark, TipCopy } from "./tip-mark";
 
 export function TexturePicker() {
   const textureId = useRippleStore((s) => s.textureId);
@@ -120,6 +120,7 @@ export function TexturePicker() {
           type="file"
           accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
           className="hidden"
+          suppressHydrationWarning
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
@@ -127,14 +128,17 @@ export function TexturePicker() {
           }}
         />
       </div>
-      <p className="truncate pr-8 text-[10px] leading-snug text-subtle">
-        {err ??
-          (busy
-            ? "Reading image…"
-            : textureId === "custom"
-              ? "Your image rides the fluid. Crop, threshold, or refresh it below."
-              : active.hint)}
-      </p>
+      {err ? (
+        <p className="truncate pr-8 text-[10px] leading-snug text-amber-200/90">{err}</p>
+      ) : busy ? (
+        <p className="truncate pr-8 text-[10px] leading-snug text-subtle">Reading image…</p>
+      ) : (
+        <TipCopy>
+          {textureId === "custom"
+            ? "Your image rides the fluid. Crop, threshold, or refresh it below."
+            : active.hint}
+        </TipCopy>
+      )}
       <div className="flex items-center justify-between gap-2 rounded-lg px-0.5 py-1 text-[12px] text-muted">
         <span className={textureId === "none" ? "text-fg/40" : "text-fg/90"}>Invert color</span>
         <button

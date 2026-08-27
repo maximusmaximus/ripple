@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp } from "lucide-react";
-import { useSearch } from "@tanstack/react-router";
+import { ChevronUp, Eye } from "lucide-react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { WallViewport } from "./wall-viewport";
 import { PadGate } from "./pad-gate";
 import { ControlsDock } from "./controls-dock";
@@ -8,13 +8,18 @@ import { SensorsBar } from "./sensors-bar";
 import { RippleCanvas } from "./ripple-canvas";
 import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import { PairOverlay } from "./pair-overlay";
+import { SessionGate } from "./session-gate";
+import { WatchViewport } from "./watch-viewport";
+import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
 import type { SensorsState } from "@/lib/ripple/media";
 import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
-import { useDesktopHost } from "@/hooks/use-desktop";
+import { useViewport } from "@/hooks/use-desktop";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
+import { useLivePresence } from "@/hooks/use-live-presence";
+import { useViewStream } from "@/hooks/use-view-stream";
 import { StudioSync } from "./studio-sync";
 import { TipsGuide } from "./tips-guide";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
@@ -23,8 +28,29 @@ import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
 import { compactCastSnapshot, hydrateSnapshotMedia, type StudioSnapshot } from "@/lib/ripple/studio";
 import { formatCountdown, sendRecBlob } from "@/lib/ripple/record";
 
+const PRIVATE_KEY = "ripple-private-session";
+
+function MobileVoidrideIntro({ onDone }: { onDone: () => void }) {
+  const { locked, progress } = useVoidrideGate();
+  useEffect(() => {
+    if (!locked) onDone();
+  }, [locked, onDone]);
+  return (
+    <div
+      data-ui-chrome
+      data-voidride-intro="true"
+      className="absolute inset-0 z-[90] bg-ink md:hidden"
+      role="status"
+      aria-label="Loading"
+    >
+      <VoidrideHold progress={progress} fullScreen />
+    </div>
+  );
+}
+
 export function RippleApp() {
   const search = useSearch({ from: "/" });
+  const navigate = useNavigate({ from: "/" });
   const [sensors, setSensors] = useState<SensorsState>(() => ({ ...emptySensorsState }));
   const [hint, setHint] = useState(true);
   const [glError, setGlError] = useState<string | null>(null);
@@ -57,9 +83,11 @@ export function RippleApp() {
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
-  const isDesktop = useDesktopHost();
+  const { isDesktop, ready: viewportReady } = useViewport();
   const [pairDismissed, setPairDismissed] = useState(false);
   const [pairForced, setPairForced] = useState(false);
+  const [choice, setChoice] = useState<"pending" | "host" | "private">("pending");
+  const [mobileHoldDone, setMobileHoldDone] = useState(false);
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
   const [remoteMic, setRemoteMic] = useState(0);
@@ -75,6 +103,7 @@ export function RippleApp() {
 
   const mode = useMemo(() => {
     if (search.mode === "pad" && search.c) return "pad" as const;
+    if (search.mode === "watch" && search.c) return "watch" as const;
     if (search.mode === "wall") return "wall" as const;
     return "local" as const;
   }, [search]);
@@ -137,7 +166,7 @@ export function RippleApp() {
 
   const host = useCastHost({
     stayOnPage: true,
-    enabled: isDesktop && mode === "local",
+    enabled: mode === "local" && (choice === "host" || choice === "private"),
     onCamFrame,
     onRemoteInput,
     onRecToggle: (on) => {
@@ -148,11 +177,101 @@ export function RippleApp() {
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
 
+  const presence = useLivePresence({
+    role: mode === "local" && choice === "host" ? "host" : null,
+    code: mode === "local" && choice === "host" ? host.code : null,
+    enabled: mode === "local",
+  });
+
+  useViewStream(canvasRef, host.broadcast, host.viewerCount);
+
+  const showGate = mode === "local" && choice === "pending" && Boolean(presence.session);
+  const showMobileIntro =
+    mode === "local" && !showGate && !mobileHoldDone && (!viewportReady || !isDesktop);
+  const showPairOverlay =
+    choice !== "pending" &&
+    !host.isLive &&
+    !showMobileIntro &&
+    (pairForced || (!pairDismissed && isDesktop));
+
+  useEffect(() => {
+    if (showGate) setMobileHoldDone(true);
+  }, [showGate]);
+
+  useEffect(() => {
+    if (mode !== "local" || choice !== "pending") return;
+    if (!presence.ready) return;
+    if (presence.session) return;
+    if (isDesktop) {
+      const t = window.setTimeout(() => setChoice("host"), 700);
+      return () => window.clearTimeout(t);
+    }
+    if (!mobileHoldDone) return;
+    try {
+      window.sessionStorage.setItem(PRIVATE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setChoice("private");
+    setPairDismissed(true);
+  }, [mode, choice, presence.ready, presence.session, isDesktop, mobileHoldDone]);
+
+  useEffect(() => {
+    if (choice !== "host") return;
+    if (!presence.occupied) return;
+    setChoice("pending");
+  }, [choice, presence.occupied]);
+
+  const goWatch = useCallback(() => {
+    const code = presence.session?.code;
+    if (!code) return;
+    void navigate({ search: { mode: "watch", c: code } });
+  }, [navigate, presence.session?.code]);
+
+  const goPrivate = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(PRIVATE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setChoice("private");
+    if (!isDesktop) {
+      setPairDismissed(true);
+      setPairForced(false);
+    }
+  }, [isDesktop]);
+
+  const leaveWatch = useCallback(() => {
+    try {
+      window.sessionStorage.setItem(PRIVATE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    void navigate({ search: {} });
+    setChoice("private");
+    if (!isDesktop) {
+      setPairDismissed(true);
+      setPairForced(false);
+    }
+  }, [navigate, isDesktop]);
+
   const openPair = useCallback(() => {
     setPairForced(true);
     setPairDismissed(false);
     setDockOpen(false);
   }, [setDockOpen]);
+
+  const finishMobileIntro = useCallback(() => {
+    setMobileHoldDone(true);
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(PRIVATE_KEY) === "1") setChoice("private");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     void useRippleStore.persist.rehydrate();
@@ -188,6 +307,9 @@ export function RippleApp() {
       if (panel.contains(target)) return;
       if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
       setDockOpen(false);
+      if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
+      e.preventDefault();
+      e.stopPropagation();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
@@ -218,7 +340,8 @@ export function RippleApp() {
   }, [setDockOpen]);
 
   const showChrome = !isImmersive && !host.isLive;
-  const showPairOverlay = !host.isLive && (pairForced || !pairDismissed);
+  const liveViewers =
+    choice === "host" ? Math.max(host.viewerCount, presence.session?.viewers ?? 0) : host.viewerCount;
   const linkState: "off" | "waiting" | "live" = host.isLive
     ? "live"
     : host.state === "waiting" || host.state === "reconnecting"
@@ -251,6 +374,7 @@ export function RippleApp() {
             sendStudio={pad.sendStudio}
             sendClear={pad.sendClear}
             sendRec={pad.sendRec}
+            bindCameraStream={pad.bindCameraStream}
             recOn={pad.recOn}
             recStartedAt={pad.recStartedAt}
             recLimitMs={pad.recLimitMs}
@@ -269,6 +393,10 @@ export function RippleApp() {
     );
   }
 
+  if (mode === "watch" && search.c) {
+    return <WatchViewport code={search.c.toUpperCase()} onNewSession={leaveWatch} />;
+  }
+
   if (mode === "wall") {
     return <WallViewport preferredCode={search.c} />;
   }
@@ -279,6 +407,17 @@ export function RippleApp() {
       style={{ touchAction: "none", overscrollBehavior: "none" }}
       data-cast-state={host.state}
       data-cast-live={host.isLive ? "true" : "false"}
+      data-session-choice={choice}
+      data-live-viewers={liveViewers}
+      data-live-ready={presence.ready ? "1" : "0"}
+      data-live-code={presence.session?.code ?? ""}
+      data-show-gate={showGate ? "1" : "0"}
+      data-show-pair={showPairOverlay ? "1" : "0"}
+      data-mobile-intro={showMobileIntro ? "1" : "0"}
+      data-hold-done={mobileHoldDone ? "1" : "0"}
+      data-viewport={isDesktop ? "desktop" : "mobile"}
+      data-vp-ready={viewportReady ? "1" : "0"}
+      data-has-session={presence.session ? "1" : "0"}
     >
       <StudioSync />
       <RippleCanvas
@@ -305,7 +444,7 @@ export function RippleApp() {
         </div>
       )}
 
-      {hint && showChrome && !(showPairOverlay && isDesktop) && (
+      {hint && showChrome && !(showPairOverlay && isDesktop) && !showMobileIntro && !showGate && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <p className="rounded-full border border-line bg-ink/50 px-4 py-2 text-sm text-fg/80 backdrop-blur-md">
             Drag to paint
@@ -337,7 +476,24 @@ export function RippleApp() {
           recordError={record.error}
           linkState={linkState}
           onToggleLink={openPair}
+          viewers={liveViewers}
         />
+      )}
+
+      {!showChrome && !isImmersive && liveViewers > 0 && (
+        <div
+          data-ui-chrome
+          className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-end p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
+        >
+          <span
+            data-live-viewers={liveViewers}
+            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-emerald-400/40 bg-ink/70 px-2.5 text-[11px] font-semibold tabular-nums text-emerald-100 backdrop-blur-md"
+            title={liveViewers === 1 ? "1 watching" : `${liveViewers} watching`}
+          >
+            <Eye className="size-3.5" strokeWidth={1.75} />
+            {liveViewers}
+          </span>
+        </div>
       )}
 
       {showChrome && (
@@ -380,6 +536,10 @@ export function RippleApp() {
 
       {showChrome && <TipsGuide />}
 
+      {showGate && presence.session && (
+        <SessionGate session={presence.session} onWatch={goWatch} onNew={goPrivate} />
+      )}
+
       {showPairOverlay && (
         <PairOverlay
           host={host}
@@ -390,7 +550,9 @@ export function RippleApp() {
         />
       )}
 
-      {splash.show && !(showPairOverlay && isDesktop) && (
+      {showMobileIntro && <MobileVoidrideIntro onDone={finishMobileIntro} />}
+
+      {splash.show && !showPairOverlay && !showGate && !showMobileIntro && (
         <RippleSplash
           fading={splash.fading}
           progress={splash.progress}
@@ -414,6 +576,7 @@ function PadSurface({
   sendStudio,
   sendClear,
   sendRec,
+  bindCameraStream,
   recOn,
   recStartedAt,
   recLimitMs,
@@ -439,6 +602,7 @@ function PadSurface({
   sendStudio: (snap: StudioSnapshot) => void;
   sendClear: () => void;
   sendRec: (on: boolean) => void;
+  bindCameraStream: (stream: MediaStream | null) => void;
   recOn: boolean;
   recStartedAt: number | null;
   recLimitMs: number;
@@ -460,6 +624,10 @@ function PadSurface({
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const lastStudio = useRef("");
   const lastClear = useRef(clearToken);
+
+  useEffect(() => {
+    bindCameraStream(sensors.cameraOn ? sensors.cameraStream : null);
+  }, [bindCameraStream, sensors.cameraOn, sensors.cameraStream]);
 
   useEffect(() => {
     setDockOpen(true);
@@ -543,6 +711,9 @@ function PadSurface({
       if (panel.contains(target)) return;
       if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
       setDockOpen(false);
+      if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
+      e.preventDefault();
+      e.stopPropagation();
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);

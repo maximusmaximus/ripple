@@ -36,6 +36,7 @@ const snapshotSchema = z
     waveStrength: z.number(),
     brushDiameter: z.number(),
     brushSpan: z.record(z.string(), z.object({ min: z.number(), max: z.number() })).optional(),
+    brushShape: z.record(z.string(), z.object({ angle: z.number(), width: z.number(), spin: z.number() })).optional(),
     brushId: z.string(),
     brushFx: z.record(z.string(), z.unknown()).optional(),
     brushFxOpacity: z.number(),
@@ -62,6 +63,7 @@ const snapshotSchema = z
           mime: z.string(),
           angle: z.number(),
           spin: z.number(),
+          markWidth: z.number().optional(),
         }),
       )
       .max(16)
@@ -368,6 +370,6 @@ export const submitStudioFeedback = createServerFn({ method: "POST" })
       [id, data.kind, body],
     );
     const { openFeedbackIssue } = await import("./github-feedback");
-    const issue = await openFeedbackIssue(data.kind, body).catch(() => null);
-    return { ok: true as const, issue };
+    const opened = await openFeedbackIssue(data.kind, body).catch(() => ({ issue: null, error: "GitHub unavailable" }));
+    return { ok: true as const, issue: opened.issue ?? null, githubError: opened.error ?? null };
   });

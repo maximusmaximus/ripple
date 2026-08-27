@@ -1,6 +1,6 @@
 import type { BrushFeel, BrushKind } from "./brushes"
 
-export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; stamp?: boolean }
+export type Splat = { x: number; y: number; force: number; radius: number; angle?: number; width?: number; stamp?: boolean }
 type Track = { x: number; y: number; down: boolean; t: number; w: number; heading: number; rot: number; path: number }
 
 const MAX_SPLATS_PER_MOVE = 128
@@ -22,6 +22,7 @@ export class PointerPainter {
   private grains = 4
   private stampAngle = 0
   private stampSpin = 0
+  private markWidth = 1
 
   setBrush(
     minRadius: number,
@@ -34,6 +35,7 @@ export class PointerPainter {
     nib = Math.PI / 4,
     stampAngle = 0,
     stampSpin = 0,
+    markWidth = 1,
   ) {
     const lo = Math.max(0.003, Math.min(minRadius, maxRadius))
     const hi = Math.max(lo + 0.002, Math.max(minRadius, maxRadius))
@@ -48,6 +50,7 @@ export class PointerPainter {
     this.nib = nib
     this.stampAngle = stampAngle
     this.stampSpin = Math.max(0, stampSpin)
+    this.markWidth = Math.max(0.18, Math.min(1, markWidth))
   }
 
   down(id: number, x: number, y: number, t = performance.now(), input: StrokeInput = {}) {
@@ -156,6 +159,7 @@ export class PointerPainter {
         force,
         radius: r,
         angle: rot,
+        width: this.markWidth,
         stamp: true,
       })
       return
@@ -170,13 +174,15 @@ export class PointerPainter {
           y: clamp01(y + Math.sin(ang) * rad),
           force: force * (0.35 + Math.random() * 0.45),
           radius: r * (0.28 + Math.random() * 0.45),
+          angle: rot,
+          width: this.markWidth,
         })
       }
       return
     }
     if (this.kind === "soft") {
-      this.queue.push({ x, y, force: force * 0.55, radius: r * 1.55 })
-      this.queue.push({ x, y, force: force * 0.85, radius: r * 0.7 })
+      this.queue.push({ x, y, force: force * 0.55, radius: r * 1.55, angle: rot, width: this.markWidth })
+      this.queue.push({ x, y, force: force * 0.85, radius: r * 0.7, angle: rot, width: this.markWidth })
       return
     }
     if (this.kind === "nib") {
@@ -191,11 +197,13 @@ export class PointerPainter {
           y: clamp01(y + ny * half * u),
           force: force * (0.7 + (1 - Math.abs(u)) * 0.35),
           radius: r * (0.32 + (1 - Math.abs(u)) * 0.28),
+          angle: rot,
+          width: this.markWidth,
         })
       }
       return
     }
-    this.queue.push({ x, y, force, radius: r })
+    this.queue.push({ x, y, force, radius: r, angle: rot, width: this.markWidth })
   }
 }
 

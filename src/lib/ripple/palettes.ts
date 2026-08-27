@@ -134,7 +134,7 @@ function world(
     shadow: normalizeHex(shadow),
     colors: colors ?? rampFromPair(shadow, key),
     ...feel,
-    gyroDrive: Math.max(0, Math.min(1.5, feel.gyroDrive * 0.25)),
+    gyroDrive: Math.max(0.12, Math.min(1, 0.7 * (feel.gyroDrive / 0.38))),
   };
 }
 
