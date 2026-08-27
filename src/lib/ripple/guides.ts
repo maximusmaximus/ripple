@@ -39,7 +39,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "shadow",
     title: "Brush shadow",
-    body: "Switch it on under Width. Shadow width is the same three-stop profile as the brush — start, belly, tail — so the cast can be a hair or a fat halo along the stroke. Distance pushes it away. Angle aims it. Color and opacity live on the large diamond on the Color ramp. The Layer FX Shadow pill only mixes FX into that cast.",
+    body: "Switch it on under Width. Shadow width is the same three-stop profile as the brush — start, belly, tail — so the cast can be a hair or a fat halo along the stroke. Distance pushes it away. Angle aims it. Color and opacity live on the large diamond on Brush Color. The Layer FX Shadow pill only mixes FX into that cast.",
   },
   {
     id: "brush-shape",
