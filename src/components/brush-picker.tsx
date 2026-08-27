@@ -199,7 +199,8 @@ export function BrushPicker() {
   const customBrushes = useRippleStore((s) => s.customBrushes);
   const hiddenBrushIds = useRippleStore((s) => s.hiddenBrushIds);
   const hideBrush = useRippleStore((s) => s.hideBrush);
-  const shape = useRippleStore((s) => s.getActiveShape());
+  const shapeAngle = useRippleStore((s) => s.getActiveShape().angle);
+  const shapeWidth = useRippleStore((s) => s.getActiveShape().width);
   const setBrushShape = useRippleStore((s) => s.setBrushShape);
   const pairKey = useRippleStore((s) => s.getActivePair().key);
   const color = pairKey;
@@ -261,14 +262,14 @@ export function BrushPicker() {
         <label className="flex flex-col gap-1.5">
           <div className="flex justify-between text-[12px] text-muted">
             <span>Rotation</span>
-            <span className="font-mono tabular-nums text-fg">{Math.round(shape.angle)}°</span>
+            <span className="font-mono tabular-nums text-fg">{Math.round(shapeAngle)}°</span>
           </div>
           <input
             type="range"
             min={0}
             max={360}
             step={1}
-            value={shape.angle}
+            value={shapeAngle}
             onChange={(e) => setBrushShape({ angle: parseFloat(e.target.value) })}
             className="w-full"
           />
@@ -276,14 +277,14 @@ export function BrushPicker() {
         <label className="flex flex-col gap-1.5">
           <div className="flex justify-between text-[12px] text-muted">
             <span>Width</span>
-            <span className="font-mono tabular-nums text-fg">{Math.round(shape.width * 100)}%</span>
+            <span className="font-mono tabular-nums text-fg">{Math.round(shapeWidth * 100)}%</span>
           </div>
           <input
             type="range"
             min={0.18}
             max={1}
             step={0.01}
-            value={shape.width}
+            value={shapeWidth}
             onChange={(e) => setBrushShape({ width: parseFloat(e.target.value) })}
             className="w-full"
           />

@@ -391,7 +391,17 @@ export const useRippleStore = create<RippleState>()(
         const b = getBrush(s.brushId, s.customBrushes);
         const custom = s.customBrushes.find((c) => c.id === s.brushId);
         const fallback = custom ? defaultShapeFor(custom) : defaultShapeFor(b);
-        return normalizeBrushShape(s.brushShape[s.brushId], fallback);
+        const next = normalizeBrushShape(s.brushShape[s.brushId], fallback);
+        const cached = s.brushShape[s.brushId];
+        if (
+          cached &&
+          cached.angle === next.angle &&
+          cached.width === next.width &&
+          cached.spin === next.spin
+        ) {
+          return cached;
+        }
+        return next;
       },
       setBrushId: (id) => {
         const customs = get().customBrushes;

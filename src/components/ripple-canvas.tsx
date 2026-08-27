@@ -74,11 +74,13 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const spanMax = useRippleStore((s) => s.getActiveSpan().max);
   const brushId = useRippleStore((s) => s.brushId);
   const customBrushes = useRippleStore((s) => s.customBrushes);
-  const shape = useRippleStore((s) => s.getActiveShape());
+  const shapeAngle = useRippleStore((s) => s.getActiveShape().angle);
+  const shapeWidth = useRippleStore((s) => s.getActiveShape().width);
+  const shapeSpin = useRippleStore((s) => s.getActiveShape().spin);
   const customBrushSig = customBrushes
     .map((c) => `${c.id}:${c.angle}:${c.markWidth ?? 1}:${c.spin}:${c.dataUrl?.length ?? 0}:${c.path ?? ""}`)
     .join("|");
-  const shapeSig = `${shape.angle}:${shape.width}:${shape.spin}`;
+  const shapeSig = `${shapeAngle}:${shapeWidth}:${shapeSpin}`;
   const brushFxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
   const brushFxOpacity = useRippleStore((s) => s.brushFxOpacity);
   const fxLayerSig = useRippleStore((s) => asFxLayers(s.fxLayers).join(","));
