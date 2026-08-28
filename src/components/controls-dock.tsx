@@ -10,14 +10,22 @@ import { PresetStrip } from "./preset-strip";
 import { FeedbackFooter } from "./feedback-form";
 import { StudioCredit } from "./studio-credit";
 import { TipMark, TipCopy } from "./tip-mark";
+import { SessionShare, type SessionShareValue } from "./session-share";
 import { useRippleStore } from "@/store/ripple";
 
 export function ControlsDock({
   onShowPair,
   showPairButton = false,
+  sessionShare,
 }: {
   onShowPair?: () => void;
   showPairButton?: boolean;
+  sessionShare?: {
+    code: string;
+    value: SessionShareValue;
+    onChange: (next: SessionShareValue) => void;
+    occupied?: boolean;
+  };
 }) {
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
@@ -197,6 +205,14 @@ export function ControlsDock({
 
           <section className="flex flex-col gap-2">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Session</h3>
+            {sessionShare && (
+              <SessionShare
+                code={sessionShare.code}
+                value={sessionShare.value}
+                onChange={sessionShare.onChange}
+                occupied={sessionShare.occupied}
+              />
+            )}
             <div className="flex items-center gap-1.5">
             <button
               type="button"

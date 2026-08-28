@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { LiveInfo } from "@/lib/multiplayer/live-types";
 
-export type LiveInfo = {
-  code: string;
-  viewers: number;
-  pads: number;
-  hostPeer: string;
-};
+export type { LiveInfo };
+export { isPublicLive } from "@/lib/multiplayer/live-types";
 
 export type LiveRole = "host" | "watch" | "pad";
 
@@ -67,6 +64,33 @@ export function useLivePresence(opts: {
     }
   }, [refresh]);
 
+  const updateMeta = useCallback(
+    async (meta: { title: string; description: string; watchable: boolean }) => {
+      const { role, code } = optsRef.current;
+      if (role !== "host" || !code) return { ok: false as const, occupied: false };
+      try {
+        const r = await fetch("/api/live", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            op: "meta",
+            peer: peerRef.current,
+            title: meta.title.slice(0, 48),
+            description: meta.description.slice(0, 140),
+            watchable: meta.watchable,
+          }),
+        });
+        const body = (await r.json()) as { ok?: boolean; occupied?: boolean; session?: LiveInfo | null };
+        setOccupied(Boolean(body.occupied));
+        if (body.session !== undefined) setSession(body.session);
+        return { ok: Boolean(body.ok), occupied: Boolean(body.occupied) };
+      } catch {
+        return { ok: false as const, occupied: false };
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     void beat();
     const ms = opts.role ? HEARTBEAT_MS : 1000;
@@ -74,8 +98,6 @@ export function useLivePresence(opts: {
     return () => window.clearInterval(id);
   }, [beat, opts.role, opts.code, opts.enabled]);
 
-  // Defer leave so React Strict Mode's effect cycle (run → cleanup → run)
-  // cannot delete a join that just landed.
   useEffect(() => {
     const role = opts.role;
     const peer = peerRef.current;
@@ -94,5 +116,5 @@ export function useLivePresence(opts: {
     };
   }, [opts.role]);
 
-  return { session, ready, occupied, peerId: peerRef.current, refresh };
+  return { session, ready, occupied, peerId: peerRef.current, refresh, updateMeta };
 }

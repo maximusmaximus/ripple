@@ -2,36 +2,21 @@
 export const VOIDRIDE_PROFILE = "https://soundcloud.com/ridethevoid";
 export const VOIDRIDE_CREDIT_MS = 400;
 export const VOIDRIDE_FAILSAFE_MS = 2000;
-export const VOIDRIDE_HOLD_MS = 2000;
+export const VOIDRIDE_HOLD_MS = 2800;
 
 export type VoidrideRelease = {
+  album: string;
+  albumUrl: string;
   title: string;
   url: string;
   art: string;
 };
 
-/** SoundCloud artwork CDN — local /studio copies 404 under Vite's watch ignore. */
+/** Fallback if SoundCloud is unreachable — MARS DESCENT / IGNITION VEIL. */
 export const VOIDRIDE_LATEST: VoidrideRelease = {
-  title: "EMBER RITE",
-  url: "https://soundcloud.com/ridethevoid/ember-rite",
+  album: "MARS DESCENT",
+  albumUrl: "https://soundcloud.com/ridethevoid/sets/mars-descent",
+  title: "IGNITION VEIL",
+  url: "https://soundcloud.com/ridethevoid/ignition-veil",
   art: "/studio/voidride-latest.jpg",
 };
-
-const OEMBED = `https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(VOIDRIDE_LATEST.url)}`;
-
-export async function fetchVoidrideLatest(): Promise<VoidrideRelease> {
-  try {
-    const r = await fetch(OEMBED, { cache: "no-store" });
-    if (!r.ok) return VOIDRIDE_LATEST;
-    const data = (await r.json()) as { title?: string; thumbnail_url?: string; author_url?: string };
-    const title = (data.title ?? VOIDRIDE_LATEST.title).replace(/\s+by\s+VOIDRIDE\s*$/i, "").trim();
-    const art = data.thumbnail_url || VOIDRIDE_LATEST.art;
-    return {
-      title: title || VOIDRIDE_LATEST.title,
-      url: VOIDRIDE_LATEST.url,
-      art,
-    };
-  } catch {
-    return VOIDRIDE_LATEST;
-  }
-}

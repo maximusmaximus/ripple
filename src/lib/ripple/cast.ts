@@ -12,7 +12,7 @@ import type { StudioSnapshot } from "./studio";
 export type CastRole = "host" | "pad" | "watch";
 
 export type CastMsg =
-  | { t: "hello"; role: CastRole; worldId?: string; code?: string }
+  | { t: "hello"; role: CastRole; worldId?: string; code?: string; padId?: string }
   | { t: "world"; id: string }
   | { t: "feel"; viscosity: number; waveStrength: number; brushDiameter: number }
   | { t: "ptr"; x: number; y: number; down: boolean; id?: number }
@@ -30,11 +30,15 @@ export type CastMsg =
   | { t: "rec-done" }
   | { t: "rec-skip"; reason: string }
   | { t: "lan-hd"; on: boolean }
+  | { t: "live-meta"; title: string; description: string; watchable: boolean }
   | { t: "ping"; ts: number }
   | { t: "pong"; ts: number }
   | { t: "bye" };
 
 export const CAST_CHANNEL = "ripple-cast";
+
+/** How long the wall waits for the same pad to reconnect before closing the session. */
+export const PAD_ABANDON_MS = 45_000;
 
 /** 6-char room code shown in QR / typed on pad */
 export function makeCastCode(): string {

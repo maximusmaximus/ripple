@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, Eye } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { WallViewport } from "./wall-viewport";
@@ -6,7 +6,7 @@ import { PadGate } from "./pad-gate";
 import { ControlsDock } from "./controls-dock";
 import { SensorsBar } from "./sensors-bar";
 import { RippleCanvas } from "./ripple-canvas";
-import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
+import { EMPTY_SHARE, type SessionShareValue } from "./session-share";
 import { LanHdToast } from "./lan-hd-toast";
 import { PairOverlay } from "./pair-overlay";
 import { SessionGate } from "./session-gate";
@@ -20,7 +20,7 @@ import { useOrientation } from "@/hooks/use-orientation";
 import { useViewport } from "@/hooks/use-desktop";
 import { useAppFullscreen } from "@/hooks/use-app-fullscreen";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
-import { useLivePresence } from "@/hooks/use-live-presence";
+import { useLivePresence, isPublicLive } from "@/hooks/use-live-presence";
 import { useViewStream } from "@/hooks/use-view-stream";
 import { StudioSync } from "./studio-sync";
 import { TipsGuide } from "./tips-guide";
@@ -71,7 +71,6 @@ export function RippleApp() {
   const setWorld = useRippleStore((s) => s.setWorld);
   const applySnapshot = useRippleStore((s) => s.applySnapshot);
   const { angle, isImmersive, isLandscape } = useOrientation();
-  const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hostSendRef = useRef<(msg: import("@/lib/ripple/cast").CastMsg) => void>(() => {});
   const hostLiveRef = useRef(false);
@@ -96,6 +95,10 @@ export function RippleApp() {
   const [pairDismissed, setPairDismissed] = useState(false);
   const [pairForced, setPairForced] = useState(false);
   const [choice, setChoice] = useState<"pending" | "host" | "private">("pending");
+  const [share, setShare] = useState<SessionShareValue>(EMPTY_SHARE);
+  const shareTimer = useRef(0);
+  const presenceRef = useRef<ReturnType<typeof useLivePresence> | null>(null);
+  const hostRegenRef = useRef<(() => void) | null>(null);
   const [bootDone, setBootDone] = useState(false);
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
@@ -182,30 +185,61 @@ export function RippleApp() {
       if (on) recRef.current.start();
       else recRef.current.stop();
     },
+    onLiveMeta: (meta) => {
+      setShare(meta);
+      window.clearTimeout(shareTimer.current);
+      void presenceRef.current?.updateMeta(meta);
+    },
+    onPadAbandoned: () => {
+      setShare(EMPTY_SHARE);
+      window.clearTimeout(shareTimer.current);
+      void presenceRef.current?.updateMeta(EMPTY_SHARE);
+      useRippleStore.getState().cleanSession();
+      hostRegenRef.current?.();
+    },
   });
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
   lanHdRef.current = host.lanHd;
 
   const presence = useLivePresence({
-    role: mode === "local" && choice === "host" ? "host" : null,
-    code: mode === "local" && choice === "host" ? host.code : null,
+    role: mode === "local" && choice !== "pending" ? "host" : null,
+    code: mode === "local" && choice !== "pending" ? host.code : null,
     enabled: mode === "local",
   });
+  presenceRef.current = presence;
+  hostRegenRef.current = host.regenerateCode;
+
+  const applyShare = useCallback(
+    (next: SessionShareValue) => {
+      setShare(next);
+      window.clearTimeout(shareTimer.current);
+      const publish = () => {
+        void presence.updateMeta(next).then((r) => {
+          if (r.occupied) setShare({ ...next, watchable: false });
+        });
+      };
+      if (next.watchable) publish();
+      else shareTimer.current = window.setTimeout(publish, 400);
+    },
+    [presence],
+  );
 
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
 
-  const showGate = bootDone && mode === "local" && choice === "pending" && Boolean(presence.session);
+  const showGate = bootDone && mode === "local" && choice === "pending" && isPublicLive(presence.session);
+  const showPending = mode === "local" && !viewportReady;
   const showBoot = mode === "local" && !bootDone && viewportReady && !isDesktop;
   const showPairOverlay =
     !showGate &&
     !host.isLive &&
     !showBoot &&
+    !showPending &&
     viewportReady &&
     (pairForced || (isDesktop && !pairDismissed));
 
   useAppFullscreen({
-    enabled: (mode === "local" || mode === "pad") && !showGate && !showBoot && !showPairOverlay,
+    enabled: (mode === "local" || mode === "pad") && !showGate && !showBoot && !showPending && !showPairOverlay,
     landscape: isLandscape,
     active: !hint,
   });
@@ -216,17 +250,15 @@ export function RippleApp() {
 
   useEffect(() => {
     if (!bootDone || mode !== "local" || choice !== "pending") return;
-    if (presence.session) return;
-    const wait = presence.ready ? 0 : 480;
-    const t = window.setTimeout(() => setChoice("host"), wait);
-    return () => window.clearTimeout(t);
+    if (!presence.ready) return;
+    if (isPublicLive(presence.session)) return;
+    setChoice("host");
   }, [bootDone, mode, choice, presence.ready, presence.session]);
 
   useEffect(() => {
-    if (choice !== "host") return;
     if (!presence.occupied) return;
-    setChoice("pending");
-  }, [choice, presence.occupied]);
+    setShare((s) => (s.watchable ? { ...s, watchable: false } : s));
+  }, [presence.occupied]);
 
   const goWatch = useCallback(() => {
     const code = presence.session?.code;
@@ -267,7 +299,7 @@ export function RippleApp() {
     setBootDone(true);
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       if (window.sessionStorage.getItem(PRIVATE_KEY) === "1") setChoice("private");
     } catch {
@@ -309,7 +341,7 @@ export function RippleApp() {
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (panel.contains(target)) return;
-      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
+      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel],[data-watch-share]")) return;
       setDockOpen(false);
       if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
       e.preventDefault();
@@ -343,9 +375,9 @@ export function RippleApp() {
     setHint(false);
   }, [setDockOpen]);
 
-  const showChrome = !host.isLive && !showBoot;
+  const showChrome = !host.isLive && !showBoot && !showPending;
   const liveViewers =
-    choice === "host" ? Math.max(host.viewerCount, presence.session?.viewers ?? 0) : host.viewerCount;
+    choice !== "pending" ? Math.max(host.viewerCount, presence.session?.viewers ?? 0) : host.viewerCount;
   const linkState: "off" | "waiting" | "live" = host.isLive
     ? "live"
     : host.state === "waiting" || host.state === "reconnecting"
@@ -362,8 +394,9 @@ export function RippleApp() {
   }, [host.isLive, host.send, record.state, record.startedAt, record.limitMs]);
 
   if (mode === "pad" && search.c) {
+    const padCode = search.c.toUpperCase();
     return (
-      <PadGate code={search.c.toUpperCase()}>
+      <PadGate code={padCode}>
         {(pad) => (
           <PadSurface
             sensors={sensors}
@@ -378,6 +411,7 @@ export function RippleApp() {
             sendStudio={pad.sendStudio}
             sendClear={pad.sendClear}
             sendRec={pad.sendRec}
+            sendLiveMeta={pad.sendLiveMeta}
             bindCameraStream={pad.bindCameraStream}
             recOn={pad.recOn}
             recStartedAt={pad.recStartedAt}
@@ -392,6 +426,7 @@ export function RippleApp() {
             viscosity={viscosity}
             waveStrength={waveStrength}
             brushDiameter={brushDiameter}
+            code={padCode}
           />
         )}
       </PadGate>
@@ -422,7 +457,10 @@ export function RippleApp() {
       data-hold-done={bootDone ? "1" : "0"}
       data-viewport={isDesktop ? "desktop" : "mobile"}
       data-vp-ready={viewportReady ? "1" : "0"}
-      data-has-session={presence.session ? "1" : "0"}
+      data-has-session={isPublicLive(presence.session) ? "1" : "0"}
+      data-watchable={share.watchable ? "1" : "0"}
+      data-boot-hold={showPending ? "1" : "0"}
+      data-splash="off"
       data-lan-hd={host.lanHd ? "1" : "0"}
     >
       <StudioSync />
@@ -432,7 +470,6 @@ export function RippleApp() {
         orientationAngle={angle}
         onPaintStart={onPaintStart}
         webglError={setGlError}
-        onReady={splash.markReady}
         injectSplats={injectSplats}
         injectKey={injectKey}
         cameraSource={camSource}
@@ -535,7 +572,16 @@ export function RippleApp() {
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
           >
-            <ControlsDock onShowPair={openPair} showPairButton />
+            <ControlsDock
+              onShowPair={openPair}
+              showPairButton
+              sessionShare={{
+                code: host.code,
+                value: share,
+                onChange: applyShare,
+                occupied: presence.occupied,
+              }}
+            />
           </div>
         </div>
       )}
@@ -573,15 +619,20 @@ export function RippleApp() {
         />
       )}
 
+      {showPending && (
+        <div
+          data-ui-chrome
+          data-boot-hold="true"
+          className="absolute inset-0 z-[120] bg-ink"
+          role="status"
+          aria-label="Loading"
+        >
+          <VoidrideHold fullScreen quiet />
+        </div>
+      )}
+
       {showBoot && <MobileVoidrideIntro onDone={finishBoot} />}
 
-      {splash.show && !showPairOverlay && !showGate && !showBoot && (
-        <RippleSplash
-          fading={splash.fading}
-          progress={splash.progress}
-          colors={PALETTES[worldId]?.colors}
-        />
-      )}
     </div>
   );
 }
@@ -599,6 +650,7 @@ function PadSurface({
   sendStudio,
   sendClear,
   sendRec,
+  sendLiveMeta,
   bindCameraStream,
   recOn,
   recStartedAt,
@@ -613,6 +665,7 @@ function PadSurface({
   viscosity,
   waveStrength,
   brushDiameter,
+  code,
 }: {
   sensors: SensorsState;
   onSensorsChange: (s: SensorsState) => void;
@@ -626,6 +679,7 @@ function PadSurface({
   sendStudio: (snap: StudioSnapshot) => void;
   sendClear: () => void;
   sendRec: (on: boolean) => void;
+  sendLiveMeta: (title: string, description: string, watchable: boolean) => void;
   bindCameraStream: (stream: MediaStream | null) => void;
   recOn: boolean;
   recStartedAt: number | null;
@@ -640,8 +694,8 @@ function PadSurface({
   viscosity: number;
   waveStrength: number;
   brushDiameter: number;
+  code: string;
 }) {
-  const splash = useSurfaceSplash();
   const dockOpen = useRippleStore((s) => s.dockOpen);
   const setDockOpen = useRippleStore((s) => s.setDockOpen);
   const takeSnapshot = useRippleStore((s) => s.takeSnapshot);
@@ -649,6 +703,19 @@ function PadSurface({
   const dockPanelRef = useRef<HTMLDivElement>(null);
   const lastStudio = useRef("");
   const lastClear = useRef(clearToken);
+  const [share, setShare] = useState<SessionShareValue>(EMPTY_SHARE);
+  const shareTimer = useRef(0);
+
+  const applyShare = useCallback(
+    (next: SessionShareValue) => {
+      setShare(next);
+      window.clearTimeout(shareTimer.current);
+      const publish = () => sendLiveMeta(next.title, next.description, next.watchable);
+      if (next.watchable) publish();
+      else shareTimer.current = window.setTimeout(publish, 400);
+    },
+    [sendLiveMeta],
+  );
 
   useEffect(() => {
     bindCameraStream(sensors.cameraOn ? sensors.cameraStream : null);
@@ -734,7 +801,7 @@ function PadSurface({
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (panel.contains(target)) return;
-      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel]")) return;
+      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel],[data-watch-share]")) return;
       setDockOpen(false);
       if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
       e.preventDefault();
@@ -752,7 +819,6 @@ function PadSurface({
         orientationAngle={angle}
         onPaintStart={onPaintStart}
         onSplats={sendSplats}
-        onReady={splash.markReady}
       />
       <SensorsBar
         sensors={sensors}
@@ -788,7 +854,10 @@ function PadSurface({
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
         >
-          <ControlsDock showPairButton={false} />
+          <ControlsDock
+            showPairButton={false}
+            sessionShare={{ code, value: share, onChange: applyShare }}
+          />
         </div>
       </div>
 
@@ -808,14 +877,6 @@ function PadSurface({
       )}
 
       <TipsGuide />
-
-      {splash.show && (
-        <RippleSplash
-          fading={splash.fading}
-          progress={splash.progress}
-          colors={PALETTES[worldId as PaletteId]?.colors}
-        />
-      )}
     </div>
   );
 }

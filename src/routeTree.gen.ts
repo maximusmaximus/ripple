@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiLiveRouteImport } from './routes/api/live'
 import { Route as ApiRtcRouteImport } from './routes/api/rtc'
+import { Route as ApiVoidrideRouteImport } from './routes/api/voidride'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const ApiRtcRoute = ApiRtcRouteImport.update({
   path: '/api/rtc',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiVoidrideRoute = ApiVoidrideRouteImport.update({
+  id: '/api/voidride',
+  path: '/api/voidride',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/live': typeof ApiLiveRoute
   '/api/rtc': typeof ApiRtcRoute
+  '/api/voidride': typeof ApiVoidrideRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/live': typeof ApiLiveRoute
   '/api/rtc': typeof ApiRtcRoute
+  '/api/voidride': typeof ApiVoidrideRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/live': typeof ApiLiveRoute
   '/api/rtc': typeof ApiRtcRoute
+  '/api/voidride': typeof ApiVoidrideRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/live' | '/api/rtc'
+  fullPaths: '/' | '/api/live' | '/api/rtc' | '/api/voidride'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/live' | '/api/rtc'
-  id: '__root__' | '/' | '/api/live' | '/api/rtc'
+  to: '/' | '/api/live' | '/api/rtc' | '/api/voidride'
+  id: '__root__' | '/' | '/api/live' | '/api/rtc' | '/api/voidride'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiLiveRoute: typeof ApiLiveRoute
   ApiRtcRoute: typeof ApiRtcRoute
+  ApiVoidrideRoute: typeof ApiVoidrideRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRtcRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/voidride': {
+      id: '/api/voidride'
+      path: '/api/voidride'
+      fullPath: '/api/voidride'
+      preLoaderRoute: typeof ApiVoidrideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiLiveRoute: ApiLiveRoute,
   ApiRtcRoute: ApiRtcRoute,
+  ApiVoidrideRoute: ApiVoidrideRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

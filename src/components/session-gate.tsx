@@ -1,5 +1,6 @@
 import { Eye, Plus } from "lucide-react";
 import type { LiveInfo } from "@/hooks/use-live-presence";
+import { isPublicLive } from "@/lib/multiplayer/live-types";
 
 export function SessionGate({
   session,
@@ -12,6 +13,7 @@ export function SessionGate({
 }) {
   const n = session.viewers;
   const watching = n <= 0 ? "Live now" : n === 1 ? "1 watching" : `${n} watching`;
+  const canWatch = isPublicLive(session);
 
   return (
     <div
@@ -28,21 +30,25 @@ export function SessionGate({
       >
         <div className="text-center">
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">Live session</p>
-          <h2 className="mt-1 text-lg font-semibold text-fg">A studio is already going</h2>
-          <p className="mt-1 text-sm text-muted">
-            Watch the live surface, or start a private mix of your own.
-          </p>
+          <h2 className="mt-1 text-lg font-semibold text-fg">{session.title.trim() || "A studio is already going"}</h2>
+          {session.description.trim() ? (
+            <p className="mt-1 text-sm text-muted">{session.description.trim()}</p>
+          ) : (
+            <p className="mt-1 text-sm text-muted">This mix is not listed for watchers yet.</p>
+          )}
           <p className="mt-2 text-[12px] text-emerald-200/90">{watching}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={onWatch}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25"
-        >
-          <Eye className="size-4" strokeWidth={2} />
-          Watch LIVE session
-        </button>
+        {canWatch && (
+          <button
+            type="button"
+            onClick={onWatch}
+            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-emerald-400/50 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/25"
+          >
+            <Eye className="size-4" strokeWidth={2} />
+            Watch {session.title.trim()}
+          </button>
+        )}
         <button
           type="button"
           onClick={onNew}
@@ -51,7 +57,9 @@ export function SessionGate({
           <Plus className="size-4" strokeWidth={2} />
           Make new session
         </button>
-        <p className="text-center text-[11px] text-subtle">Watch is view-only. New session is yours to paint.</p>
+        <p className="text-center text-[11px] text-subtle">
+          {canWatch ? "Watch is view-only. New session is yours to paint." : "You can start your own mix."}
+        </p>
       </div>
     </div>
   );

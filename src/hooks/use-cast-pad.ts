@@ -22,6 +22,19 @@ function makePeerId(prefix: string) {
   return `${prefix}${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function padIdentity(): string {
+  const key = "ripple-pad-id";
+  try {
+    const existing = window.localStorage.getItem(key);
+    if (existing && existing.length >= 8) return existing;
+    const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+    window.localStorage.setItem(key, id);
+    return id;
+  } catch {
+    return makePeerId("pad");
+  }
+}
+
 export function useCastPad(opts: UseCastPadOptions) {
   const { code, frameWidth = 176, frameHeight = 132, jpegQuality = 0.38, fps = 8 } = opts;
   const [state, setState] = useState<PadConnectionState>("idle");
@@ -41,6 +54,7 @@ export function useCastPad(opts: UseCastPadOptions) {
   const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
   const [recNote, setRecNote] = useState<string | null>(null);
   const [lanHd, setLanHd] = useState(false);
+  const padIdRef = useRef(padIdentity());
 
   const sendJson = useCallback((msg: CastMsg, reliable = true) => {
     const p2p = p2pRef.current;
@@ -144,8 +158,14 @@ export function useCastPad(opts: UseCastPadOptions) {
         const wall = peers.find((p) => p.name === "wall" && p.connectionState === "connected");
         setLanHd(Boolean(wall && isLanPeer(wall)));
         const failed = peers.every((p) => p.connectionState === "failed") && peers.length > 0;
-        if (live) setState("connected");
-        else if (failed) {
+        if (live) {
+          setState("connected");
+          try {
+            p2p.send({ t: "hello", role: "pad", code, padId: padIdRef.current } satisfies CastMsg);
+          } catch {
+            /* channel may not be ready yet */
+          }
+        } else if (failed) {
           setState("error");
           setError("Could not reach the display — same Wi-Fi helps");
         } else if (p2pRef.current) {
@@ -209,7 +229,11 @@ export function useCastPad(opts: UseCastPadOptions) {
         }
       },
       onConnected: () => {
-        /* roster registered; wait for data channel */
+        try {
+          p2p.send({ t: "hello", role: "pad", code, padId: padIdRef.current } satisfies CastMsg);
+        } catch {
+          /* ignore */
+        }
       },
     });
     p2pRef.current = p2p;
@@ -270,6 +294,13 @@ export function useCastPad(opts: UseCastPadOptions) {
     [sendJson],
   );
 
+  const sendLiveMeta = useCallback(
+    (title: string, description: string, watchable: boolean) => {
+      sendJson({ t: "live-meta", title, description, watchable }, true);
+    },
+    [sendJson],
+  );
+
   useEffect(() => {
     if (!recOn || !recStartedAt) return;
     const tick = () => setRecRemainingMs(Math.max(0, recLimitMs - (Date.now() - recStartedAt)));
@@ -301,6 +332,7 @@ export function useCastPad(opts: UseCastPadOptions) {
     sendStudio,
     sendClear,
     sendRec,
+    sendLiveMeta,
     recOn,
     recStartedAt,
     recLimitMs,

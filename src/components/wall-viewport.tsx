@@ -2,9 +2,8 @@ import { Eye } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { QrMark } from "./qr-mark";
-import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
+import { VoidrideHold, useVoidrideGate, VoidrideListen, useVoidrideLatest } from "./voidride-hold";
 import { RippleCanvas } from "./ripple-canvas";
-import { RippleSplash, useSurfaceSplash } from "./ripple-splash";
 import { LanHdToast } from "./lan-hd-toast";
 import { emptySensorsState, type SensorsState } from "@/lib/ripple/media";
 import { useRippleStore } from "@/store/ripple";
@@ -14,6 +13,7 @@ import { hydrateSnapshotMedia } from "@/lib/ripple/studio";
 import { useOrientation } from "@/hooks/use-orientation";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import { useLivePresence } from "@/hooks/use-live-presence";
+import { EMPTY_SHARE } from "./session-share";
 import { useViewStream } from "@/hooks/use-view-stream";
 import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
 import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
@@ -31,7 +31,6 @@ export function WallViewport({ preferredCode }: Props) {
   const setBrushDiameter = useRippleStore((s) => s.setBrushDiameter);
   const applySnapshot = useRippleStore((s) => s.applySnapshot);
   const clearSurface = useRippleStore((s) => s.clearSurface);
-  const washColors = useRippleStore((s) => s.getActivePalette().colors);
 
   const [injectSplats, setInjectSplats] = useState<Splat[] | null>(null);
   const [injectKey, setInjectKey] = useState(0);
@@ -111,25 +110,37 @@ export function WallViewport({ preferredCode }: Props) {
     [setWorld, setViscosity, setWaveStrength, setBrushDiameter, applySnapshot, clearSurface],
   );
 
+  const presenceRef = useRef<ReturnType<typeof useLivePresence> | null>(null);
+  const hostRegenRef = useRef<(() => void) | null>(null);
   const host = useCastHost({
     preferredCode,
+    stayOnPage: true,
     onCamFrame,
     onRemoteInput,
     onRecToggle: (on) => {
       if (on) recRef.current?.start();
       else recRef.current?.stop();
     },
+    onLiveMeta: (meta) => {
+      void presenceRef.current?.updateMeta(meta);
+    },
+    onPadAbandoned: () => {
+      void presenceRef.current?.updateMeta(EMPTY_SHARE);
+      useRippleStore.getState().cleanSession();
+      hostRegenRef.current?.();
+    },
   });
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
   lanHdRef.current = host.lanHd;
-  const splash = useSurfaceSplash();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useLivePresence({
+  const presence = useLivePresence({
     role: "host",
     code: host.code || null,
     enabled: Boolean(host.code),
   });
+  presenceRef.current = presence;
+  hostRegenRef.current = host.regenerateCode;
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
   const record = useCanvasRecord(() => canvasRef.current, {
     profile: () => recordProfileFor(lanHdRef.current),
@@ -146,6 +157,7 @@ export function WallViewport({ preferredCode }: Props) {
   const ready = Boolean(host.pairUrl && host.code);
   const [gaveUp, setGaveUp] = useState(false);
   const { locked, flash, progress } = useVoidrideGate();
+  const drop = useVoidrideLatest();
 
   useEffect(() => {
     if (ready) return;
@@ -184,7 +196,6 @@ export function WallViewport({ preferredCode }: Props) {
         remoteMicLevel={remoteMic}
         remoteMicBands={remoteMicBands}
         remoteGyro={remoteGyro}
-        onReady={splash.markReady}
       />
 
       <LanHdToast on={host.lanHd} />
@@ -275,6 +286,7 @@ export function WallViewport({ preferredCode }: Props) {
             <p className="text-center text-[11px] text-subtle">
               or open the same site on your phone with this code
             </p>
+            <VoidrideListen drop={drop} />
           </div>
 
           {host.lastError && (
@@ -310,13 +322,6 @@ export function WallViewport({ preferredCode }: Props) {
         </div>
       </div>
 
-      {splash.show && !showPair && (
-        <RippleSplash
-          fading={splash.fading}
-          progress={splash.progress}
-          colors={washColors}
-        />
-      )}
     </div>
   );
 }

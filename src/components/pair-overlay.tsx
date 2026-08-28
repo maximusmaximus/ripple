@@ -4,7 +4,7 @@ import { Lightbulb, Monitor } from "lucide-react";
 import type { useCastHost } from "@/hooks/use-cast-host";
 import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
 import { QrMark } from "./qr-mark";
-import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
+import { VoidrideHold, useVoidrideGate, VoidrideListen, useVoidrideLatest } from "./voidride-hold";
 
 type Host = ReturnType<typeof useCastHost>;
 
@@ -34,6 +34,7 @@ export function PairOverlay({
   const navigate = useNavigate({ from: "/" });
   const wall = layout === "wall";
   const { locked, flash, nudge, progress } = useVoidrideGate();
+  const drop = useVoidrideLatest();
 
   useEffect(() => {
     if (ready) return;
@@ -69,8 +70,12 @@ export function PairOverlay({
       data-ui-chrome
       data-pair-overlay="true"
       data-pair-layout={layout}
+      data-pair-hold={showHold ? "1" : "0"}
       className="absolute inset-0 z-[80] flex flex-col items-center justify-center p-4"
       role="presentation"
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) tryDismiss();
+      }}
     >
       <div
         className="absolute inset-0 bg-ink/55 backdrop-blur-[2px]"
@@ -172,6 +177,7 @@ export function PairOverlay({
               <div className="flex w-full flex-col items-center gap-1.5">
                 <p className="font-mono text-2xl tracking-[0.35em] text-fg">{host.code || "------"}</p>
                 <p className="text-center text-[11px] text-subtle">Same site on your phone, this code</p>
+                <VoidrideListen drop={drop} className="mt-1" />
               </div>
 
               {host.lastError && (

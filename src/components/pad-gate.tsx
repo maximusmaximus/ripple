@@ -15,6 +15,7 @@ export type PadHandle = {
   sendStudio: (snap: StudioSnapshot) => void;
   sendClear: () => void;
   sendRec: (on: boolean) => void;
+  sendLiveMeta: (title: string, description: string, watchable: boolean) => void;
   recOn: boolean;
   recStartedAt: number | null;
   recLimitMs: number;
@@ -69,6 +70,7 @@ export function PadGate({ code, children }: Props) {
           sendStudio: pad.sendStudio,
           sendClear: pad.sendClear,
           sendRec: pad.sendRec,
+          sendLiveMeta: pad.sendLiveMeta,
           recOn: pad.recOn,
           recStartedAt: pad.recStartedAt,
           recLimitMs: pad.recLimitMs,

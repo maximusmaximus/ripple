@@ -109,7 +109,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "live",
     title: "LIVE session",
-    body: "One public studio at a time. If a session is already going, pick Watch LIVE (view-only) or Make new session for a private mix. On a phone with nobody live, VOIDRIDE plays, then you drop straight into painting — no chooser, no QR. The number next to the light is how many others are watching.",
+    body: "Title and a short description live under Session. Turn Watchable on to list the mix — others then see that name and description and can watch only. A popup gives the watch link to copy or share. Private painting is never listed. If the paired phone drops and does not come back, the listing closes so the next person can start.",
   },
   {
     id: "camera",

@@ -74,7 +74,7 @@ Menu sliders: camera interact, mic sensitivity, gyro sensitivity, gyro zoom. **G
 
 ### Session
 
-**Clear surface** wipes paint. **Clean session** resets the live mix for the next person; saved presets stay. **Control With Secondary Device** (wide screens) or **Pair with a larger screen** (phones) opens the pairing card.
+**Clear surface** wipes paint. **Clean session** resets the live mix for the next person; saved presets stay. **Title** and **Description** name the mix. **Watchable** lists it for others — they see that name and description, then watch only. Turning Watchable on opens a popup with the watch link, copy, and share. **Control With Secondary Device** (wide screens) or **Pair with a larger screen** (phones) opens the pairing card.
 
 **Feature & bugs** at the bottom of the menu: pick Feature or Bug, write a sentence, send. It is stored here and opened as a GitHub issue (`bug` or `enhancement` + `from-studio`). The menu stays in the studio and shows **Sent as #N** — it does not navigate the preview away. Copy link if you want the URL.
 
@@ -88,13 +88,17 @@ On a phone the light is also top-right. It does **not** auto-open. Tap it after 
 
 Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again. Same-network pairs light the bulb **HD**; extra watchers do not turn that off.
 
-The pairing card opens with a **VOIDRIDE** loading screen for a few seconds so you can tap Listen Now. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears.
+The pairing card opens with the latest **VOIDRIDE** album for a few seconds so you can tap **Listen** on that song. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears. The same latest album and Listen link stay at the bottom of the menu so they are always on hand.
 
 Phone landscape still hides chrome when you are drawing on the phone itself (not paired as a pad).
 
 ### LIVE session
 
-One public studio at a time. If someone is already live, a chooser offers **Watch LIVE session** (view-only JPEG stream of the wall) or **Make new session** (private mix on this device). On a **phone with nobody live**, there is no chooser and no QR — VOIDRIDE plays, then you drop into painting. The number next to the connectivity light is how many other people are watching.
+A mix is listed for others only when it is **Watchable** and has a **title** plus a **short description**. Visitors then see that name and description and can **Watch** (view-only) or **Make new session**. Private painting is never listed. Watchable opens a popup with a watch-only link to copy or share. Listings are stored on GitHub (`public/studio/live-session.json`, with a log of past sessions).
+
+If a paired phone drops and the same device does not reconnect within about 45 seconds, the session unlists, the mix resets, and a new pair code is minted so the next person can start.
+
+On a **phone with nobody listed**, there is no chooser and no QR — VOIDRIDE plays the latest album, then you drop into painting. The number next to the connectivity light is how many other people are watching.
 
 Watchers cannot paint. **My session** on the watch screen starts a private mix. Phone pads still pair through the QR as controllers — they are not watchers.
 

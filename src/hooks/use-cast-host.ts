@@ -8,6 +8,7 @@ import {
   makeCastCode,
   parseCastMsg,
   roomIdFor,
+  PAD_ABANDON_MS,
   type CastMsg,
 } from "@/lib/ripple/cast";
 import type { Splat } from "@/lib/ripple/pointer";
@@ -30,6 +31,8 @@ export type RemoteInput = {
 
 export type RemoteFrame = { jpeg: ArrayBuffer; receivedAt: number };
 
+export type LiveMetaMsg = { title: string; description: string; watchable: boolean };
+
 export type UseCastHostOptions = {
   preferredCode?: string | null;
   onCamFrame?: (frame: RemoteFrame) => void;
@@ -38,6 +41,9 @@ export type UseCastHostOptions = {
   stayOnPage?: boolean;
   enabled?: boolean;
   onRecToggle?: (on: boolean) => void;
+  onLiveMeta?: (meta: LiveMetaMsg) => void;
+  /** Same pad did not return after PAD_ABANDON_MS. Close the session. */
+  onPadAbandoned?: () => void;
 };
 
 function makePeerId(prefix: string) {
@@ -65,6 +71,25 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   optsRef.current = opts;
   const wasLive = useRef(false);
   const namesRef = useRef(new Map<string, string>());
+  const expectedPadId = useRef<string | null>(null);
+  const abandonTimer = useRef(0);
+
+  const clearAbandon = useCallback(() => {
+    if (abandonTimer.current) {
+      window.clearTimeout(abandonTimer.current);
+      abandonTimer.current = 0;
+    }
+  }, []);
+
+  const armAbandon = useCallback(() => {
+    if (abandonTimer.current) return;
+    abandonTimer.current = window.setTimeout(() => {
+      abandonTimer.current = 0;
+      wasLive.current = false;
+      expectedPadId.current = null;
+      optsRef.current.onPadAbandoned?.();
+    }, PAD_ABANDON_MS);
+  }, []);
 
   useLayoutEffect(() => {
     const next = code || makeCastCode();
@@ -106,12 +131,13 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
         }
         if (live) {
           wasLive.current = true;
+          clearAbandon();
           setState("connected");
           setLastError(null);
         } else if (wasLive.current) {
-          wasLive.current = false;
           setState("reconnecting");
           setLastError("Phone dropped — scan again to take over");
+          armAbandon();
         } else if (waiting) {
           setState((prev) => (prev === "reconnecting" ? prev : "waiting"));
         } else {
@@ -122,11 +148,19 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
         const msg = parseCastMsg(data);
         if (!msg) return;
         const fromName = namesRef.current.get(from) ?? "";
+        if (msg.t === "hello" && msg.role === "pad") {
+          const id = msg.padId || from;
+          if (!expectedPadId.current) expectedPadId.current = id;
+          else if (expectedPadId.current !== id && wasLive.current) {
+            /* a different phone took over — keep the link, drop the old listing later via live-meta */
+            expectedPadId.current = id;
+          }
+        }
         if (msg.t === "bye") {
           if (fromName === "watch") return;
-          wasLive.current = false;
           setState("reconnecting");
           setLastError("Phone dropped — scan again to take over");
+          armAbandon();
           return;
         }
         if (fromName === "watch" && msg.t !== "hello") return;
@@ -138,15 +172,18 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     void p2p.join();
     return () => {
       p2pRef.current = null;
+      clearAbandon();
       p2p.close();
     };
-  }, [code, opts.enabled]);
+  }, [code, opts.enabled, armAbandon, clearAbandon]);
 
   const regenerateCode = useCallback(() => {
     if (typeof window === "undefined") return;
     const next = makeCastCode();
     if (optsRef.current.stayOnPage) {
       wasLive.current = false;
+      expectedPadId.current = null;
+      clearAbandon();
       setLastError(null);
       setState("idle");
       setLanHd(false);
@@ -158,7 +195,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     u.searchParams.set("mode", "wall");
     u.searchParams.set("c", next);
     window.location.assign(`${u.pathname}${u.search}`);
-  }, []);
+  }, [clearAbandon]);
 
   const disconnect = useCallback(() => {
     try {
@@ -167,10 +204,12 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       /* ignore */
     }
     wasLive.current = false;
+    expectedPadId.current = null;
+    clearAbandon();
     p2pRef.current?.close();
     setState("idle");
     setLanHd(false);
-  }, []);
+  }, [clearAbandon]);
 
   const send = useCallback((msg: CastMsg) => {
     try {
@@ -206,6 +245,15 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
 
 function handleMsg(msg: CastMsg, opts: UseCastHostOptions) {
   if (msg.t === "bye") return;
+  if (msg.t === "hello") return;
+  if (msg.t === "live-meta") {
+    opts.onLiveMeta?.({
+      title: msg.title,
+      description: msg.description,
+      watchable: msg.watchable,
+    });
+    return;
+  }
   if (msg.t === "rec") {
     opts.onRecToggle?.(msg.on);
     return;

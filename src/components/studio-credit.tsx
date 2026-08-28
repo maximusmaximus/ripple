@@ -1,5 +1,6 @@
 import { Github, Heart } from "lucide-react";
 import { VOIDRIDE_PROFILE } from "@/lib/voidride";
+import { VoidrideListen, useVoidrideLatest } from "./voidride-hold";
 
 export const GITHUB_REPO = "maximusmaximus/ripple";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
@@ -28,12 +29,46 @@ function RippleMark({ className }: { className?: string }) {
 }
 
 export function StudioCredit() {
+  const drop = useVoidrideLatest();
   return (
     <div
       data-studio-credit="true"
-      className="flex shrink-0 flex-col items-center gap-1 border-t border-line px-4 py-2.5"
+      className="flex shrink-0 flex-col items-center gap-1.5 border-t border-line px-4 py-2.5"
       onPointerDown={(e) => e.stopPropagation()}
     >
+      <div
+        data-voidride-latest="true"
+        className="flex w-full flex-col gap-2 rounded-xl border border-line bg-fg/5 px-2 py-2"
+      >
+        <a
+          href={drop.albumUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => {
+            e.preventDefault();
+            if (!openOutside(drop.albumUrl)) {
+              void navigator.clipboard.writeText(drop.albumUrl).catch(() => {});
+            }
+          }}
+          className="flex min-w-0 items-center gap-3"
+          aria-label={`${drop.album} on SoundCloud`}
+        >
+          <img
+            src={drop.art}
+            alt=""
+            className="size-11 shrink-0 rounded-lg object-cover"
+            onError={(e) => {
+              e.currentTarget.src = "/studio/voidride-latest.jpg";
+            }}
+          />
+          <span className="min-w-0">
+            <span className="block text-[10px] font-medium uppercase tracking-[0.18em] text-subtle">Latest album</span>
+            <span className="block truncate text-sm font-semibold text-fg">{drop.album}</span>
+            <span className="block truncate text-[11px] text-muted">{drop.title}</span>
+          </span>
+        </a>
+        <VoidrideListen drop={drop} className="w-full justify-center" />
+      </div>
       <a
         href={GITHUB_URL}
         target="_blank"

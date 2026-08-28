@@ -95,6 +95,21 @@ export function WatchViewport({
         </div>
       )}
 
+      {presence.session?.title ? (
+        <div
+          data-ui-chrome
+          className="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-start p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pr-40"
+        >
+          <div className="max-w-[min(70vw,22rem)] rounded-2xl border border-line bg-ink/60 px-3 py-2 backdrop-blur-md">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-subtle">Watching</p>
+            <p className="text-sm font-semibold text-fg">{presence.session.title}</p>
+            {presence.session.description ? (
+              <p className="text-[12px] text-muted">{presence.session.description}</p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <div
         data-ui-chrome
         className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-end p-3 pt-[max(0.75rem,env(safe-area-inset-top))]"
