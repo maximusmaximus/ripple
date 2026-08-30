@@ -1,4 +1,4 @@
-import { VERT, SIM_FRAG, SPLAT_FRAG, INK_SPLAT_FRAG, INK_FLOW_FRAG, DISPLAY_FRAG, CLEAR_FRAG } from "./shaders";
+import { VERT, SIM_FRAG, SPLAT_FRAG, INK_SPLAT_FRAG, INK_FLOW_FRAG, DISPLAY_FRAG, CLEAR_FRAG, COPY_FRAG } from "./shaders";
 import type { ScreenAngle } from "./orientation";
 import type { MicFrame } from "./media";
 import { SILENT_MIC } from "./media";
@@ -32,6 +32,7 @@ export class RippleEngineBase {
   protected inkFlowProg!: WebGLProgram;
   protected displayProg!: WebGLProgram;
   protected clearProg!: WebGLProgram;
+  protected copyProg!: WebGLProgram;
   protected vao!: WebGLVertexArrayObject;
   protected quad!: WebGLBuffer;
   protected simU!: SimU;
@@ -175,6 +176,55 @@ export class RippleEngineBase {
     this.gl.deleteFramebuffer(f.fbo);
   }
 
+  protected blit(src: FBO, dst: FBO) {
+    const gl = this.gl;
+    gl.useProgram(this.copyProg);
+    gl.bindVertexArray(this.vao);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+    gl.viewport(0, 0, dst.w, dst.h);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src.tex);
+    gl.uniform1i(gl.getUniformLocation(this.copyProg, "u_prev"), 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  restoreFromImage(source: TexImageSource) {
+    const gl = this.gl;
+    if (!this.copyProg || !this.inkPing) return;
+    const tex = gl.createTexture();
+    if (!tex) return;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 0);
+    gl.useProgram(this.copyProg);
+    gl.bindVertexArray(this.vao);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.inkPing.fbo);
+    gl.viewport(0, 0, this.inkPing.w, this.inkPing.h);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(gl.getUniformLocation(this.copyProg, "u_prev"), 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.deleteTexture(tex);
+    this.blit(this.inkPing, this.inkPong);
+  }
+
+  captureJpeg(quality = 0.72): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      try {
+        this.canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+
   protected allocSim(cssW: number, cssH: number) {
     const max = 448;
     const aspect = Math.max(0.3, Math.min(3.2, cssW / Math.max(1, cssH)));
@@ -190,17 +240,26 @@ export class RippleEngineBase {
     w = (w + 7) & ~7;
     h = (h + 7) & ~7;
     if (this.ping && this.simW === w && this.simH === h) return;
-    this.deleteFBO(this.ping);
-    this.deleteFBO(this.pong);
-    this.deleteFBO(this.inkPing);
-    this.deleteFBO(this.inkPong);
+    const prevH = this.ping;
+    const prevH2 = this.pong;
+    const prevI = this.inkPing;
+    const prevI2 = this.inkPong;
     this.simW = w;
     this.simH = h;
     this.ping = this.makeFBO(w, h);
     this.pong = this.makeFBO(w, h);
     this.inkPing = this.makeFBO(w, h);
     this.inkPong = this.makeFBO(w, h);
-    this.clear();
+    if (prevH && prevI && this.copyProg && this.vao) {
+      this.blit(prevH, this.ping);
+      this.blit(prevI, this.inkPing);
+    } else {
+      this.clear();
+    }
+    this.deleteFBO(prevH);
+    this.deleteFBO(prevH2);
+    this.deleteFBO(prevI);
+    this.deleteFBO(prevI2);
   }
 
   protected init() {
@@ -211,6 +270,7 @@ export class RippleEngineBase {
     this.inkFlowProg = program(gl, VERT, INK_FLOW_FRAG);
     this.displayProg = program(gl, VERT, DISPLAY_FRAG);
     this.clearProg = program(gl, VERT, CLEAR_FRAG);
+    this.copyProg = program(gl, VERT, COPY_FRAG);
 
     this.simU = {
       prev: gl.getUniformLocation(this.simProg, "u_prev"),

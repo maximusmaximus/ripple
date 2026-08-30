@@ -1,6 +1,6 @@
 # Ripple
 
-Full-screen fluid paint studio. Drag to push waves and lay color. Presets, brushes, textures, camera, mic, and gyro all mix on one WebGL2 surface. A phone can pair to a second display through a live QR code.
+Full-screen fluid paint studio. Drag to push waves and lay color. Presets, brushes, textures, camera, mic, and gyro all mix on one WebGL2 surface. A phone can pair to a second display through a live QR code. If the browser hides the page or the GL context drops, the last painted frame comes back so the canvas never boots black — pairing stays up.
 
 **`drawing.grok.me` is released.** This project no longer claims that subdomain.
 
@@ -22,7 +22,7 @@ A round **i** control sits at the bottom-right of the canvas.
 - Tap any mini **i** to jump the card to that control.
 - Tap the round **i** again to turn tips off.
 
-The walkthrough covers paint, presets (swipe + hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, Brush Color (stroke-length gradient), viscosity, wave, sensors, pairing (HD on the same network), LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
+The walkthrough covers paint, the menu (lifted button, one scroll, section focus), presets (four-row chip well, hold to remove), save as, brushes (rotation, blade, hold to remove), width profile, brush shadow (on/off, width profile, distance, angle), Layer FX, texture well, Brush Color (stroke-length gradient), viscosity, wave, sensors, pairing (HD on the same network), LIVE, record, and the feature/bug form. Each card has a small icon or illustration.
 
 ## Studio
 
@@ -34,9 +34,7 @@ Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the 
 
 ### Presets
 
-There is **no PRESETS heading**. The **selected mix** sits at the top of the menu — **swipe it left or right** (or tap the arrows) to step through. Keyboard arrows work while that row is focused.
-
-Starter mixes and your saves share one inlaid well under that row: **oldest at the top**, newest at the bottom. Chips are **tall color previews** (two rows fill the window). Fades mark that there is more. **Save as** stays bottom-right in that window.
+**Presets** is the first block in the menu — a four-row well of tall color chips, oldest at the top. There is no swipe preview above it. Tap a chip to load that mix. Fades mark that there is more in the well. **Save as** stays bottom-right in that window.
 
 Each starter is a full mix: palette, **width profile**, **Brush Color along the stroke**, shadow, texture, camera, and mic — a demo of what the engine can do. Easy is the clean first mark. The twenty worlds are the palettes as designed. Mixes after that stack a feature (Night paper, Copperplate, Taper noir, Shadow ember, Prism blade, Gyro flood, Camera stain, …). Keyboard `←` `→` / `[` `]` still step through palettes on the canvas.
 
@@ -58,7 +56,7 @@ Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix bo
 
 ### Surface
 
-**Texture** matches presets: the selected grain sits at the top (swipe or arrows), a **well of tall chips** below, **Upload** in that window. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
+**Surface** sits directly under Presets and uses the **same chip well**: four rows of tall grains, **Upload** in that window. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
 
 **Brush Color** is the stroke itself: the same silhouette as Width, start on the left through belly to tail on the right. Diamonds are colors along that mark — the brush picks up the left color as it begins and the right color as it finishes. Click to add a stop, drag it, set hue and opacity. There are no crop circles. **Flip** reverses start and tail. The **larger diamond** is brush-shadow color and opacity. Distance and angle for the cast live under Width. **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed.
 
@@ -114,7 +112,7 @@ Last three seconds pulse faster so you know the cap is close.
 
 ### Menu scroll
 
-The menu uses one wide rail on the right. Tap the chevrons or the track to jump. The native scrollbar is hidden.
+On a phone the **Menu** button sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. The open card is one connected scroll — credit, presets, and the rest travel together. It always opens at the **top** (Presets). Tap a section to focus it (it expands, the rest dim); tap another section or the canvas to leave. The rail on the right still jumps the card.
 
 ## URL modes
 

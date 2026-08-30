@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, forwardRef, useImperativeHandle, useState } from "react";
 import { RippleEngine } from "@/lib/ripple/engine";
 import { PointerPainter, bindPainter, type Splat } from "@/lib/ripple/pointer";
 import { createStrokeTracker } from "@/lib/ripple/gestures";
@@ -8,6 +8,7 @@ import { getBrush, getCustomBrush, isCustomBrushId } from "@/lib/ripple/brushes"
 import { asFxList, asFxLayers, fxMask, fxLayerMask } from "@/lib/ripple/blend";
 import { getTexture } from "@/lib/ripple/textures";
 import { fitCode, mediaSrc } from "@/lib/ripple/studio";
+import { loadLastFrame, saveLastFrame, blobToUrl } from "@/lib/ripple/frame-cache";
 import type { SensorsState } from "@/lib/ripple/media";
 import {
   createMicMonitor,
@@ -53,6 +54,8 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const engineRef = useRef<RippleEngine | null>(null);
   const painterRef = useRef(new PointerPainter());
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [holdUrl, setHoldUrl] = useState<string | null>(null);
+  const [showHold, setShowHold] = useState(true);
   const onPaintStartRef = useRef(onPaintStart);
   onPaintStartRef.current = onPaintStart;
   const onSplatsRef = useRef(onSplats);
@@ -132,56 +135,121 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   });
 
   useEffect(() => {
+    let url: string | null = null;
+    let live = true;
+    void loadLastFrame().then((blob) => {
+      if (!live || !blob) return;
+      url = blobToUrl(blob);
+      setHoldUrl(url);
+      setShowHold(true);
+    });
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let engine: RippleEngine;
-    try {
-      engine = new RippleEngine(canvas);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(err);
-      webglError?.(message);
-      onReadyRef.current?.();
-      return;
-    }
-    engineRef.current = engine;
-    engine.onFirstFrame(() => onReadyRef.current?.());
-    engine.resize();
-    engine.start();
-
+    let engine: RippleEngine | null = null;
+    let dead = false;
     const painter = painterRef.current;
-    const customs = useRippleStore.getState().customBrushes;
-    const brush = getBrush(brushId, customs);
-    painter.setBrush(
-      spanStart / 2,
-      spanMid / 2,
-      spanEnd / 2,
-      brush.force,
-      brush.kind,
-      brush.spread ?? 1.8,
-      brush.grains ?? 4,
-      brush.feel ?? "steady",
-      brush.nib ?? Math.PI / 4,
-      useRippleStore.getState().getActiveShape().angle,
-      useRippleStore.getState().getActiveShape().spin,
-      useRippleStore.getState().getActiveShape().width,
-    );
-    const swipe = createStrokeTracker();
+    let unbind: (() => void) | null = null;
+    let holdFail = 0;
 
-    const onSplatFrame = (splats: Splat[]) => {
-      engine.applySplats(splats);
-      onSplatsRef.current?.(splats);
+    const attachPainter = (next: RippleEngine) => {
+      unbind?.();
+      const customs = useRippleStore.getState().customBrushes;
+      const brush = getBrush(brushId, customs);
+      painter.setBrush(
+        spanStart / 2,
+        spanMid / 2,
+        spanEnd / 2,
+        brush.force,
+        brush.kind,
+        brush.spread ?? 1.8,
+        brush.grains ?? 4,
+        brush.feel ?? "steady",
+        brush.nib ?? Math.PI / 4,
+        useRippleStore.getState().getActiveShape().angle,
+        useRippleStore.getState().getActiveShape().spin,
+        useRippleStore.getState().getActiveShape().width,
+      );
+      unbind = bindPainter(canvas, painter, {
+        onSplatFrame: (splats) => {
+          next.applySplats(splats);
+          onSplatsRef.current?.(splats);
+        },
+        onDown: () => {
+          onPaintStartRef.current?.();
+        },
+        mapUv: (x, y) => next.screenToSim(x, y),
+      });
     };
 
-    const unbind = bindPainter(canvas, painter, {
-      onSplatFrame,
-      onDown: () => {
-        onPaintStartRef.current?.();
-      },
-      mapUv: (x, y) => engine.screenToSim(x, y),
-    });
+    const boot = (restore: boolean) => {
+      if (dead) return;
+      try {
+        engine?.dispose();
+      } catch {
+        /* context already gone */
+      }
+      try {
+        engine = new RippleEngine(canvas);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(err);
+        webglError?.(message);
+        onReadyRef.current?.();
+        return;
+      }
+      engineRef.current = engine;
+      window.clearTimeout(holdFail);
+      engine.onFirstFrame(() => {
+        window.clearTimeout(holdFail);
+        setShowHold(false);
+        onReadyRef.current?.();
+      });
+      engine.resize();
+      attachPainter(engine);
+      holdFail = window.setTimeout(() => {
+        setShowHold(false);
+        onReadyRef.current?.();
+      }, 4000);
+      if (!restore) {
+        engine.start({ seed: true });
+        return;
+      }
+      void loadLastFrame().then(async (blob) => {
+        if (dead || !engine) return;
+        if (!blob) {
+          engine.start({ seed: true });
+          return;
+        }
+        const url = blobToUrl(blob);
+        const img = new Image();
+        try {
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error("frame"));
+            img.src = url;
+          });
+          if (dead || !engine) return;
+          engine.restoreFromImage(img);
+          engine.start({ seed: false });
+        } catch {
+          if (!dead && engine) engine.start({ seed: true });
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
 
+    boot(true);
+
+    const swipe = createStrokeTracker();
     const onPointerDown = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
       swipe.down(
@@ -207,19 +275,55 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
 
-    const onResize = () => engine.resize();
+    const onResize = () => engineRef.current?.resize();
     window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
     const ro = new ResizeObserver(onResize);
     ro.observe(canvas);
 
+    const onLost = (e: Event) => {
+      e.preventDefault();
+      setShowHold(true);
+    };
+    const onRestored = () => {
+      boot(true);
+    };
+    canvas.addEventListener("webglcontextlost", onLost);
+    canvas.addEventListener("webglcontextrestored", onRestored);
+
+    const persist = () => {
+      const live = engineRef.current;
+      if (!live) return;
+      void live.captureJpeg(0.7).then((blob) => {
+        if (blob && blob.size > 800) void saveLastFrame(blob);
+      });
+    };
+    const persistTimer = window.setInterval(persist, 2500);
+    const onHide = () => persist();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+
     return () => {
-      unbind();
+      dead = true;
+      window.clearTimeout(holdFail);
+      window.clearInterval(persistTimer);
+      persist();
+      unbind?.();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("webglcontextlost", onLost);
+      canvas.removeEventListener("webglcontextrestored", onRestored);
       ro.disconnect();
       window.removeEventListener("resize", onResize);
-      engine.dispose();
+      window.visualViewport?.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+      try {
+        engine?.dispose();
+      } catch {
+        /* ignore */
+      }
       engineRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -522,16 +626,29 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 h-full w-full touch-none"
-      style={{
-        display: "block",
-        width: "100%",
-        height: "100%",
-        touchAction: "none",
-        cursor: "crosshair",
-      }}
-    />
+    <div className="absolute inset-0 h-full w-full bg-ink">
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 h-full w-full touch-none"
+        style={{
+          display: "block",
+          width: "100%",
+          height: "100%",
+          touchAction: "none",
+          cursor: "crosshair",
+        }}
+      />
+      {showHold && (
+        <div
+          data-frame-hold="true"
+          className="pointer-events-none absolute inset-0 z-10 bg-ink"
+          aria-hidden
+        >
+          {holdUrl ? (
+            <img src={holdUrl} alt="" className="size-full object-cover" />
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 });

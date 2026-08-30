@@ -1,14 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { TEXTURES, getTexture, type TextureId } from "@/lib/ripple/textures";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { TEXTURES, getTexture } from "@/lib/ripple/textures";
 import { MAX_UPLOAD_BYTES, mediaSrc } from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
 import { useRippleStore } from "@/store/ripple";
 import { TextureCrop } from "./texture-crop";
-import { TipMark, TipCopy } from "./tip-mark";
-
-const SWIPE_LOCK_PX = 10;
-const SWIPE_COMMIT_PX = 40;
+import { TipCopy } from "./tip-mark";
 
 const STARTERS = TEXTURES.filter((t) => t.id !== "custom");
 
@@ -31,19 +28,10 @@ export function TexturePicker() {
   const [upHint, setUpHint] = useState(0);
   const [downHint, setDownHint] = useState(0);
   const wellRef = useRef<HTMLDivElement>(null);
-  const nameRef = useRef<HTMLParagraphElement>(null);
-  const swipe = useRef({
-    pointer: -1,
-    x: 0,
-    y: 0,
-    lock: null as null | "x" | "y",
-    dx: 0,
-  });
 
   const previewSrc = customLiveUrl || mediaSrc(customTexture);
   const items = customTexture ? [...STARTERS, getTexture("custom")] : STARTERS;
   const active = getTexture(textureId === "custom" && !customTexture ? "none" : textureId);
-  const activeIndex = Math.max(0, items.findIndex((t) => t.id === active.id));
 
   const syncHints = () => {
     const el = wellRef.current;
@@ -64,41 +52,14 @@ export function TexturePicker() {
   }, [items.length]);
 
   useEffect(() => {
-    const el = wellRef.current?.querySelector(`[data-tex-id="${active.id}"]`);
-    if (el instanceof HTMLElement) el.scrollIntoView({ block: "nearest" });
+    const well = wellRef.current;
+    const el = well?.querySelector(`[data-tex-id="${active.id}"]`);
+    if (!well || !(el instanceof HTMLElement)) return;
+    const c = el.getBoundingClientRect();
+    const w = well.getBoundingClientRect();
+    if (c.top < w.top) well.scrollTop -= w.top - c.top;
+    else if (c.bottom > w.bottom) well.scrollTop += c.bottom - w.bottom;
   }, [active.id]);
-
-  const step = (dir: -1 | 1) => {
-    if (items.length < 2) return;
-    const next = items[(activeIndex + dir + items.length) % items.length]!;
-    setTextureId(next.id);
-  };
-
-  const onSwipeDown = (e: ReactPointerEvent) => {
-    swipe.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY, lock: null, dx: 0 };
-  };
-  const onSwipeMove = (e: ReactPointerEvent) => {
-    if (swipe.current.pointer !== e.pointerId) return;
-    const dx = e.clientX - swipe.current.x;
-    const dy = e.clientY - swipe.current.y;
-    if (!swipe.current.lock) {
-      if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return;
-      swipe.current.lock = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
-    }
-    if (swipe.current.lock !== "x") return;
-    e.preventDefault();
-    swipe.current.dx = dx;
-    if (nameRef.current) nameRef.current.style.transform = `translateX(${dx * 0.35}px)`;
-  };
-  const onSwipeUp = (e: ReactPointerEvent) => {
-    if (swipe.current.pointer !== e.pointerId) return;
-    const dx = swipe.current.dx;
-    swipe.current.pointer = -1;
-    if (nameRef.current) nameRef.current.style.transform = "";
-    if (swipe.current.lock === "x" && Math.abs(dx) >= SWIPE_COMMIT_PX) step(dx < 0 ? 1 : -1);
-    swipe.current.lock = null;
-    swipe.current.dx = 0;
-  };
 
   const jumpInWell = (clientY: number, target: HTMLElement) => {
     const el = wellRef.current;
@@ -126,70 +87,8 @@ export function TexturePicker() {
     }
   };
 
-  const barFor = (id: TextureId) => {
-    if (id === "custom" && previewSrc) return `url(${previewSrc}) center / cover`;
-    return getTexture(id).preview;
-  };
-
   return (
     <div className="flex flex-col gap-1.5">
-      <div
-        className="touch-pan-x select-none overflow-hidden rounded-xl border border-fg/35 bg-fg/8"
-        role="group"
-        tabIndex={0}
-        aria-label={`${active.name}. Swipe left or right to change texture.`}
-        onPointerDown={onSwipeDown}
-        onPointerMove={onSwipeMove}
-        onPointerUp={onSwipeUp}
-        onPointerCancel={onSwipeUp}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowLeft") {
-            e.preventDefault();
-            step(-1);
-          } else if (e.key === "ArrowRight") {
-            e.preventDefault();
-            step(1);
-          }
-        }}
-      >
-        <div
-          className="h-3 w-full"
-          style={{ background: barFor(active.id), backgroundSize: "cover" }}
-          aria-hidden
-        />
-        <div className="flex items-center gap-0.5 px-0.5">
-          <button
-            type="button"
-            aria-label="Previous texture"
-            disabled={items.length < 2}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => step(-1)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <p
-            ref={nameRef}
-            className="min-w-0 flex-1 truncate py-1.5 text-center text-[12px] font-medium text-fg will-change-transform"
-          >
-            {active.name}
-          </p>
-          <span className="inline-flex shrink-0 items-center">
-            <TipMark id="texture" />
-          </span>
-          <button
-            type="button"
-            aria-label="Next texture"
-            disabled={items.length < 2}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={() => step(1)}
-            className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      </div>
-
       <div className="preset-well relative overflow-hidden rounded-2xl border border-line/80">
         <div
           aria-hidden
@@ -203,7 +102,7 @@ export function TexturePicker() {
         />
         <div
           ref={wellRef}
-          className="preset-well-scroll grid h-[7.5rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
           role="list"
           aria-label="Textures"
           onWheel={(e) => e.stopPropagation()}

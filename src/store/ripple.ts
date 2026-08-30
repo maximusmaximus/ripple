@@ -234,7 +234,7 @@ export const useRippleStore = create<RippleState>()(
       gyroZoom: 0.55,
       clearToken: 0,
       castPinned: false,
-      dockOpen: true,
+      dockOpen: false,
       tipsOn: false,
       openTipId: null,
       hiddenPresetIds: [],
@@ -675,7 +675,7 @@ export const useRippleStore = create<RippleState>()(
           micSensitivity: p.micDrive,
           gyroSensitivity: p.gyroDrive,
           gyroZoom: 0.55,
-          dockOpen: true,
+          dockOpen: false,
           clearToken: get().clearToken + 1,
         });
       },
@@ -788,6 +788,7 @@ export const useRippleStore = create<RippleState>()(
         return {
           ...current,
           ...p,
+          dockOpen: false,
           gyroSensitivity,
           brushShape: p.brushShape ?? current.brushShape,
           textureInvert: Boolean(p.textureInvert),

@@ -19,7 +19,7 @@ export function TipsGuide() {
   return (
     <div
       data-ui-chrome
-      className="pointer-events-none absolute bottom-[max(5.75rem,calc(env(safe-area-inset-bottom)+4.5rem))] right-3 z-[45] flex w-[min(18.5rem,calc(100vw-1.5rem))] flex-col items-end gap-2"
+      className="tips-guide pointer-events-none absolute right-3 z-[45] flex w-[min(18.5rem,calc(100vw-1.5rem))] flex-col items-end gap-2"
     >
       {on && (
         <div className="pointer-events-auto w-full rounded-2xl border border-line bg-ink/90 p-3 text-fg shadow-2xl backdrop-blur-xl">

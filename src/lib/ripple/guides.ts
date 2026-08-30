@@ -12,9 +12,14 @@ export const GUIDE_TIPS: GuideTip[] = [
     body: "Drag on the surface to push waves and lay color. Fast strokes still leave a continuous mark. Tap the canvas to hide the menu.",
   },
   {
+    id: "menu",
+    title: "Menu",
+    body: "The Menu button sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. The card is one connected scroll that always opens at the top. Tap a section to focus it — it expands while the rest dims. Tap another section, or tap the canvas, to leave.",
+  },
+  {
     id: "presets",
     title: "Presets",
-    body: "The name at the top is the live mix. Swipe it left or right — or tap the arrows — to step through. Easy is a clean first mark. The twenty worlds are each palette as designed. Mixes after that are demos: Night paper and Copperplate for nib + shadow, Taper noir for a fat-to-hair envelope, Prism blade for color along the stroke, Gyro flood and Voice bloom for sensors, Camera stain for the feed. The well below lists every mix as tall color chips, oldest at the top.",
+    body: "Four-row well of tall color chips, oldest at the top — there is no swipe preview above it. Tap a chip to load that mix. Hold two seconds for an X to hide or delete. Save as never overwrites. Easy is a clean first mark. Later chips are demos of nib, shadow, sensors, and camera.",
   },
   {
     id: "save",
@@ -54,7 +59,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "texture",
     title: "Texture",
-    body: "The selected texture sits at the top — swipe it or tap the arrows. The well below is tall chips, same layout as presets. Upload sits in the well. Invert and crop stay underneath.",
+    body: "Surface sits under Presets and uses the same four-row chip well. Tap a grain to lay it on the fluid. Upload sits in that window. Invert and crop stay underneath.",
   },
   {
     id: "gradient",

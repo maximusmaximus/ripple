@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, Smartphone } from "lucide-react";
 import { ColorRangeSlider } from "./color-range-slider";
 import { TexturePicker } from "./texture-picker";
@@ -12,6 +12,34 @@ import { StudioCredit } from "./studio-credit";
 import { TipMark, TipCopy } from "./tip-mark";
 import { SessionShare, type SessionShareValue } from "./session-share";
 import { useRippleStore } from "@/store/ripple";
+
+function DockSection({
+  id,
+  focus,
+  onFocus,
+  children,
+}: {
+  id: string;
+  focus: string | null;
+  onFocus: (id: string) => void;
+  children: ReactNode;
+}) {
+  const hot = focus === id;
+  const dim = focus != null && !hot;
+  return (
+    <section
+      data-dock-section={id}
+      data-dock-hot={hot ? "1" : "0"}
+      className={"dock-section flex flex-col gap-2.5 " + (hot ? "is-hot" : dim ? "is-dim" : "")}
+      onPointerDown={() => {
+        if (hot) return;
+        onFocus(id);
+      }}
+    >
+      {children}
+    </section>
+  );
+}
 
 export function ControlsDock({
   onShowPair,
@@ -41,7 +69,32 @@ export function ControlsDock({
   const setGyroZoom = useRippleStore((s) => s.setGyroZoom);
   const clearSurface = useRippleStore((s) => s.clearSurface);
   const cleanSession = useRippleStore((s) => s.cleanSession);
+  const dockOpen = useRippleStore((s) => s.dockOpen);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [focus, setFocus] = useState<string | null>(null);
+
+  const setSectionFocus = (id: string) => {
+    setFocus(id || null);
+  };
+
+  useEffect(() => {
+    if (!dockOpen) {
+      setFocus(null);
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    el.querySelectorAll(".chip-well-scroll").forEach((n) => {
+      if (n instanceof HTMLElement) n.scrollTop = 0;
+    });
+  }, [dockOpen]);
+
+  useEffect(() => {
+    if (!focus) return;
+    const el = scrollRef.current?.querySelector(`[data-dock-section="${CSS.escape(focus)}"]`);
+    if (el instanceof HTMLElement) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [focus]);
 
   const page = (dir: -1 | 1) => {
     const el = scrollRef.current;
@@ -58,28 +111,33 @@ export function ControlsDock({
   };
 
   return (
-    <div className="controls-dock relative flex w-full max-w-sm max-h-[min(72dvh,36rem)] flex-col rounded-3xl border border-line bg-ink/85 shadow-2xl backdrop-blur-xl">
-      <div className="relative min-h-0 flex-1">
+    <div
+      className="controls-dock relative flex w-full max-w-sm flex-col overflow-hidden rounded-3xl border border-line bg-ink/85 shadow-2xl backdrop-blur-xl"
+      data-dock-focus={focus ?? "none"}
+    >
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
           ref={scrollRef}
-          className="controls-dock-scroll flex max-h-[min(54dvh,27rem)] flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-4 pr-9 pt-4"
+          className="controls-dock-scroll absolute inset-0 overflow-y-auto overscroll-contain"
+          onPointerDown={(e) => {
+            if (!(e.target instanceof Element)) return;
+            if (!e.target.closest("[data-dock-section]")) setFocus(null);
+          }}
         >
-          <PresetStrip />
-
-          <section className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-3 px-4 pb-4 pr-9 pt-4">
+          <DockSection id="presets" focus={focus} onFocus={setSectionFocus}>
             <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
-              Paint
-              <TipMark id="paint" />
+              Presets
+              <TipMark id="presets" />
+              <TipMark id="delete" />
             </h3>
-            <BrushPicker />
-            <BrushSpanSlider />
-            <BrushShadowPanel />
-            <LayerFxPicker />
-          </section>
+            <PresetStrip />
+          </DockSection>
 
-          <section className="flex flex-col gap-2.5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
+          <DockSection id="surface" focus={focus} onFocus={setSectionFocus}>
+            <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
               Surface
+              <TipMark id="texture" />
             </h3>
             <TexturePicker />
             <ColorRangeSlider />
@@ -121,9 +179,20 @@ export function ControlsDock({
                 suppressHydrationWarning
               />
             </label>
-          </section>
+          </DockSection>
 
-          <section className="flex flex-col gap-2.5">
+          <DockSection id="paint" focus={focus} onFocus={setSectionFocus}>
+            <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
+              Paint
+              <TipMark id="paint" />
+            </h3>
+            <BrushPicker />
+            <BrushSpanSlider />
+            <BrushShadowPanel />
+            <LayerFxPicker />
+          </DockSection>
+
+          <DockSection id="sensors" focus={focus} onFocus={setSectionFocus}>
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Sensors</h3>
             <label className="flex flex-col gap-2">
               <div className="flex justify-between text-[12px] text-muted">
@@ -201,9 +270,9 @@ export function ControlsDock({
                 suppressHydrationWarning
               />
             </label>
-          </section>
+          </DockSection>
 
-          <section className="flex flex-col gap-2">
+          <DockSection id="session" focus={focus} onFocus={setSectionFocus}>
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Session</h3>
             {sessionShare && (
               <SessionShare
@@ -214,28 +283,26 @@ export function ControlsDock({
               />
             )}
             <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={clearSurface}
-              className="flex-1 rounded-xl bg-fg/10 py-2.5 text-sm text-fg/90 hover:bg-fg/20"
-            >
-              Clear surface
-            </button>
+              <button
+                type="button"
+                onClick={clearSurface}
+                className="flex-1 rounded-xl bg-fg/10 py-2.5 text-sm text-fg/90 hover:bg-fg/20"
+              >
+                Clear surface
+              </button>
               <TipMark id="clear" />
             </div>
             <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={cleanSession}
-              className="flex-1 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
-            >
-              Clean Session
-            </button>
+              <button
+                type="button"
+                onClick={cleanSession}
+                className="flex-1 rounded-xl border border-line bg-fg/5 py-2.5 text-sm text-muted hover:bg-fg/10 hover:text-fg"
+              >
+                Clean Session
+              </button>
               <TipMark id="clean" />
             </div>
-            <TipCopy>
-              Resets the live mix for the next person. Saved presets stay.
-            </TipCopy>
+            <TipCopy>Resets the live mix for the next person. Saved presets stay.</TipCopy>
             {showPairButton && (
               <>
                 <div className="relative md:hidden">
@@ -285,7 +352,9 @@ export function ControlsDock({
               </>
             )}
             <FeedbackFooter />
-          </section>
+          </DockSection>
+          <StudioCredit />
+          </div>
         </div>
 
         <div className="dock-scroll-rail absolute inset-y-0 right-0 z-10 flex w-7 flex-col py-1 pr-1">
@@ -313,7 +382,6 @@ export function ControlsDock({
           </button>
         </div>
       </div>
-      <StudioCredit />
     </div>
   );
 }

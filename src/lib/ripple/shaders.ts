@@ -10,6 +10,16 @@ void main() {
 }
 `
 
+export const COPY_FRAG = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_prev;
+void main() {
+  fragColor = texture(u_prev, v_uv);
+}
+`
+
 export const SIM_FRAG = `#version 300 es
 precision highp float;
 in vec2 v_uv;

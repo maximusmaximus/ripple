@@ -285,20 +285,17 @@ export class RippleEngine extends RippleEngineBase {
     this.firstFrameCb = cb;
   }
 
-  start() {
+  start(opts?: { seed?: boolean }) {
     if (this.running) return;
     this.running = true;
     this.lastT = 0;
-    this.applySplats([
-      { x: 0.5, y: 0.46, force: 0.62, radius: 0.055 },
-      { x: 0.4, y: 0.58, force: 0.28, radius: 0.04 },
-    ]);
-    this.raf = requestAnimationFrame(this.frame);
-    if (this.firstFrameCb) {
-      const cb = this.firstFrameCb;
-      this.firstFrameCb = null;
-      queueMicrotask(cb);
+    if (opts?.seed !== false) {
+      this.applySplats([
+        { x: 0.5, y: 0.46, force: 0.62, radius: 0.055 },
+        { x: 0.4, y: 0.58, force: 0.28, radius: 0.04 },
+      ]);
     }
+    this.raf = requestAnimationFrame(this.frame);
   }
 
   stop() {
@@ -316,6 +313,7 @@ export class RippleEngine extends RippleEngineBase {
     gl.deleteProgram(this.inkFlowProg);
     gl.deleteProgram(this.displayProg);
     gl.deleteProgram(this.clearProg);
+    gl.deleteProgram(this.copyProg);
     this.deleteFBO(this.ping);
     this.deleteFBO(this.pong);
     this.deleteFBO(this.inkPing);

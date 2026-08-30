@@ -12,6 +12,7 @@ import { PairOverlay } from "./pair-overlay";
 import { SessionGate } from "./session-gate";
 import { WatchViewport } from "./watch-viewport";
 import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
+import { TipMark } from "./tip-mark";
 import type { SensorsState } from "@/lib/ripple/media";
 import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
@@ -443,7 +444,9 @@ export function RippleApp() {
 
   return (
     <div
-      className="relative h-dvh w-dvw overflow-hidden bg-ink"
+      className={
+        "relative h-dvh w-dvw overflow-hidden bg-ink" + (isDesktop ? "" : " is-phone-studio")
+      }
       style={{ touchAction: "none", overscrollBehavior: "none" }}
       data-cast-state={host.state}
       data-cast-live={host.isLive ? "true" : "false"}
@@ -556,7 +559,7 @@ export function RippleApp() {
 
       {showChrome && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-all duration-300 ease-out"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-all duration-300 ease-out"
           style={{
             opacity: dockOpen ? 1 : 0,
             transform: dockOpen ? "translateY(0)" : "translateY(110%)",
@@ -587,7 +590,7 @@ export function RippleApp() {
       )}
 
       {showChrome && !dockOpen && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift">
           <button
             type="button"
             data-ui-chrome
@@ -597,6 +600,7 @@ export function RippleApp() {
           >
             <ChevronUp className="size-3.5" />
             Menu
+            <TipMark id="menu" />
           </button>
         </div>
       )}
@@ -812,7 +816,7 @@ function PadSurface({
   }, [dockOpen, setDockOpen]);
 
   return (
-    <div className="relative h-dvh w-dvw overflow-hidden bg-ink" style={{ touchAction: "none" }} data-pad="true" data-lan-hd={lanHd ? "1" : "0"}>
+    <div className="relative h-dvh w-dvw overflow-hidden bg-ink is-phone-studio" style={{ touchAction: "none" }} data-pad="true" data-lan-hd={lanHd ? "1" : "0"}>
       <StudioSync />
       <RippleCanvas
         sensors={sensors}
@@ -838,7 +842,7 @@ function PadSurface({
       <LanHdToast on={lanHd} />
 
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] transition-all duration-300 ease-out"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock transition-all duration-300 ease-out"
         style={{
           opacity: dockOpen ? 1 : 0,
           transform: dockOpen ? "translateY(0)" : "translateY(110%)",
@@ -862,7 +866,7 @@ function PadSurface({
       </div>
 
       {!dockOpen && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift">
           <button
             type="button"
             data-ui-chrome
@@ -872,6 +876,7 @@ function PadSurface({
           >
             <ChevronUp className="size-3.5" />
             Menu
+            <TipMark id="menu" />
           </button>
         </div>
       )}

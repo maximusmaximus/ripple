@@ -9,6 +9,7 @@ import {
   Grid2x2,
   Info,
   Layers,
+  Menu,
   Lightbulb,
   MessageSquarePlus,
   Mic,
@@ -27,6 +28,7 @@ import {
 
 const ICONS: Record<string, typeof Paintbrush> = {
   paint: Paintbrush,
+  menu: Menu,
   presets: Grid2x2,
   save: BookmarkPlus,
   delete: Trash2,

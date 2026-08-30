@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { BookmarkPlus, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { BookmarkPlus, X } from "lucide-react";
 import { useRippleStore } from "@/store/ripple";
 import {
   EASY_PRESET_ID,
@@ -19,8 +19,6 @@ import { TipMark, TipCopy } from "./tip-mark";
 import { EmojiNameField } from "./emoji-suggest";
 
 const HOLD_MS = 2000;
-const SWIPE_LOCK_PX = 10;
-const SWIPE_COMMIT_PX = 40;
 
 function mergePresets(home: NamedPreset[], studio: NamedPreset[]): NamedPreset[] {
   const seen = new Set<string>();
@@ -69,14 +67,6 @@ export function PresetStrip() {
   const held = useRef(false);
   const wellRef = useRef<HTMLDivElement>(null);
   const pinBottom = useRef(false);
-  const nameRef = useRef<HTMLParagraphElement>(null);
-  const swipe = useRef({
-    pointer: -1,
-    x: 0,
-    y: 0,
-    lock: null as null | "x" | "y",
-    dx: 0,
-  });
 
   const formRef = useRef<HTMLDivElement>(null);
 
@@ -114,12 +104,13 @@ export function PresetStrip() {
   }, []);
 
   useLayoutEffect(() => {
-    pinToBottom();
-    syncHints();
     const el = wellRef.current;
     if (!el) return;
+    if (pinBottom.current) pinToBottom();
+    else el.scrollTop = 0;
+    syncHints();
     const ro = new ResizeObserver(() => {
-      pinToBottom();
+      if (pinBottom.current) pinToBottom();
       syncHints();
     });
     ro.observe(el);
@@ -135,8 +126,13 @@ export function PresetStrip() {
 
   const revealChip = (id: string) => {
     requestAnimationFrame(() => {
-      const chip = wellRef.current?.querySelector(`[data-preset-id="${CSS.escape(id)}"]`);
-      chip?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const well = wellRef.current;
+      const chip = well?.querySelector(`[data-preset-id="${CSS.escape(id)}"]`);
+      if (!well || !(chip instanceof HTMLElement)) return;
+      const c = chip.getBoundingClientRect();
+      const w = well.getBoundingClientRect();
+      if (c.top < w.top) well.scrollTop -= w.top - c.top;
+      else if (c.bottom > w.bottom) well.scrollTop += c.bottom - w.bottom;
     });
   };
 
@@ -145,54 +141,6 @@ export function PresetStrip() {
     applySnapshot(snap);
     setActiveId(p.id);
     revealChip(p.id);
-  };
-
-  const step = async (dir: -1 | 1) => {
-    if (busy || visible.length < 2) return;
-    const i = Math.max(0, visible.findIndex((p) => p.id === activeId));
-    const next = visible[(i + dir + visible.length) % visible.length];
-    if (!next || next.id === activeId) return;
-    await load(next);
-  };
-
-  const shiftName = (px: number, animate: boolean) => {
-    const el = nameRef.current;
-    if (!el) return;
-    el.style.transition = animate ? "transform 160ms ease-out" : "none";
-    el.style.transform = `translate3d(${px}px,0,0)`;
-  };
-
-  const onSwipeDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (busy) return;
-    if ((e.target as HTMLElement).closest("button")) return;
-    swipe.current = { pointer: e.pointerId, x: e.clientX, y: e.clientY, lock: null, dx: 0 };
-    shiftName(0, false);
-  };
-
-  const onSwipeMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const s = swipe.current;
-    if (s.pointer !== e.pointerId) return;
-    const dx = e.clientX - s.x;
-    const dy = e.clientY - s.y;
-    if (!s.lock) {
-      if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return;
-      s.lock = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
-      if (s.lock === "x") e.currentTarget.setPointerCapture(e.pointerId);
-    }
-    if (s.lock !== "x") return;
-    e.preventDefault();
-    s.dx = dx;
-    shiftName(dx, false);
-  };
-
-  const onSwipeUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const s = swipe.current;
-    if (s.pointer !== e.pointerId) return;
-    const commit = s.lock === "x" && Math.abs(s.dx) >= SWIPE_COMMIT_PX && visible.length > 1;
-    const dir: -1 | 1 | 0 = commit ? (s.dx < 0 ? 1 : -1) : 0;
-    swipe.current = { pointer: -1, x: 0, y: 0, lock: null, dx: 0 };
-    shiftName(0, true);
-    if (dir) void step(dir);
   };
 
   const beginSave = () => {
@@ -282,10 +230,8 @@ export function PresetStrip() {
     el.scrollTo({ top: t * (el.scrollHeight - el.clientHeight), behavior: "smooth" });
   };
 
-  const active = visible.find((p) => p.id === activeId) ?? visible[0];
-
   return (
-    <section className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5">
       {open && (
         <div ref={formRef} className="flex flex-col gap-1.5 rounded-xl border border-line bg-fg/5 p-2">
           <TipCopy className="text-[10px] leading-snug text-amber-200/90">
@@ -311,61 +257,6 @@ export function PresetStrip() {
           </div>
         </div>
       )}
-      {active && (
-        <div
-          className="touch-pan-x select-none overflow-hidden rounded-xl border border-fg/35 bg-fg/8"
-          role="group"
-          tabIndex={0}
-          aria-label={`${active.name}. Swipe left or right to change presets.`}
-          onPointerDown={onSwipeDown}
-          onPointerMove={onSwipeMove}
-          onPointerUp={onSwipeUp}
-          onPointerCancel={onSwipeUp}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowLeft") {
-              e.preventDefault();
-              void step(-1);
-            } else if (e.key === "ArrowRight") {
-              e.preventDefault();
-              void step(1);
-            }
-          }}
-        >
-          <div className="h-3 w-full" style={{ background: barFor(active) }} aria-hidden="true" />
-          <div className="flex items-center gap-0.5 px-0.5">
-            <button
-              type="button"
-              aria-label="Previous preset"
-              disabled={busy || visible.length < 2}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => void step(-1)}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-            <p
-              ref={nameRef}
-              className="min-w-0 flex-1 truncate py-1.5 text-center text-[12px] font-medium text-fg will-change-transform"
-            >
-              {active.name}
-            </p>
-            <span className="inline-flex shrink-0 items-center gap-0.5">
-              <TipMark id="presets" />
-              <TipMark id="delete" />
-            </span>
-            <button
-              type="button"
-              aria-label="Next preset"
-              disabled={busy || visible.length < 2}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => void step(1)}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-fg/70 hover:bg-fg/12 hover:text-fg disabled:opacity-30"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        </div>
-      )}
       <div className="preset-well relative overflow-hidden rounded-2xl border border-line/80">
         <div
           aria-hidden
@@ -379,7 +270,7 @@ export function PresetStrip() {
         />
         <div
           ref={wellRef}
-          className="preset-well-scroll grid h-[7.5rem] grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
           role="list"
           aria-label="Presets"
           onScroll={syncHints}
@@ -497,6 +388,6 @@ export function PresetStrip() {
       )}
       {msg?.tone === "error" && <p className="text-[10px] text-amber-200/90">{msg.text}</p>}
       {msg?.tone === "info" && <TipCopy>{msg.text}</TipCopy>}
-    </section>
+    </div>
   );
 }
