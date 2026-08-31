@@ -13,6 +13,10 @@ export type CustomTexture = {
   height: number;
   /** Repo-relative public path after persist (`/studio/media/...`). */
   path?: string;
+  /** Session library id (`cs_…`). */
+  id?: string;
+  name?: string;
+  kind?: "random" | "upload";
 };
 
 export type { CustomBrush };
@@ -64,6 +68,8 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_IMAGE_DIM = 4096;
 export const MAX_PRESET_NAME = 32;
 export const MAX_STUDIO_PRESETS = 100;
+export const MAX_CUSTOM_SURFACES = 12;
+export const MAX_SURFACE_NAME = 18;
 export const ALLOWED_TEXTURE_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 export const EASY_PRESET_ID = "home_easy";
 export const GITHUB_HOMEBASE_URL =
@@ -128,6 +134,38 @@ export function fitCode(fit: TextureFit | string | undefined): number {
 
 export function newPresetId(): string {
   return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function newCustomSurfaceId(): string {
+  return `cs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function isCustomSurfaceId(id: string | undefined): boolean {
+  return typeof id === "string" && id.startsWith("cs_");
+}
+
+export function uniqueSurfaceName(desired: string, taken: string[]): string {
+  const root = desired.replace(/\s+/g, " ").trim().slice(0, MAX_SURFACE_NAME) || "Grain";
+  const used = new Set(taken.map((n) => n.trim().toLowerCase()));
+  if (!used.has(root.toLowerCase())) return root;
+  for (let i = 2; i < 99; i++) {
+    const next = `${root} ${i}`.slice(0, MAX_SURFACE_NAME);
+    if (!used.has(next.toLowerCase())) return next;
+  }
+  return `${root.slice(0, 12)}${Date.now().toString(36).slice(-4)}`;
+}
+
+export function upsertCustomSurface(list: CustomTexture[], tex: CustomTexture): CustomTexture[] {
+  if (!hasMediaPayload(tex)) return list;
+  const id = isCustomSurfaceId(tex.id) ? tex.id! : newCustomSurfaceId();
+  const existing = list.find((c) => c.id === id);
+  const name =
+    existing?.name ||
+    uniqueSurfaceName(tex.name || (tex.kind === "upload" ? "Upload" : "Grain"), list.map((c) => c.name || ""));
+  const item: CustomTexture = { ...tex, id, name };
+  const rest = list.filter((c) => c.id !== id);
+  const next = [...rest, item];
+  return next.length > MAX_CUSTOM_SURFACES ? next.slice(-MAX_CUSTOM_SURFACES) : next;
 }
 
 export function sanitizePresetName(name: string): string {

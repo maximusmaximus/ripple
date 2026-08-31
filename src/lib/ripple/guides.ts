@@ -24,7 +24,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "save",
     title: "Save as",
-    body: "Save as always creates a new named preset — it never overwrites. Labels must be unique. The live surface (Upload or Random), textures, and custom stamps are stored with the preset.",
+    body: "Save as always creates a new named preset — it never overwrites. Labels must be unique. The live surface (Upload or Random), textures, and custom stamps are stored with the preset. Random grains stay as chips in Surface.",
   },
   {
     id: "delete",
@@ -59,7 +59,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "texture",
     title: "Texture",
-    body: "Surface sits under Presets and uses the same four-row chip well. Tap a grain to lay it on the fluid. Upload and Random sit in the bottom-right of that window. Random paints a unique grain, stored like an upload — Save as keeps it with the mix. Invert and crop stay underneath.",
+    body: "Surface sits under Presets and uses the same four-row chip well. Tap a grain to lay it on the fluid. Upload and Random sit in the bottom-right of that window. Random paints a distinct recipe each tap — vein, wood, slick, cells — and adds a chip. Hold two seconds on an added surface for an X to remove it. Starters stay. Save as keeps the live grain with the mix. Invert and crop stay underneath.",
   },
   {
     id: "gradient",

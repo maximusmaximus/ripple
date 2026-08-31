@@ -22,7 +22,7 @@ import {
 import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaultShadowSpan, defaultShapeFor, normalizeBrushShape, normalizeBrushSpan, type BrushShape, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
-import { hasMediaPayload, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
+import { hasMediaPayload, upsertCustomSurface, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
 
 export type WorldId = PaletteId;
 
@@ -64,6 +64,8 @@ interface RippleState {
   textureId: TextureId;
   textureFit: TextureFit;
   customTexture: CustomTexture | null;
+  /** All user-added surfaces (Random + Upload). Active one is `customTexture`. */
+  customSurfaces: CustomTexture[];
   /** Object URL for an animated GIF while this session is open. Not persisted. */
   customLiveUrl: string | null;
   customBrushes: CustomBrush[];
@@ -131,6 +133,9 @@ interface RippleState {
   setTextureInvert: (v: boolean) => void;
   setGradientFlip: (v: boolean) => void;
   setCustomTexture: (tex: CustomTexture | null, liveUrl?: string | null) => void;
+  addCustomSurface: (tex: CustomTexture, liveUrl?: string | null) => void;
+  selectCustomSurface: (id: string) => void;
+  removeCustomSurface: (id: string) => void;
   resetCustomImage: () => void;
   takeSnapshot: () => StudioSnapshot;
   applySnapshot: (snap: StudioSnapshot) => void;
@@ -224,6 +229,12 @@ function liveStorage() {
         if (tex && tex.dataUrl && tex.dataUrl.length > 64) {
           state.customTexture = { ...tex, dataUrl: tex.path ? "" : tex.dataUrl.slice(0, 64) };
         }
+        const surfaces = state.customSurfaces as { dataUrl?: string; path?: string }[] | undefined;
+        if (Array.isArray(surfaces)) {
+          state.customSurfaces = surfaces.map((t) =>
+            t.dataUrl && t.dataUrl.length > 64 ? { ...t, dataUrl: t.path ? "" : t.dataUrl.slice(0, 64) } : t,
+          );
+        }
         const brushes = state.customBrushes as { dataUrl?: string; path?: string }[] | undefined;
         if (Array.isArray(brushes)) {
           state.customBrushes = brushes.map((b) =>
@@ -274,6 +285,7 @@ export const useRippleStore = create<RippleState>()(
       textureId: DEFAULT_TEXTURE_ID,
       textureFit: "cover",
       customTexture: null,
+      customSurfaces: [],
       customLiveUrl: null,
       customBrushes: [],
       textureLevels: 0,
@@ -553,7 +565,12 @@ export const useRippleStore = create<RippleState>()(
       setTextureId: (id) =>
         set((s) => {
           const next = getTexture(id).id;
-          if (next === "custom" && !s.customTexture) return s;
+          if (next === "custom") {
+            if (s.customTexture && hasMediaPayload(s.customTexture)) return { textureId: next };
+            const last = s.customSurfaces.filter(hasMediaPayload).at(-1) ?? null;
+            if (!last) return s;
+            return { textureId: next, customTexture: last };
+          }
           return { textureId: next };
         }),
       setTextureFit: (fit) => set({ textureFit: fit }),
@@ -578,7 +595,27 @@ export const useRippleStore = create<RippleState>()(
             },
           };
         }),
-      setCustomTexture: (tex, liveUrl) =>
+      setCustomTexture: (tex, liveUrl) => {
+        if (!tex) {
+          set((s) => {
+            if (s.customLiveUrl) {
+              try {
+                URL.revokeObjectURL(s.customLiveUrl);
+              } catch {
+                /* ignore */
+              }
+            }
+            return {
+              customTexture: null,
+              customLiveUrl: null,
+              textureId: DEFAULT_TEXTURE_ID,
+            };
+          });
+          return;
+        }
+        get().addCustomSurface(tex, liveUrl);
+      },
+      addCustomSurface: (tex, liveUrl) =>
         set((s) => {
           if (s.customLiveUrl && s.customLiveUrl !== liveUrl) {
             try {
@@ -587,12 +624,52 @@ export const useRippleStore = create<RippleState>()(
               /* ignore */
             }
           }
+          const customSurfaces = upsertCustomSurface(s.customSurfaces, tex);
+          const customTexture = customSurfaces[customSurfaces.length - 1] ?? tex;
           return {
-            customTexture: tex,
-            customLiveUrl: tex ? (liveUrl ?? null) : null,
-            textureId: tex ? "custom" : DEFAULT_TEXTURE_ID,
-            textureFit: tex ? "cover" : s.textureFit,
+            customSurfaces,
+            customTexture,
+            customLiveUrl: liveUrl ?? null,
+            textureId: "custom" as const,
+            textureFit: "cover" as const,
             textureLevels: 0,
+          };
+        }),
+      selectCustomSurface: (id) =>
+        set((s) => {
+          const item = s.customSurfaces.find((c) => c.id === id);
+          if (!item || !hasMediaPayload(item)) return s;
+          if (s.customLiveUrl) {
+            try {
+              URL.revokeObjectURL(s.customLiveUrl);
+            } catch {
+              /* ignore */
+            }
+          }
+          return {
+            customTexture: item,
+            customLiveUrl: null,
+            textureId: "custom" as const,
+          };
+        }),
+      removeCustomSurface: (id) =>
+        set((s) => {
+          const next = s.customSurfaces.filter((c) => c.id !== id);
+          const wasActive = s.customTexture?.id === id;
+          if (!wasActive) return { customSurfaces: next };
+          if (s.customLiveUrl) {
+            try {
+              URL.revokeObjectURL(s.customLiveUrl);
+            } catch {
+              /* ignore */
+            }
+          }
+          const fallback = next.filter(hasMediaPayload).at(-1) ?? null;
+          return {
+            customSurfaces: next,
+            customTexture: fallback,
+            customLiveUrl: null,
+            textureId: fallback ? ("custom" as const) : DEFAULT_TEXTURE_ID,
           };
         }),
       resetCustomImage: () => set({ textureFit: "cover", textureLevels: 0 }),
@@ -651,8 +728,13 @@ export const useRippleStore = create<RippleState>()(
             /* ignore */
           }
         }
-        const custom = snap.customTexture && hasMediaPayload(snap.customTexture) ? snap.customTexture : null;
-        const texId = custom ? getTexture(snap.textureId).id : getTexture(snap.textureId === "custom" ? DEFAULT_TEXTURE_ID : snap.textureId).id;
+        const incomingTex = snap.customTexture && hasMediaPayload(snap.customTexture) ? snap.customTexture : null;
+        const wantsCustom = snap.textureId === "custom" && incomingTex != null;
+        const customSurfaces = wantsCustom && incomingTex ? upsertCustomSurface(get().customSurfaces, incomingTex) : get().customSurfaces;
+        const activeCustom = wantsCustom
+          ? (customSurfaces.find((c) => c.id && incomingTex && c.id === incomingTex.id) ?? customSurfaces[customSurfaces.length - 1] ?? incomingTex)
+          : get().customTexture;
+        const texId = wantsCustom ? "custom" : getTexture(snap.textureId === "custom" ? DEFAULT_TEXTURE_ID : snap.textureId).id;
         set({
           worldId: snap.worldId,
           colorRanges: snap.colorRanges ?? {},
@@ -673,9 +755,10 @@ export const useRippleStore = create<RippleState>()(
           shadowOpacity: snap.shadowOpacity,
           shadowDist: Math.max(0, Math.min(1, snap.shadowDist ?? 0.35)),
           shadowSpan: normalizeBrushSpan(snap.shadowSpan ?? defaultShadowSpan()),
-          textureId: texId === "custom" && !custom ? DEFAULT_TEXTURE_ID : texId,
+          textureId: texId === "custom" && !wantsCustom ? DEFAULT_TEXTURE_ID : texId,
           textureFit: snap.textureFit === "contain" || snap.textureFit === "stretch" ? snap.textureFit : "cover",
-          customTexture: custom,
+          customTexture: wantsCustom ? activeCustom : get().customTexture,
+          customSurfaces,
           customLiveUrl: null,
           textureLevels: Math.max(0, Math.min(1, snap.textureLevels ?? 0)),
           textureInvert: Boolean(snap.textureInvert),
@@ -723,6 +806,7 @@ export const useRippleStore = create<RippleState>()(
           textureId: DEFAULT_TEXTURE_ID,
           textureFit: "cover",
           customTexture: null,
+          customSurfaces: [],
           customLiveUrl: null,
           textureLevels: 0,
           textureInvert: false,
@@ -818,6 +902,7 @@ export const useRippleStore = create<RippleState>()(
         textureId: s.textureId,
         textureFit: s.textureFit,
         customTexture: s.customTexture,
+        customSurfaces: s.customSurfaces,
         textureLevels: s.textureLevels,
         textureInvert: s.textureInvert,
         gradientFlip: s.gradientFlip,
@@ -846,6 +931,13 @@ export const useRippleStore = create<RippleState>()(
           ...c,
           markWidth: typeof c.markWidth === "number" ? c.markWidth : 1,
         }));
+        const rawSurfaces = Array.isArray((p as { customSurfaces?: CustomTexture[] }).customSurfaces)
+          ? (p as { customSurfaces: CustomTexture[] }).customSurfaces
+          : current.customSurfaces;
+        let customSurfaces = rawSurfaces.filter(hasMediaPayload);
+        if (customSurfaces.length === 0 && p.customTexture && hasMediaPayload(p.customTexture)) {
+          customSurfaces = upsertCustomSurface([], p.customTexture);
+        }
         return {
           ...current,
           ...p,
@@ -860,6 +952,7 @@ export const useRippleStore = create<RippleState>()(
           shadowDist: typeof p.shadowDist === "number" ? Math.max(0, Math.min(1, p.shadowDist)) : current.shadowDist,
           shadowSpan: normalizeBrushSpan(p.shadowSpan ?? current.shadowSpan ?? defaultShadowSpan()),
           customBrushes,
+          customSurfaces,
           hiddenPresetIds: Array.isArray((p as { hiddenPresetIds?: string[] }).hiddenPresetIds)
             ? (p as { hiddenPresetIds: string[] }).hiddenPresetIds
             : current.hiddenPresetIds,

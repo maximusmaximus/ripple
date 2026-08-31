@@ -41,7 +41,7 @@ Drag on the surface. Fast strokes stay continuous. Tapping the canvas hides the 
 
 Each starter is a full mix: palette, **width profile**, **Brush Color along the stroke**, shadow, texture, camera, and mic — a demo of what the engine can do. Easy is the clean first mark. The twenty worlds are the palettes as designed. Mixes after that stack a feature (Night paper, Copperplate, Taper noir, Shadow ember, Prism blade, Gyro flood, Camera stain, …). Keyboard `←` `→` / `[` `]` still step through palettes on the canvas.
 
-**Save as** always creates a **new** named preset at the bottom of the window. It never overwrites. Names must be unique. The live **surface** (an upload or a Random grain), textures, and custom PNG stamps are stored with the preset for the next visitor.
+**Save as** always creates a **new** named preset at the bottom of the window. It never overwrites. Names must be unique. The live **surface** (an upload or a Random grain), textures, and custom PNG stamps are stored with the preset for the next visitor. That grain also stays as a chip in **Surface**.
 
 **Hold a chip for two seconds** — an **X** appears on that chip. Tap the X and confirm to remove it. Your own saves are deleted for everyone. Starter presets hide on this studio and can be restored by a clean browser profile.
 
@@ -59,7 +59,7 @@ Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix bo
 
 ### Surface
 
-**Surface** sits directly under Presets and uses the **same chip well**: four rows of tall grains, **Upload** and **Random** in the bottom-right of that window. Random paints a unique grain and stores it like an upload — **Save as** keeps that image with the mix. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
+**Surface** sits directly under Presets and uses the **same chip well**: four rows of tall grains, **Upload** and **Random** in the bottom-right of that window. Random paints a distinct recipe each tap (vein, wood, slick, cells, …) so consecutive grains actually differ, and each one becomes its own chip. **Hold a non-starter chip for two seconds** — an **X** appears; tap it to remove that surface. Starter grains stay. **Save as** keeps the live grain with the mix. Invert and crop stay underneath. JPG, PNG, GIF, WebP.
 
 **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed. Width and color for the brush live under Paint.
 

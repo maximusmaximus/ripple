@@ -121,7 +121,7 @@ export const TEXTURES: CanvasTexture[] = [
     id: "custom",
     name: "Custom",
     code: 12,
-    hint: "Your upload or a generated grain. Crop it, then Save as to keep it with the mix.",
+    hint: "Your upload or a generated grain. Hold two seconds to remove it. Save as keeps it with the mix.",
     preview: "linear-gradient(145deg, #3a3a44, #1a1a20)",
   },
 ];

@@ -1,7 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { TEXTURES, getTexture } from "@/lib/ripple/textures";
-import { MAX_UPLOAD_BYTES, mediaSrc } from "@/lib/ripple/studio";
+import {
+  MAX_UPLOAD_BYTES,
+  hasMediaPayload,
+  mediaSrc,
+  uniqueSurfaceName,
+} from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
 import { makeRandomSurface } from "@/lib/ripple/random-surface";
 import { useRippleStore } from "@/store/ripple";
@@ -9,6 +14,7 @@ import { TextureCrop } from "./texture-crop";
 import { TipCopy } from "./tip-mark";
 
 const STARTERS = TEXTURES.filter((t) => t.id !== "custom");
+const HOLD_MS = 2000;
 
 export function TexturePicker() {
   const textureId = useRippleStore((s) => s.textureId);
@@ -21,18 +27,35 @@ export function TexturePicker() {
   const setTextureInvert = useRippleStore((s) => s.setTextureInvert);
   const resetCustomImage = useRippleStore((s) => s.resetCustomImage);
   const customTexture = useRippleStore((s) => s.customTexture);
+  const customSurfaces = useRippleStore((s) => s.customSurfaces);
   const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
-  const setCustomTexture = useRippleStore((s) => s.setCustomTexture);
+  const addCustomSurface = useRippleStore((s) => s.addCustomSurface);
+  const selectCustomSurface = useRippleStore((s) => s.selectCustomSurface);
+  const removeCustomSurface = useRippleStore((s) => s.removeCustomSurface);
   const fileRef = useRef<HTMLInputElement>(null);
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<"off" | "file" | "random">("off");
   const [upHint, setUpHint] = useState(0);
   const [downHint, setDownHint] = useState(0);
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
   const wellRef = useRef<HTMLDivElement>(null);
 
+  const library = customSurfaces.filter(hasMediaPayload);
   const previewSrc = customLiveUrl || mediaSrc(customTexture);
-  const items = customTexture ? [...STARTERS, getTexture("custom")] : STARTERS;
-  const active = getTexture(textureId === "custom" && !customTexture ? "none" : textureId);
+  const activeCustomId = textureId === "custom" ? customTexture?.id ?? null : null;
+  const activeStarter = getTexture(textureId === "custom" && !customTexture ? "none" : textureId);
+  const activeName =
+    textureId === "custom" ? customTexture?.name || (customTexture?.kind === "upload" ? "Upload" : "Random") : activeStarter.name;
+
+  const clearHold = () => {
+    if (holdTimer.current != null) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+  };
 
   const syncHints = () => {
     const el = wellRef.current;
@@ -50,17 +73,18 @@ export function TexturePicker() {
     const onScroll = () => syncHints();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [items.length]);
+  }, [library.length]);
 
   useEffect(() => {
     const well = wellRef.current;
-    const el = well?.querySelector(`[data-tex-id="${active.id}"]`);
+    const key = activeCustomId ? `cs:${activeCustomId}` : activeStarter.id;
+    const el = well?.querySelector(`[data-tex-id="${key}"]`);
     if (!well || !(el instanceof HTMLElement)) return;
     const c = el.getBoundingClientRect();
     const w = well.getBoundingClientRect();
     if (c.top < w.top) well.scrollTop -= w.top - c.top;
     else if (c.bottom > w.bottom) well.scrollTop += c.bottom - w.bottom;
-  }, [active.id]);
+  }, [activeCustomId, activeStarter.id]);
 
   const jumpInWell = (clientY: number, target: HTMLElement) => {
     const el = wellRef.current;
@@ -80,7 +104,12 @@ export function TexturePicker() {
     setErr(null);
     try {
       const loaded = await readTextureFile(file);
-      setCustomTexture(loaded.still, loaded.animated ? loaded.liveUrl : null);
+      const taken = useRippleStore.getState().customSurfaces.map((s) => s.name || "");
+      const name = uniqueSurfaceName(file.name.replace(/\.[^.]+$/, "") || "Upload", taken);
+      addCustomSurface(
+        { ...loaded.still, name, kind: "upload" },
+        loaded.animated ? loaded.liveUrl : null,
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not use that file.");
     } finally {
@@ -95,9 +124,10 @@ export function TexturePicker() {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         try {
-          const colors = useRippleStore.getState().getActiveColors();
-          const tex = makeRandomSurface(colors);
-          setCustomTexture(tex);
+          const state = useRippleStore.getState();
+          const taken = state.customSurfaces.map((s) => s.name || "");
+          const tex = makeRandomSurface(state.getActiveColors(), taken);
+          state.addCustomSurface(tex);
         } catch (e) {
           setErr(e instanceof Error ? e.message : "Could not paint a surface.");
         } finally {
@@ -109,6 +139,14 @@ export function TexturePicker() {
 
   const fab =
     "inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg disabled:opacity-40";
+
+  const chipClass = (on: boolean, armed: boolean) =>
+    "flex min-h-11 w-full flex-col overflow-hidden rounded-lg border text-left text-[10px] leading-tight " +
+    (on
+      ? "border-fg bg-fg/18 text-fg"
+      : armed
+        ? "border-fg/50 bg-fg/12 text-fg"
+        : "border-line/80 bg-fg/8 text-fg/85 hover:border-fg/40 hover:bg-fg/15");
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -130,31 +168,82 @@ export function TexturePicker() {
           aria-label="Textures"
           onWheel={(e) => e.stopPropagation()}
         >
-          {items.map((t) => {
-            const on = t.id === active.id;
-            const preview = t.id === "custom" && previewSrc ? `url(${previewSrc}) center / cover` : t.preview;
+          {STARTERS.map((t) => {
+            const on = textureId !== "custom" && t.id === activeStarter.id;
             return (
               <div key={t.id} data-tex-id={t.id} className="relative min-w-0">
                 <button
                   type="button"
                   title={`${t.name} — ${t.hint}`}
                   onClick={() => setTextureId(t.id)}
-                  className={
-                    "flex min-h-11 w-full flex-col overflow-hidden rounded-lg border text-left text-[10px] leading-tight " +
-                    (on
-                      ? "border-fg bg-fg/18 text-fg"
-                      : "border-line/80 bg-fg/8 text-fg/85 hover:border-fg/40 hover:bg-fg/15")
-                  }
+                  className={chipClass(on, false)}
+                >
+                  <span className={on ? "block h-7 w-full" : "block h-6 w-full"} style={{ background: t.preview }} aria-hidden />
+                  <span className={"min-h-0 flex-1 truncate px-1.5 " + (on ? "py-1.5 font-medium" : "py-1")}>{t.name}</span>
+                </button>
+              </div>
+            );
+          })}
+          {library.map((s) => {
+            const id = s.id || "";
+            const on = textureId === "custom" && activeCustomId === id;
+            const armed = armedId === id;
+            const src = mediaSrc(s);
+            const label = s.name || (s.kind === "upload" ? "Upload" : "Random");
+            return (
+              <div
+                key={id}
+                data-tex-id={`cs:${id}`}
+                data-custom-surface={s.kind || "random"}
+                data-surface-name={label}
+                data-armed={armed ? "1" : "0"}
+                className="relative min-w-0"
+                onPointerDown={(e) => {
+                  if (!id) return;
+                  e.stopPropagation();
+                  const node = e.currentTarget;
+                  node.setAttribute("data-holding", "1");
+                  held.current = false;
+                  clearHold();
+                  holdTimer.current = window.setTimeout(() => {
+                    held.current = true;
+                    setArmedId(id);
+                  }, HOLD_MS);
+                }}
+                onPointerUp={(e) => {
+                  e.currentTarget.removeAttribute("data-holding");
+                  clearHold();
+                }}
+              >
+                <button
+                  type="button"
+                  title={`${label} — hold to remove`}
+                  onClick={() => {
+                    if (held.current) {
+                      held.current = false;
+                      return;
+                    }
+                    if (id) selectCustomSurface(id);
+                  }}
+                  className={chipClass(on, armed)}
                 >
                   <span
                     className={on ? "block h-7 w-full" : "block h-6 w-full"}
-                    style={{ background: preview }}
+                    style={src ? { background: `url("${src}") center / cover no-repeat` } : undefined}
                     aria-hidden
                   />
-                  <span className={"min-h-0 flex-1 truncate px-1.5 " + (on ? "py-1.5 font-medium" : "py-1")}>
-                    {t.name}
-                  </span>
+                  <span className={"min-h-0 flex-1 truncate px-1.5 " + (on ? "py-1.5 font-medium" : "py-1")}>{label}</span>
                 </button>
+                {armed && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${label}`}
+                    onClick={() => setConfirmId(id)}
+                    className="absolute -right-1 -top-1 z-10 flex size-4 items-center justify-center rounded-full bg-fg text-ink"
+                  >
+                    <X className="size-2.5" strokeWidth={3} />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -168,18 +257,8 @@ export function TexturePicker() {
         <div className="well-fab-cluster">
           <button
             type="button"
-            title={
-              customTexture
-                ? "Your image — tap to replace (JPG, PNG, GIF · max 10 MB)"
-                : "Upload a JPG, PNG, GIF, or WebP — max 10 MB"
-            }
-            onClick={() => {
-              if (customTexture && textureId !== "custom") {
-                setTextureId("custom");
-                return;
-              }
-              fileRef.current?.click();
-            }}
+            title="Upload a JPG, PNG, GIF, or WebP — max 10 MB. Adds a chip you can hold to remove."
+            onClick={() => fileRef.current?.click()}
             disabled={busy !== "off"}
             className={fab}
           >
@@ -189,7 +268,7 @@ export function TexturePicker() {
           <button
             type="button"
             data-random-surface="true"
-            title="Paint a unique grain. Stored like an upload — Save as keeps it with the mix."
+            title="Paint a unique grain. Each tap is a different recipe and adds a chip — Save as keeps the live one with the mix."
             onClick={onRandom}
             disabled={busy !== "off"}
             className={fab}
@@ -212,6 +291,35 @@ export function TexturePicker() {
         />
       </div>
 
+      {confirmId && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-fg/8 px-2 py-1.5">
+          <p className="text-[10px] text-fg/90">Delete this surface?</p>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmId(null);
+                setArmedId(null);
+              }}
+              className="rounded-md px-2 py-1 text-[10px] text-muted hover:text-fg"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                removeCustomSurface(confirmId);
+                setConfirmId(null);
+                setArmedId(null);
+              }}
+              className="rounded-md bg-fg/15 px-2 py-1 text-[10px] font-medium text-fg hover:bg-fg/25"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
+
       {err ? (
         <p className="text-[10px] text-amber-200/90">{err}</p>
       ) : busy === "file" ? (
@@ -221,8 +329,8 @@ export function TexturePicker() {
       ) : (
         <TipCopy>
           {textureId === "custom"
-            ? "Your image rides the fluid. Crop, threshold, or refresh it below. Save as stores it with the mix."
-            : active.hint}
+            ? `${activeName} rides the fluid. Crop, threshold, or hold two seconds to remove. Save as stores it with the mix.`
+            : activeStarter.hint}
         </TipCopy>
       )}
 
