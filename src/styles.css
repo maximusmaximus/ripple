@@ -288,7 +288,7 @@ html[data-pointer="fine"] .well-corner-fab {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   padding: 8px 12px 10px;
   border-radius: 14px;
@@ -310,7 +310,7 @@ html[data-pointer="fine"] .well-corner-fab {
 .voidride-load-bar {
   display: block;
   height: 5px;
-  width: 9.5rem;
+  width: 100%;
   overflow: hidden;
   border-radius: 999px;
   background: rgb(255 255 255 / 0.22);

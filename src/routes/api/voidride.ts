@@ -9,10 +9,12 @@ export const Route = createFileRoute("/api/voidride")({
         try {
           const drop = await fetchVoidrideLatest();
           return Response.json(drop, {
-            headers: { "cache-control": "public, max-age=120" },
+            headers: { "cache-control": "no-store" },
           });
         } catch {
-          return Response.json(VOIDRIDE_LATEST);
+          return Response.json(VOIDRIDE_LATEST, {
+            headers: { "cache-control": "no-store" },
+          });
         }
       },
     },

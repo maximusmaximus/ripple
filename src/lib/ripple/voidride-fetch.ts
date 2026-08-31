@@ -3,9 +3,11 @@ import { VOIDRIDE_LATEST, type VoidrideRelease } from "@/lib/voidride";
 const PROFILE = "https://soundcloud.com/ridethevoid";
 const TRACKS = `${PROFILE}/tracks`;
 const UA = "Mozilla/5.0 RippleStudio/1.0";
-const TTL_MS = 120_000;
+const TTL_MS = 60_000;
 
 let cache: { at: number; drop: VoidrideRelease } | null = null;
+
+type TrackHit = { href: string; title: string; published: string };
 
 function decode(html: string) {
   const amp = `&${"amp"};`;
@@ -27,18 +29,18 @@ async function get(url: string): Promise<string> {
   return r.text();
 }
 
-function trackNames(html: string): { href: string; title: string }[] {
-  const out: { href: string; title: string }[] = [];
+function trackNames(html: string): TrackHit[] {
+  const out: TrackHit[] = [];
   const seen = new Set<string>();
-  const re =
-    /<h2 itemprop="name">\s*<a itemprop="url" href="(\/ridethevoid\/(?!sets\/)[^"]+)">([^<]+)<\/a>/g;
+  const dated =
+    /<h2 itemprop="name">\s*<a itemprop="url" href="(\/ridethevoid\/(?!sets\/)[^"]+)">([^<]+)<\/a>[\s\S]{0,280}?<time pubdate>([^<]+)<\/time>/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
+  while ((m = dated.exec(html))) {
     const href = m[1]!;
     if (href.includes("/") && href.split("/").length > 3) continue;
     if (seen.has(href)) continue;
     seen.add(href);
-    out.push({ href, title: decode(m[2]!).trim() });
+    out.push({ href, title: decode(m[2]!).trim(), published: m[3]!.trim() });
   }
   if (out.length) return out;
   const loose = /href="(\/ridethevoid\/[a-z0-9-]+)"[^>]*>([^<]{2,80})</gi;
@@ -48,9 +50,16 @@ function trackNames(html: string): { href: string; title: string }[] {
     if (!slug || slug === "sets" || slug === "albums" || slug === "tracks" || slug === "likes") continue;
     if (seen.has(href)) continue;
     seen.add(href);
-    out.push({ href, title: decode(m[2]!).trim() });
+    out.push({ href, title: decode(m[2]!).trim(), published: "" });
   }
   return out;
+}
+
+function newestTrack(tracks: TrackHit[]): TrackHit | undefined {
+  if (!tracks.length) return undefined;
+  const dated = tracks.filter((t) => t.published);
+  if (!dated.length) return tracks[0];
+  return dated.slice().sort((a, b) => b.published.localeCompare(a.published))[0];
 }
 
 function albumOf(html: string): { href: string; title: string } | null {
@@ -82,8 +91,7 @@ export async function fetchVoidrideLatest(): Promise<VoidrideRelease> {
   if (cache && now - cache.at < TTL_MS) return cache.drop;
   try {
     const tracksHtml = await get(TRACKS);
-    const tracks = trackNames(tracksHtml);
-    const song = tracks[0];
+    const song = newestTrack(trackNames(tracksHtml));
     if (!song) throw new Error("no track");
     const songUrl = `https://soundcloud.com${song.href}`;
     const songTitle = song.title;

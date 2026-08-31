@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { VOIDRIDE_HOLD_MS, VOIDRIDE_LATEST, VOIDRIDE_PROFILE, type VoidrideRelease } from "@/lib/voidride";
-import { readCachedVoidride, writeCachedVoidride } from "@/lib/ripple/session-resume";
+import { VOIDRIDE_HOLD_MS, VOIDRIDE_PROFILE, type VoidrideRelease } from "@/lib/voidride";
+import { writeCachedVoidride } from "@/lib/ripple/session-resume";
 
 export function useVoidrideLatest() {
-  const [drop, setDrop] = useState<VoidrideRelease | null>(() => readCachedVoidride());
+  const [drop, setDrop] = useState<VoidrideRelease | null>(null);
   useEffect(() => {
     let live = true;
+    try {
+      window.localStorage.removeItem("ripple-voidride-latest");
+    } catch {
+      /* private mode */
+    }
     void fetch("/api/voidride", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((body: VoidrideRelease | null) => {
@@ -92,7 +97,6 @@ export function VoidrideHold({
   quiet?: boolean;
 }) {
   const drop = useVoidrideLatest();
-  const shown = drop ?? VOIDRIDE_LATEST;
   const ready = drop != null;
   const fill = Math.max(0.04, Math.min(1, progress ?? (quiet ? 1 : 0.04)));
   const pct = Math.round(fill * 100);
@@ -105,26 +109,20 @@ export function VoidrideHold({
           : "voidride-hold relative min-h-[22rem] w-full overflow-hidden rounded-2xl bg-ink"
       }
       data-voidride-ready={ready ? "1" : "0"}
-      data-voidride-title={ready ? shown.title : ""}
+      data-voidride-title={ready ? drop.title : ""}
     >
-      <img
-        src={shown.art}
-        alt={ready ? `${shown.album} — ${shown.title}` : "VOIDRIDE"}
-        className="absolute inset-0 size-full object-cover"
-        decoding="async"
-        fetchPriority="high"
-        onError={(e) => {
-          const el = e.currentTarget;
-          if (el.dataset.fallback === "2") return;
-          if (el.dataset.fallback === "1") {
-            el.dataset.fallback = "2";
-            el.src = VOIDRIDE_LATEST.art;
-            return;
-          }
-          el.dataset.fallback = "1";
-          el.src = "/studio/voidride-latest.jpg";
-        }}
-      />
+      {drop?.art ? (
+        <img
+          src={drop.art}
+          alt={`${drop.album} — ${drop.title}`}
+          className="absolute inset-0 size-full object-cover"
+          decoding="async"
+          fetchPriority="high"
+          onError={(e) => {
+            e.currentTarget.remove();
+          }}
+        />
+      ) : null}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/20" />
 
@@ -143,21 +141,21 @@ export function VoidrideHold({
             VOIDRIDE
           </a>
         </p>
-        {ready ? (
+        {drop ? (
           <>
             <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">Latest</p>
-            <p className="text-lg font-semibold tracking-wide text-white">{shown.title}</p>
-            {shown.album && shown.album !== shown.title ? (
+            <p className="text-lg font-semibold tracking-wide text-white">{drop.title}</p>
+            {drop.album && drop.album !== drop.title ? (
               <a
-                href={shown.albumUrl}
+                href={drop.albumUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[11px] uppercase tracking-[0.18em] text-white/70 hover:text-white"
               >
-                {shown.album}
+                {drop.album}
               </a>
             ) : null}
-            <VoidrideListen drop={shown} className="mt-1" />
+            <VoidrideListen drop={drop} className="mt-1" />
           </>
         ) : null}
       </div>

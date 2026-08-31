@@ -89,7 +89,7 @@ On a phone the light is also top-right. It does **not** auto-open. Tap it after 
 
 Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again. Same-network pairs light the bulb **HD**; extra watchers do not turn that off.
 
-The pairing card opens with the latest **VOIDRIDE** album for a few seconds so you can tap **Listen** on that song. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears. The same latest album sits at the bottom of the menu, **under** “Made with ♥ in SF with support from VOIDRIDE”, as a full-width cover so Listen is always on hand.
+The pairing card opens with the **latest VOIDRIDE track from SoundCloud** for a few seconds so you can tap **Listen** on that song. Launch never shows a stored older cover — it waits for the live drop. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears. The same latest track sits at the bottom of the menu, **under** “Made with ♥ in SF with support from VOIDRIDE”, as a full-width cover so Listen is always on hand.
 
 Phone landscape still hides chrome when you are drawing on the phone itself (not paired as a pad).
 

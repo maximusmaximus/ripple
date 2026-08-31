@@ -12,11 +12,11 @@ export type VoidrideRelease = {
   art: string;
 };
 
-/** Fallback if SoundCloud is unreachable — newest published track. */
+/** Last-resort if SoundCloud is unreachable — must match the current newest track. */
 export const VOIDRIDE_LATEST: VoidrideRelease = {
-  album: "₴ɏ₦ΔƤ₴Ɇ ₦ɆϾƦØƤØⱠł₴",
-  albumUrl: "https://soundcloud.com/ridethevoid/sets/d-s",
-  title: "Silicon Seance",
+  album: "SILICON SEANCE",
+  albumUrl: "https://soundcloud.com/ridethevoid/silicon-seance",
+  title: "SILICON SEANCE",
   url: "https://soundcloud.com/ridethevoid/silicon-seance",
-  art: "/studio/voidride-latest.jpg",
+  art: "https://i1.sndcdn.com/artworks-ozSHehd4LXPOlUWa-daMnlw-t500x500.jpg",
 };

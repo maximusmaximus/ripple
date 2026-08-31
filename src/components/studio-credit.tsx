@@ -1,5 +1,5 @@
 import { Github, Heart } from "lucide-react";
-import { VOIDRIDE_LATEST, VOIDRIDE_PROFILE } from "@/lib/voidride";
+import { VOIDRIDE_PROFILE } from "@/lib/voidride";
 import { VoidrideListen, useVoidrideLatest } from "./voidride-hold";
 
 export const GITHUB_REPO = "maximusmaximus/ripple";
@@ -29,7 +29,7 @@ function RippleMark({ className }: { className?: string }) {
 }
 
 export function StudioCredit() {
-  const drop = useVoidrideLatest() ?? VOIDRIDE_LATEST;
+  const drop = useVoidrideLatest();
   return (
     <div
       data-studio-credit="true"
@@ -77,41 +77,36 @@ export function StudioCredit() {
           VOIDRIDE
         </a>
       </p>
-      <div data-voidride-latest="true" className="voidride-latest">
-        <img
-          src={drop.art}
-          alt=""
-          className="voidride-latest-art"
-          onError={(e) => {
-            e.currentTarget.src = "/studio/voidride-latest.jpg";
-          }}
-        />
-        <div className="voidride-latest-shade" aria-hidden />
-        <div className="voidride-latest-copy">
-          <a
-            href={drop.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => {
-              e.preventDefault();
-              if (!openOutside(drop.url)) {
-                void navigator.clipboard.writeText(drop.url).catch(() => {});
-              }
-            }}
-            className="min-w-0"
-            aria-label={`${drop.title} on SoundCloud`}
-          >
-            <span className="block text-[10px] font-medium uppercase tracking-[0.22em] text-fg/55">Latest</span>
-            <span className="mt-0.5 block truncate text-base font-semibold tracking-wide text-fg">{drop.title}</span>
-            {drop.album && drop.album !== drop.title ? (
-              <span className="mt-0.5 block truncate text-[11px] uppercase tracking-[0.14em] text-fg/65">
-                {drop.album}
-              </span>
-            ) : null}
-          </a>
-          <VoidrideListen drop={drop} className="mt-2 self-start" />
+      {drop ? (
+        <div data-voidride-latest="true" className="voidride-latest">
+          <img src={drop.art} alt="" className="voidride-latest-art" />
+          <div className="voidride-latest-shade" aria-hidden />
+          <div className="voidride-latest-copy">
+            <a
+              href={drop.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!openOutside(drop.url)) {
+                  void navigator.clipboard.writeText(drop.url).catch(() => {});
+                }
+              }}
+              className="min-w-0"
+              aria-label={`${drop.title} on SoundCloud`}
+            >
+              <span className="block text-[10px] font-medium uppercase tracking-[0.22em] text-fg/55">Latest</span>
+              <span className="mt-0.5 block truncate text-base font-semibold tracking-wide text-fg">{drop.title}</span>
+              {drop.album && drop.album !== drop.title ? (
+                <span className="mt-0.5 block truncate text-[11px] uppercase tracking-[0.14em] text-fg/65">
+                  {drop.album}
+                </span>
+              ) : null}
+            </a>
+            <VoidrideListen drop={drop} className="mt-2 self-start" />
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
