@@ -28,6 +28,7 @@ type Recipe = {
   vis?: number;
   wave?: number;
   cam?: number;
+  opacity?: number;
   mic?: number;
   gyro?: number;
   zoom?: number;
@@ -90,6 +91,7 @@ const RECIPES: Recipe[] = [
     gyro: 0.125,
     zoom: 0.55,
     fxOp: 0.7,
+    opacity: 0.58,
     span: { start: 0.052, mid: 0.036, end: 0.018 },
     shape: { angle: 0, width: 1, spin: 0 },
     stops: ink("easy", [
@@ -109,6 +111,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "texture", "shadow"],
     vis: 0.988,
     wave: 0.38,
+    opacity: 0.2,
     span: { start: 0.058, mid: 0.028, end: 0.01 },
     shape: { angle: 45, width: 0.28, spin: 0 },
     shadowAngle: 118,
@@ -135,6 +138,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "shadow"],
     vis: 0.992,
     wave: 0.28,
+    opacity: 0.12,
     span: { start: 0.05, mid: 0.026, end: 0.009 },
     shape: { angle: 55, width: 0.24, spin: 0 },
     shadowAngle: 155,
@@ -161,6 +165,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "shadow"],
     vis: 0.986,
     wave: 0.32,
+    opacity: 0.18,
     span: { start: 0.09, mid: 0.034, end: 0.008 },
     shape: { angle: 8, width: 0.38, spin: 0 },
     shadowAngle: 210,
@@ -188,6 +193,7 @@ const RECIPES: Recipe[] = [
     vis: 0.97,
     wave: 0.88,
     flip: true,
+    opacity: 0.46,
     span: { start: 0.1, mid: 0.078, end: 0.042 },
     shape: { angle: 0, width: 1, spin: 0 },
     shadowAngle: 125,
@@ -214,6 +220,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "texture", "shadow"],
     vis: 0.978,
     wave: 0.55,
+    opacity: 0.3,
     span: { start: 0.12, mid: 0.108, end: 0.09 },
     shape: { angle: 0, width: 1, spin: 0 },
     shadowAngle: 140,
@@ -240,6 +247,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "texture"],
     vis: 0.988,
     wave: 0.52,
+    opacity: 0.52,
     span: { start: 0.07, mid: 0.048, end: 0.022 },
     shape: { angle: 22, width: 0.36, spin: 0 },
     stops: ink("silk", [
@@ -259,6 +267,7 @@ const RECIPES: Recipe[] = [
     layers: ["brush", "shadow"],
     vis: 0.978,
     wave: 0.48,
+    opacity: 0.26,
     span: { start: 0.022, mid: 0.072, end: 0.028 },
     shape: { angle: 18, width: 0.5, spin: 0 },
     shadowAngle: 200,
@@ -347,6 +356,7 @@ const RECIPES: Recipe[] = [
     wave: 0.36,
     cam: 1,
     fxOp: 0.82,
+    opacity: 0.72,
     span: { start: 0.06, mid: 0.04, end: 0.02 },
     shape: { angle: 0, width: 1, spin: 0 },
     stops: ink("cam", [
@@ -367,6 +377,7 @@ const RECIPES: Recipe[] = [
     vis: 0.95,
     wave: 0.85,
     cam: 0.9,
+    opacity: 0.86,
     span: { start: 0.1, mid: 0.07, end: 0.04 },
     shape: { angle: 0, width: 1, spin: 0.4 },
     stops: ink("aurora", [
@@ -407,6 +418,7 @@ const RECIPES: Recipe[] = [
     wave: 0.55,
     cam: 0.7,
     fxOp: 0.72,
+    opacity: 0.28,
     span: { start: 0.08, mid: 0.055, end: 0.028 },
     shape: { angle: 0, width: 0.92, spin: 0 },
     invert: true,
@@ -572,6 +584,7 @@ const RECIPES: Recipe[] = [
     wave: 0.5,
     cam: 1,
     fxOp: 0.9,
+    opacity: 1,
     span: { start: 0.1, mid: 0.072, end: 0.04 },
     shape: { angle: 0, width: 0.82, spin: 0 },
     stops: ink("proj", [
@@ -606,6 +619,7 @@ const RECIPES: Recipe[] = [
 function paletteRecipe(id: PaletteId): Recipe {
   const p = PALETTES[id] ?? PALETTES.lens;
   const brush = getBrush(p.brushId);
+  const opacity = WORLD_CAM_OPACITY[id] ?? 0.5;
   return {
     id: `home_world_${id}`,
     name: p.name,
@@ -613,10 +627,11 @@ function paletteRecipe(id: PaletteId): Recipe {
     brush: p.brushId,
     texture: "none",
     fx: p.brushFx,
-    layers: ["brush"],
+    layers: opacity >= 0.55 ? ["brush", "camera"] : ["brush"],
     vis: p.viscosity,
     wave: p.waveStrength,
     cam: p.cameraMix,
+    opacity,
     mic: p.micDrive,
     gyro: p.gyroDrive,
     fxOp: p.brushFxOpacity,
@@ -624,6 +639,53 @@ function paletteRecipe(id: PaletteId): Recipe {
     shape: defaultShapeFor(brush),
     stops: p.stops,
   };
+}
+
+const WORLD_CAM_OPACITY: Record<PaletteId, number> = {
+  lens: 0.92,
+  voice: 0.36,
+  slosh: 0.2,
+  mirror: 0.84,
+  ember: 0.5,
+  gel: 0.62,
+  volt: 0.34,
+  magma: 0.14,
+  ghost: 0.22,
+  riot: 0.7,
+  prism: 0.88,
+  tide: 0.54,
+  noir: 0.16,
+  halo: 1,
+  storm: 0.4,
+  inkwell: 0.1,
+  plasma: 0.66,
+  fossil: 0.28,
+  aurora: 0.78,
+  eclipse: 0.32,
+};
+
+const MIX_CAM_OPACITY: Record<string, number> = {
+  home_halo_foam: 0.95,
+  home_voice_cloud: 0.4,
+  home_slosh_flood: 0.22,
+  home_swell_magma: 0.15,
+  home_prism_ribbon: 0.8,
+  home_hairline: 0.08,
+  home_plasma_scan: 0.64,
+  home_wet_silk: 0.48,
+  home_scan_storm: 0.42,
+  home_italic_tide: 0.5,
+  home_riot_spray: 0.74,
+  home_hard_light: 0.6,
+  home_silk_ribbon: 0.52,
+  home_brushpen_night: 0.26,
+};
+
+function cameraOpacityFor(r: Recipe): number {
+  if (typeof r.opacity === "number") return Math.max(0, Math.min(1, r.opacity));
+  const mix = MIX_CAM_OPACITY[r.id];
+  if (typeof mix === "number") return mix;
+  return WORLD_CAM_OPACITY[r.world] ?? 0.5;
 }
 
 function snapshotFrom(r: Recipe): StudioSnapshot {
@@ -661,6 +723,7 @@ function snapshotFrom(r: Recipe): StudioSnapshot {
     textureInvert: Boolean(r.invert),
     gradientFlip: Boolean(r.flip),
     cameraInteract: r.cam ?? p.cameraMix,
+    cameraOpacity: cameraOpacityFor(r),
     micSensitivity: r.mic ?? p.micDrive,
     gyroSensitivity: r.gyro ?? p.gyroDrive,
     gyroZoom: r.zoom ?? 0.55,

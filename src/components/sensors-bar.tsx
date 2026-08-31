@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Camera,
-  CameraOff,
-  SwitchCamera,
   Mic,
   Smartphone,
   MoveHorizontal,
@@ -24,6 +21,7 @@ import {
 } from "@/lib/ripple/media";
 import { formatCountdown, savePendingClip, type PendingClip } from "@/lib/ripple/record";
 import { TipMark } from "./tip-mark";
+import { CameraOpacitySlider } from "./camera-opacity-slider";
 
 type Props = {
   sensors: SensorsState;
@@ -252,8 +250,6 @@ export function SensorsBar({
         ? "Front camera — tap for rear"
         : "Rear camera — tap to turn off";
 
-  const CamIcon = camState === "off" ? CameraOff : camState === "rear" ? Camera : SwitchCamera;
-
   const btn =
     "pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-ink/50 text-fg/80 backdrop-blur-md transition hover:bg-ink/70 hover:text-fg active:scale-95";
 
@@ -265,34 +261,12 @@ export function SensorsBar({
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex gap-2">
-        <span className="relative">
-          <button
-          type="button"
-          className={btn}
-          style={{ opacity: camState === "off" ? 0.5 : 1 }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            void cycleCamera();
-          }}
-          disabled={busy}
-          aria-label={camLabel}
-          title={camLabel}
-        >
-          <CamIcon className="size-4" strokeWidth={1.75} />
-          {camState !== "off" && (
-            <span className="absolute -bottom-0.5 rounded-full bg-ink/90 px-1 text-[8px] font-semibold tracking-wide text-fg">
-              {camState === "rear" ? "REAR" : "FRONT"}
-            </span>
-          )}
-          {camState === "off" && (
-            <span className="absolute -bottom-0.5 rounded-full bg-ink/70 px-1 text-[8px] font-semibold tracking-wide text-fg/70">
-              OFF
-            </span>
-          )}
-        </button>
-          <TipMark id="camera" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
-        </span>
+        <CameraOpacitySlider
+          camState={camState}
+          busy={busy}
+          camLabel={camLabel}
+          onCycle={() => void cycleCamera()}
+        />
         <span className="relative">
         <button
           type="button"

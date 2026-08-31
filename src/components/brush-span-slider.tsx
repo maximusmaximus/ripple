@@ -9,8 +9,14 @@ function toT(v: number) {
   return Math.max(0, Math.min(1, (v - DIA_MIN) / RANGE));
 }
 
-function fromT(t: number) {
+export function fromDiaT(t: number) {
   return DIA_MIN + Math.max(0, Math.min(1, t)) * RANGE;
+}
+
+export function clientYToDia(el: HTMLElement, clientY: number) {
+  const rect = el.getBoundingClientRect();
+  const t = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / Math.max(1, rect.height)));
+  return fromDiaT(t);
 }
 
 function label(n: number) {
@@ -53,9 +59,7 @@ export function SpanProfile({
   const clientToVal = useCallback((clientY: number) => {
     const el = trackRef.current;
     if (!el) return DIA_MIN;
-    const rect = el.getBoundingClientRect();
-    const t = 1 - Math.max(0, Math.min(1, (clientY - rect.top) / Math.max(1, rect.height)));
-    return fromT(t);
+    return clientYToDia(el, clientY);
   }, []);
 
   useEffect(() => {

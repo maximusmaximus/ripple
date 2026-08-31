@@ -58,7 +58,9 @@ export function SessionGate({
           Make new session
         </button>
         <p className="text-center text-[11px] text-subtle">
-          {canWatch ? "Watch is view-only. New session is yours to paint." : "You can start your own mix."}
+          {canWatch
+            ? "Watch is view-only. New session is yours to paint. If this was yours, someone else took the listing while you were away."
+            : "You can start your own mix."}
         </p>
       </div>
     </div>

@@ -40,11 +40,7 @@ function drawFit(img: CanvasImageSource, w: number, h: number): HTMLCanvasElemen
   return canvas;
 }
 
-function persistStill(img: HTMLImageElement): CustomTexture {
-  const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(img.naturalWidth, img.naturalHeight, 1));
-  const w = Math.max(1, Math.round(img.naturalWidth * scale));
-  const h = Math.max(1, Math.round(img.naturalHeight * scale));
-  const canvas = drawFit(img, w, h);
+export function textureFromCanvas(canvas: HTMLCanvasElement): CustomTexture {
   let quality = 0.86;
   let dataUrl = canvas.toDataURL("image/jpeg", quality);
   while (dataUrl.length > 1_400_000 && quality > 0.5) {
@@ -54,7 +50,14 @@ function persistStill(img: HTMLImageElement): CustomTexture {
   if (dataUrl.length > 1_550_000) {
     throw new Error("Image is too heavy after compress — try a smaller file.");
   }
-  return { mime: "image/jpeg", dataUrl, width: w, height: h };
+  return { mime: "image/jpeg", dataUrl, width: canvas.width, height: canvas.height };
+}
+
+function persistStill(img: HTMLImageElement): CustomTexture {
+  const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(img.naturalWidth, img.naturalHeight, 1));
+  const w = Math.max(1, Math.round(img.naturalWidth * scale));
+  const h = Math.max(1, Math.round(img.naturalHeight * scale));
+  return textureFromCanvas(drawFit(img, w, h));
 }
 
 function fileToDataUrl(file: File): Promise<string> {

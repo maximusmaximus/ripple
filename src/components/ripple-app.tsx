@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { WallViewport } from "./wall-viewport";
 import { PadGate } from "./pad-gate";
@@ -12,19 +12,22 @@ import { PairOverlay } from "./pair-overlay";
 import { SessionGate } from "./session-gate";
 import { WatchViewport } from "./watch-viewport";
 import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
-import { TipMark } from "./tip-mark";
+import { MenuFab } from "./menu-fab";
 import type { SensorsState } from "@/lib/ripple/media";
 import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
 import { useRippleStore } from "@/store/ripple";
 import { useOrientation } from "@/hooks/use-orientation";
-import { useViewport } from "@/hooks/use-desktop";
+import { useViewport, useFinePointer } from "@/hooks/use-desktop";
 import { useAppFullscreen } from "@/hooks/use-app-fullscreen";
 import { useCastHost, type RemoteFrame, type RemoteInput } from "@/hooks/use-cast-host";
 import { useLivePresence, isPublicLive } from "@/hooks/use-live-presence";
 import { useViewStream } from "@/hooks/use-view-stream";
+import { useCameraWanted } from "@/hooks/use-camera-wanted";
+import { readHostCode, readHostShare, writeHostCode, writeHostShare } from "@/lib/ripple/session-resume";
 import { StudioSync } from "./studio-sync";
 import { TipsGuide } from "./tips-guide";
+import { BugFab } from "./bug-fab";
 import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
@@ -93,10 +96,11 @@ export function RippleApp() {
   const sensorsRef = useRef(sensors);
   sensorsRef.current = sensors;
   const { isDesktop, ready: viewportReady } = useViewport();
+  useFinePointer();
   const [pairDismissed, setPairDismissed] = useState(false);
   const [pairForced, setPairForced] = useState(false);
   const [choice, setChoice] = useState<"pending" | "host" | "private">("pending");
-  const [share, setShare] = useState<SessionShareValue>(EMPTY_SHARE);
+  const [share, setShare] = useState<SessionShareValue>(() => readHostShare() ?? EMPTY_SHARE);
   const shareTimer = useRef(0);
   const presenceRef = useRef<ReturnType<typeof useLivePresence> | null>(null);
   const hostRegenRef = useRef<(() => void) | null>(null);
@@ -180,6 +184,7 @@ export function RippleApp() {
   const host = useCastHost({
     stayOnPage: true,
     enabled: mode === "local",
+    preferredCode: typeof window === "undefined" ? null : readHostCode(),
     onCamFrame,
     onRemoteInput,
     onRecToggle: (on) => {
@@ -202,6 +207,14 @@ export function RippleApp() {
   hostSendRef.current = host.send;
   hostLiveRef.current = host.isLive;
   lanHdRef.current = host.lanHd;
+
+  useEffect(() => {
+    if (host.code) writeHostCode(host.code);
+  }, [host.code]);
+
+  useEffect(() => {
+    writeHostShare(share);
+  }, [share]);
 
   const presence = useLivePresence({
     role: mode === "local" && choice !== "pending" ? "host" : null,
@@ -228,7 +241,12 @@ export function RippleApp() {
 
   useViewStream(canvasRef, host.broadcast, host.viewerCount);
 
-  const showGate = bootDone && mode === "local" && choice === "pending" && isPublicLive(presence.session);
+  const showGate =
+    bootDone &&
+    mode === "local" &&
+    choice !== "private" &&
+    isPublicLive(presence.session) &&
+    presence.session?.hostPeer !== presence.peerId;
   const showPending = mode === "local" && !viewportReady;
   const showBoot = mode === "local" && !bootDone && viewportReady && !isDesktop;
   const showPairOverlay =
@@ -252,9 +270,11 @@ export function RippleApp() {
   useEffect(() => {
     if (!bootDone || mode !== "local" || choice !== "pending") return;
     if (!presence.ready) return;
-    if (isPublicLive(presence.session)) return;
+    const foreign =
+      isPublicLive(presence.session) && presence.session?.hostPeer !== presence.peerId;
+    if (foreign) return;
     setChoice("host");
-  }, [bootDone, mode, choice, presence.ready, presence.session]);
+  }, [bootDone, mode, choice, presence.ready, presence.session, presence.peerId]);
 
   useEffect(() => {
     if (!presence.occupied) return;
@@ -268,6 +288,7 @@ export function RippleApp() {
   }, [navigate, presence.session?.code]);
 
   const goPrivate = useCallback(() => {
+    host.regenerateCode();
     try {
       window.sessionStorage.setItem(PRIVATE_KEY, "1");
     } catch {
@@ -276,7 +297,7 @@ export function RippleApp() {
     setChoice("private");
     setPairDismissed(true);
     setPairForced(false);
-  }, []);
+  }, [host.regenerateCode]);
 
   const leaveWatch = useCallback(() => {
     try {
@@ -370,6 +391,7 @@ export function RippleApp() {
   useEffect(() => () => releaseSensors(sensorsRef.current), []);
 
   const onSensorsChange = useCallback((next: SensorsState) => setSensors(next), []);
+  useCameraWanted(sensors, onSensorsChange);
 
   const onPaintStart = useCallback(() => {
     setDockOpen(false);
@@ -589,23 +611,10 @@ export function RippleApp() {
         </div>
       )}
 
-      {showChrome && !dockOpen && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift">
-          <button
-            type="button"
-            data-ui-chrome
-            className="pointer-events-auto flex h-11 items-center gap-2 rounded-full border border-line bg-ink/55 px-4 text-sm text-fg/85 shadow-lg backdrop-blur-md transition hover:bg-ink/70 hover:text-fg"
-            onClick={() => setDockOpen(true)}
-            aria-label="Show menu"
-          >
-            <ChevronUp className="size-3.5" />
-            Menu
-            <TipMark id="menu" />
-          </button>
-        </div>
-      )}
+      {showChrome && !dockOpen && !showPairOverlay && <MenuFab onOpen={() => setDockOpen(true)} />}
 
       {showChrome && <TipsGuide />}
+      {showChrome && <BugFab />}
 
       {showGate && presence.session && (
         <SessionGate session={presence.session} onWatch={goWatch} onNew={goPrivate} />
@@ -865,23 +874,10 @@ function PadSurface({
         </div>
       </div>
 
-      {!dockOpen && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift">
-          <button
-            type="button"
-            data-ui-chrome
-            className="pointer-events-auto flex h-11 items-center gap-2 rounded-full border border-line bg-ink/55 px-4 text-sm text-fg/85 shadow-lg backdrop-blur-md transition hover:bg-ink/70 hover:text-fg"
-            onClick={() => setDockOpen(true)}
-            aria-label="Show menu"
-          >
-            <ChevronUp className="size-3.5" />
-            Menu
-            <TipMark id="menu" />
-          </button>
-        </div>
-      )}
+      {!dockOpen && <MenuFab onOpen={() => setDockOpen(true)} />}
 
       <TipsGuide />
+      <BugFab />
     </div>
   );
 }

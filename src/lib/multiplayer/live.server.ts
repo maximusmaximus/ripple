@@ -32,6 +32,7 @@ const metaSchema = z.object({
 const postSchema = z.discriminatedUnion("op", [joinSchema, leaveSchema, metaSchema]);
 
 const PEER_TTL_MS = 10_000;
+const HOST_TTL_MS = 120_000;
 
 type MemPeer = {
   id: string;
@@ -86,14 +87,18 @@ function hasDatabaseUrl() {
 function prune(now: number) {
   const map = roster();
   for (const [id, p] of map) {
-    if (now - p.lastSeen > PEER_TTL_MS) map.delete(id);
+    const ttl = p.role === "host" ? HOST_TTL_MS : PEER_TTL_MS;
+    if (now - p.lastSeen > ttl) map.delete(id);
   }
 }
 
 function hostOf(code?: string): MemPeer | undefined {
   const hosts = [...roster().values()].filter((p) => p.role === "host");
   if (code) return hosts.find((p) => p.code.toUpperCase() === code.toUpperCase());
-  return hosts.find((p) => p.watchable && p.title.trim() && p.description.trim()) ?? hosts[0];
+  const now = Date.now();
+  const live = hosts.filter((p) => now - p.lastSeen <= PEER_TTL_MS);
+  const pool = live.length ? live : hosts;
+  return pool.find((p) => p.watchable && p.title.trim() && p.description.trim()) ?? pool[0];
 }
 
 function snapshot(publicOnly = true): LiveInfo | null {
@@ -168,15 +173,20 @@ function handleMemoryPost(msg: z.infer<typeof postSchema>): Response {
     map.set(msg.peer, peer);
     if (peer.watchable) {
       const other = [...map.values()].find(
-        (p) => p.role === "host" && p.id !== peer.id && p.watchable && isPublicLive({
-          code: p.code,
-          viewers: 0,
-          pads: 0,
-          hostPeer: p.id,
-          title: p.title,
-          description: p.description,
-          watchable: p.watchable,
-        }),
+        (p) =>
+          p.role === "host" &&
+          p.id !== peer.id &&
+          now - p.lastSeen <= PEER_TTL_MS &&
+          p.watchable &&
+          isPublicLive({
+            code: p.code,
+            viewers: 0,
+            pads: 0,
+            hostPeer: p.id,
+            title: p.title,
+            description: p.description,
+            watchable: p.watchable,
+          }),
       );
       if (other) {
         peer.watchable = false;

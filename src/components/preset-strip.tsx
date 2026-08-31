@@ -5,9 +5,11 @@ import {
   EASY_PRESET_ID,
   MAX_PRESET_NAME,
   easyPreset,
+  hasMediaPayload,
   hydrateSnapshotMedia,
   loadHomebasePresets,
   newPresetId,
+  presetWantsCamera,
   sanitizePresetName,
   uniquePresetName,
   type NamedPreset,
@@ -139,6 +141,7 @@ export function PresetStrip() {
   const load = async (p: NamedPreset) => {
     const snap = await hydrateSnapshotMedia(p.snapshot);
     applySnapshot(snap);
+    if (presetWantsCamera(snap)) useRippleStore.getState().setCameraWanted(true);
     setActiveId(p.id);
     revealChip(p.id);
   };
@@ -174,6 +177,10 @@ export function PresetStrip() {
     setMsg(null);
     try {
       const snapshot = takeSnapshot();
+      if (snapshot.textureId === "custom" && !hasMediaPayload(snapshot.customTexture)) {
+        setMsg({ text: "That mix needs a surface image — Upload or Random first.", tone: "error" });
+        return;
+      }
       const preset: NamedPreset = {
         id: newPresetId(),
         name: n,
@@ -270,7 +277,7 @@ export function PresetStrip() {
         />
         <div
           ref={wellRef}
-          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5"
           role="list"
           aria-label="Presets"
           onScroll={syncHints}
@@ -338,7 +345,7 @@ export function PresetStrip() {
         </div>
         <button
           type="button"
-          className="dock-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
+          className="dock-scroll-track well-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
           aria-label="Scroll presets"
           onClick={(e) => jumpInWell(e.clientY, e.currentTarget)}
         />
@@ -352,7 +359,7 @@ export function PresetStrip() {
               beginSave();
             }
           }}
-          className="absolute bottom-1.5 right-6 z-[3] inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg"
+          className="well-corner-fab inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg"
         >
           <BookmarkPlus className="size-3" />
           Save as

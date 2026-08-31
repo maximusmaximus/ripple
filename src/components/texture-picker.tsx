@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { TEXTURES, getTexture } from "@/lib/ripple/textures";
 import { MAX_UPLOAD_BYTES, mediaSrc } from "@/lib/ripple/studio";
 import { readTextureFile } from "@/lib/ripple/texture-file";
+import { makeRandomSurface } from "@/lib/ripple/random-surface";
 import { useRippleStore } from "@/store/ripple";
 import { TextureCrop } from "./texture-crop";
 import { TipCopy } from "./tip-mark";
@@ -24,7 +25,7 @@ export function TexturePicker() {
   const setCustomTexture = useRippleStore((s) => s.setCustomTexture);
   const fileRef = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"off" | "file" | "random">("off");
   const [upHint, setUpHint] = useState(0);
   const [downHint, setDownHint] = useState(0);
   const wellRef = useRef<HTMLDivElement>(null);
@@ -75,7 +76,7 @@ export function TexturePicker() {
       setErr("Max 10 MB — try a smaller file.");
       return;
     }
-    setBusy(true);
+    setBusy("file");
     setErr(null);
     try {
       const loaded = await readTextureFile(file);
@@ -83,9 +84,31 @@ export function TexturePicker() {
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not use that file.");
     } finally {
-      setBusy(false);
+      setBusy("off");
     }
   };
+
+  const onRandom = () => {
+    if (busy !== "off") return;
+    setBusy("random");
+    setErr(null);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        try {
+          const colors = useRippleStore.getState().getActiveColors();
+          const tex = makeRandomSurface(colors);
+          setCustomTexture(tex);
+        } catch (e) {
+          setErr(e instanceof Error ? e.message : "Could not paint a surface.");
+        } finally {
+          setBusy("off");
+        }
+      });
+    });
+  };
+
+  const fab =
+    "inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg disabled:opacity-40";
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -102,7 +125,7 @@ export function TexturePicker() {
         />
         <div
           ref={wellRef}
-          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5 pr-6"
+          className="preset-well-scroll chip-well-scroll grid grid-cols-4 content-start gap-1 overflow-y-auto p-1.5"
           role="list"
           aria-label="Textures"
           onWheel={(e) => e.stopPropagation()}
@@ -125,7 +148,7 @@ export function TexturePicker() {
                 >
                   <span
                     className={on ? "block h-7 w-full" : "block h-6 w-full"}
-                    style={{ background: preview, backgroundSize: "cover" }}
+                    style={{ background: preview }}
                     aria-hidden
                   />
                   <span className={"min-h-0 flex-1 truncate px-1.5 " + (on ? "py-1.5 font-medium" : "py-1")}>
@@ -138,30 +161,43 @@ export function TexturePicker() {
         </div>
         <button
           type="button"
-          className="dock-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
+          className="dock-scroll-track well-scroll-track absolute inset-y-1.5 right-1 z-[2] w-4 rounded-md"
           aria-label="Scroll textures"
           onClick={(e) => jumpInWell(e.clientY, e.currentTarget)}
         />
-        <button
-          type="button"
-          title={
-            customTexture
-              ? "Your upload — tap to replace (JPG, PNG, GIF · max 10 MB)"
-              : "Upload a JPG, PNG, GIF, or WebP — max 10 MB"
-          }
-          onClick={() => {
-            if (customTexture && textureId !== "custom") {
-              setTextureId("custom");
-              return;
+        <div className="well-fab-cluster">
+          <button
+            type="button"
+            title={
+              customTexture
+                ? "Your image — tap to replace (JPG, PNG, GIF · max 10 MB)"
+                : "Upload a JPG, PNG, GIF, or WebP — max 10 MB"
             }
-            fileRef.current?.click();
-          }}
-          disabled={busy}
-          className="absolute bottom-1.5 right-6 z-[3] inline-flex items-center gap-1 rounded-full border border-line bg-ink/90 px-2.5 py-1.5 text-[10px] font-medium text-fg shadow-lg backdrop-blur-md hover:bg-ink hover:text-fg"
-        >
-          <Plus className="size-3" strokeWidth={2.4} />
-          Upload
-        </button>
+            onClick={() => {
+              if (customTexture && textureId !== "custom") {
+                setTextureId("custom");
+                return;
+              }
+              fileRef.current?.click();
+            }}
+            disabled={busy !== "off"}
+            className={fab}
+          >
+            <Plus className="size-3" strokeWidth={2.4} />
+            Upload
+          </button>
+          <button
+            type="button"
+            data-random-surface="true"
+            title="Paint a unique grain. Stored like an upload — Save as keeps it with the mix."
+            onClick={onRandom}
+            disabled={busy !== "off"}
+            className={fab}
+          >
+            <Plus className="size-3" strokeWidth={2.4} />
+            {busy === "random" ? "Painting…" : "Random"}
+          </button>
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -178,12 +214,14 @@ export function TexturePicker() {
 
       {err ? (
         <p className="text-[10px] text-amber-200/90">{err}</p>
-      ) : busy ? (
+      ) : busy === "file" ? (
         <p className="text-[10px] text-subtle">Reading image…</p>
+      ) : busy === "random" ? (
+        <p className="text-[10px] text-subtle">Painting a surface…</p>
       ) : (
         <TipCopy>
           {textureId === "custom"
-            ? "Your image rides the fluid. Crop, threshold, or refresh it below."
+            ? "Your image rides the fluid. Crop, threshold, or refresh it below. Save as stores it with the mix."
             : active.hint}
         </TipCopy>
       )}

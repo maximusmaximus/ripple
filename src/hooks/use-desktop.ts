@@ -1,5 +1,22 @@
 import { useLayoutEffect, useRef, useState } from "react";
 
+/** Mouse / trackpad with hover. Touch and pens are coarse — hide internal scroll rails. */
+export function useFinePointer() {
+  const [fine, setFine] = useState(false);
+  useLayoutEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const apply = () => {
+      const on = mq.matches;
+      setFine(on);
+      document.documentElement.dataset.pointer = on ? "fine" : "coarse";
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  return fine;
+}
+
 function readIsDesktopHost() {
   if (typeof window === "undefined") return false;
   const wide = window.matchMedia("(min-width: 768px)").matches;

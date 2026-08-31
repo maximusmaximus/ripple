@@ -41,7 +41,7 @@ export function BrushShadowPanel() {
       </div>
       {on && (
         <>
-          <TipCopy>Color and opacity live on the large Brush Color diamond. Width, distance, and angle sit here.</TipCopy>
+          <TipCopy>Color and opacity live on the large diamond on Width · Color. Distance and angle sit here.</TipCopy>
           <SpanProfile
             title="Shadow width"
             tipId="shadow"

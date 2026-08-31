@@ -44,6 +44,8 @@ export type StudioSnapshot = {
   textureInvert?: boolean;
   gradientFlip?: boolean;
   cameraInteract: number;
+  /** 0–1. Opaque camera bed → transparent. Missing = 1 for old snapshots. */
+  cameraOpacity?: number;
   micSensitivity: number;
   gyroSensitivity: number;
   gyroZoom?: number;
@@ -100,6 +102,7 @@ export function easySnapshot(): StudioSnapshot {
     textureInvert: false,
     gradientFlip: false,
     cameraInteract: 0.85,
+    cameraOpacity: 0.58,
     micSensitivity: 0.4,
     gyroSensitivity: 0.7,
     gyroZoom: 0.55,
@@ -140,6 +143,11 @@ export function uniquePresetName(desired: string, taken: string[]): string {
     if (!used.has(next.toLowerCase())) return next;
   }
   return sanitizePresetName(`${root} ${Date.now().toString(36)}`);
+}
+
+export function presetWantsCamera(snap: StudioSnapshot): boolean {
+  if ((snap.fxLayers ?? []).includes("camera")) return true;
+  return (snap.cameraOpacity ?? 0) > 0.05;
 }
 
 export function mediaSrc(item?: { dataUrl?: string; path?: string } | null): string | null {

@@ -73,6 +73,10 @@ interface RippleState {
   gradientFlip: boolean;
   /** 0 = camera is a flat bed; 1 = strokes warp and pull the camera through. */
   cameraInteract: number;
+  /** 0–1 camera bed opacity. 1 = opaque feed, 0 = fully transparent. */
+  cameraOpacity: number;
+  /** Preset asked for the camera — chrome should request permission. */
+  cameraWanted: boolean;
   /** 0–1.5 — how hard the mic throbs painted marks. */
   micSensitivity: number;
   /** 0–1 — gyro slosh. 70% is the quiet default (90% less than the old mix). */
@@ -132,6 +136,8 @@ interface RippleState {
   applySnapshot: (snap: StudioSnapshot) => void;
   cleanSession: () => void;
   setCameraInteract: (v: number) => void;
+  setCameraOpacity: (v: number) => void;
+  setCameraWanted: (v: boolean) => void;
   setMicSensitivity: (v: number) => void;
   setGyroSensitivity: (v: number) => void;
   setGyroZoom: (v: number) => void;
@@ -192,10 +198,55 @@ function liveStorage() {
     const probe = "__ripple_ls";
     window.localStorage.setItem(probe, "1");
     window.localStorage.removeItem(probe);
-    return window.localStorage;
   } catch {
     return noopStorage;
   }
+  const ls = window.localStorage;
+  return {
+    getItem: (key: string) => {
+      try {
+        return ls.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    setItem: (key: string, value: string) => {
+      try {
+        ls.setItem(key, value);
+        return;
+      } catch {
+        /* QuotaExceeded — drop heavy dataUrls and retry so persist never crashes the studio. */
+      }
+      try {
+        const parsed = JSON.parse(value) as { state?: Record<string, unknown> };
+        const state: Record<string, unknown> = parsed.state ?? parsed;
+        const tex = state.customTexture as { dataUrl?: string; path?: string } | null | undefined;
+        if (tex && tex.dataUrl && tex.dataUrl.length > 64) {
+          state.customTexture = { ...tex, dataUrl: tex.path ? "" : tex.dataUrl.slice(0, 64) };
+        }
+        const brushes = state.customBrushes as { dataUrl?: string; path?: string }[] | undefined;
+        if (Array.isArray(brushes)) {
+          state.customBrushes = brushes.map((b) =>
+            b.dataUrl && b.dataUrl.length > 80_000 ? { ...b, dataUrl: b.path ? "" : b.dataUrl.slice(0, 64) } : b,
+          );
+        }
+        ls.setItem(key, JSON.stringify(parsed));
+      } catch {
+        try {
+          ls.removeItem(key);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    removeItem: (key: string) => {
+      try {
+        ls.removeItem(key);
+      } catch {
+        /* ignore */
+      }
+    },
+  };
 }
 
 export const useRippleStore = create<RippleState>()(
@@ -229,6 +280,8 @@ export const useRippleStore = create<RippleState>()(
       textureInvert: false,
       gradientFlip: false,
       cameraInteract: PALETTES.lens.cameraMix,
+      cameraOpacity: 1,
+      cameraWanted: false,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
       gyroZoom: 0.55,
@@ -572,6 +625,7 @@ export const useRippleStore = create<RippleState>()(
           textureInvert: s.textureInvert,
           gradientFlip: s.gradientFlip,
           cameraInteract: s.cameraInteract,
+          cameraOpacity: s.cameraOpacity,
           micSensitivity: s.micSensitivity,
           gyroSensitivity: s.gyroSensitivity,
           gyroZoom: s.gyroZoom,
@@ -627,6 +681,8 @@ export const useRippleStore = create<RippleState>()(
           textureInvert: Boolean(snap.textureInvert),
           gradientFlip: Boolean(snap.gradientFlip),
           cameraInteract: snap.cameraInteract,
+          cameraOpacity: Math.max(0, Math.min(1, snap.cameraOpacity ?? 1)),
+          cameraWanted: false,
           micSensitivity: snap.micSensitivity,
           gyroSensitivity: Math.max(0, Math.min(1, snap.gyroSensitivity > 1 ? 0.7 : snap.gyroSensitivity)),
           gyroZoom: snap.gyroZoom ?? 0.55,
@@ -672,6 +728,8 @@ export const useRippleStore = create<RippleState>()(
           textureInvert: false,
           gradientFlip: false,
           cameraInteract: p.cameraMix,
+          cameraOpacity: 1,
+          cameraWanted: false,
           micSensitivity: p.micDrive,
           gyroSensitivity: p.gyroDrive,
           gyroZoom: 0.55,
@@ -680,6 +738,8 @@ export const useRippleStore = create<RippleState>()(
         });
       },
       setCameraInteract: (v) => set({ cameraInteract: Math.max(0, Math.min(1, v)) }),
+      setCameraOpacity: (v) => set({ cameraOpacity: Math.max(0, Math.min(1, v)) }),
+      setCameraWanted: (v) => set({ cameraWanted: v }),
       setMicSensitivity: (v) => set({ micSensitivity: Math.max(0, Math.min(1.5, v)) }),
       setGyroSensitivity: (v) => set({ gyroSensitivity: Math.max(0, Math.min(1, v)) }),
       setGyroZoom: (v) => set({ gyroZoom: Math.max(0, Math.min(1.5, v)) }),
@@ -762,6 +822,7 @@ export const useRippleStore = create<RippleState>()(
         textureInvert: s.textureInvert,
         gradientFlip: s.gradientFlip,
         cameraInteract: s.cameraInteract,
+        cameraOpacity: s.cameraOpacity,
         micSensitivity: s.micSensitivity,
         gyroSensitivity: s.gyroSensitivity,
         gyroCalibrated: true as const,
@@ -790,6 +851,8 @@ export const useRippleStore = create<RippleState>()(
           ...p,
           dockOpen: false,
           gyroSensitivity,
+          cameraOpacity: typeof p.cameraOpacity === "number" ? Math.max(0, Math.min(1, p.cameraOpacity)) : current.cameraOpacity,
+          cameraWanted: false,
           brushShape: p.brushShape ?? current.brushShape,
           textureInvert: Boolean(p.textureInvert),
           gradientFlip: Boolean(p.gradientFlip),

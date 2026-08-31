@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveInfo } from "@/lib/multiplayer/live-types";
+import { restoreHostPeer } from "@/lib/ripple/session-resume";
 
 export type { LiveInfo };
 export { isPublicLive } from "@/lib/multiplayer/live-types";
@@ -20,7 +21,13 @@ export function useLivePresence(opts: {
   const [session, setSession] = useState<LiveInfo | null>(null);
   const [ready, setReady] = useState(false);
   const [occupied, setOccupied] = useState(false);
-  const peerRef = useRef(makePeerId(opts.role === "watch" ? "v" : opts.role === "pad" ? "p" : "h"));
+  const peerRef = useRef(
+    opts.role === "watch"
+      ? makePeerId("v")
+      : opts.role === "pad"
+        ? makePeerId("p")
+        : restoreHostPeer(() => makePeerId("h")),
+  );
   const optsRef = useRef(opts);
   optsRef.current = opts;
   const leaveGenRef = useRef(0);
@@ -104,6 +111,9 @@ export function useLivePresence(opts: {
     if (!role) return;
     const gen = ++leaveGenRef.current;
     return () => {
+      // Hosts stay listed so a refresh or a short leave can resume the same mix.
+      // Watchers and pads still drop immediately.
+      if (role === "host") return;
       window.setTimeout(() => {
         if (leaveGenRef.current !== gen) return;
         void fetch("/api/live", {

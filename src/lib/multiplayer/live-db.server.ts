@@ -4,6 +4,7 @@ import { isPublicLive } from "./live-types";
 import { persistLiveListing } from "@/lib/ripple/github-live";
 
 const PEER_TTL_SECONDS = 10;
+const HOST_TTL_SECONDS = 120;
 
 const globalRef = globalThis as typeof globalThis & {
   __liveSchemaPromise__?: Promise<void>;
@@ -55,9 +56,12 @@ function persistFromInfo(info: LiveInfo | null) {
 }
 
 async function prune(sql: Sql) {
-  await sql.query(`DELETE FROM live_roster WHERE last_seen < now() - make_interval(secs => $1)`, [
-    PEER_TTL_SECONDS,
-  ]);
+  await sql.query(
+    `DELETE FROM live_roster WHERE
+       (role = 'host' AND last_seen < now() - make_interval(secs => $1))
+       OR (role <> 'host' AND last_seen < now() - make_interval(secs => $2))`,
+    [HOST_TTL_SECONDS, PEER_TTL_SECONDS],
+  );
 }
 
 async function countsFor(sql: Sql, code: string): Promise<{ viewers: number; pads: number }> {

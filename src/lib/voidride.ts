@@ -12,11 +12,11 @@ export type VoidrideRelease = {
   art: string;
 };
 
-/** Fallback if SoundCloud is unreachable — MARS DESCENT / IGNITION VEIL. */
+/** Fallback if SoundCloud is unreachable — newest published track. */
 export const VOIDRIDE_LATEST: VoidrideRelease = {
-  album: "MARS DESCENT",
-  albumUrl: "https://soundcloud.com/ridethevoid/sets/mars-descent",
-  title: "IGNITION VEIL",
-  url: "https://soundcloud.com/ridethevoid/ignition-veil",
+  album: "₴ɏ₦ΔƤ₴Ɇ ₦ɆϾƦØƤØⱠł₴",
+  albumUrl: "https://soundcloud.com/ridethevoid/sets/d-s",
+  title: "Silicon Seance",
+  url: "https://soundcloud.com/ridethevoid/silicon-seance",
   art: "/studio/voidride-latest.jpg",
 };

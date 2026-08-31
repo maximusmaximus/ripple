@@ -14,17 +14,17 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "menu",
     title: "Menu",
-    body: "The Menu button sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. The card is one connected scroll that always opens at the top. Tap a section to focus it — it expands while the rest dims. Tap another section, or tap the canvas, to leave.",
+    body: "The large circle sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. It pulses the first time you see it. The card is one connected scroll that always opens at the top. On a phone, swipe the card — there is no inner rail. A mouse gets a jump rail on the right. Tap a section to focus it — it expands while the rest dims. Tap another section, or tap the canvas, to leave.",
   },
   {
     id: "presets",
     title: "Presets",
-    body: "Four-row well of tall color chips, oldest at the top — there is no swipe preview above it. Tap a chip to load that mix. Hold two seconds for an X to hide or delete. Save as never overwrites. Easy is a clean first mark. Later chips are demos of nib, shadow, sensors, and camera.",
+    body: "Four-row well of tall color chips, oldest at the top — there is no swipe preview above it. Tap a chip to load that mix. Mixes that use the camera ask for permission and set their own opacity. Hold two seconds for an X to hide or delete. Save as never overwrites. Easy is a clean first mark.",
   },
   {
     id: "save",
     title: "Save as",
-    body: "Save as always creates a new named preset — it never overwrites. Labels must be unique. Textures and custom stamps are stored with the preset.",
+    body: "Save as always creates a new named preset — it never overwrites. Labels must be unique. The live surface (Upload or Random), textures, and custom stamps are stored with the preset.",
   },
   {
     id: "delete",
@@ -39,32 +39,32 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "diameter",
     title: "Width",
-    body: "Three stops along the stroke: start, belly, and tail. Drag a stop up to fatten that part of the mark, down to thin it. Each brush keeps its own profile.",
+    body: "Three stops along the stroke: start, belly, and tail. Circles sit on top of the Width · Color graphic — drag a circle up to fatten that part of the mark, down to thin it. Diamonds along the bottom are colors. Each brush keeps its own profile.",
   },
   {
     id: "shadow",
     title: "Brush shadow",
-    body: "Switch it on under Width. Shadow width is the same three-stop profile as the brush — start, belly, tail — so the cast can be a hair or a fat halo along the stroke. Distance pushes it away. Angle aims it. Color and opacity live on the large diamond on Brush Color. The Layer FX Shadow pill only mixes FX into that cast.",
+    body: "Switch it on under Paint. Shadow width is the same three-stop profile as the brush — start, belly, tail — so the cast can be a hair or a fat halo along the stroke. Distance pushes it away. Angle aims it. Color and opacity live on the large diamond on Width · Color. The Layer FX Shadow pill only mixes FX into that cast.",
   },
   {
     id: "brush-shape",
     title: "Rotation and blade",
-    body: "Rotation turns the mark. Blade pinches it from a circle into a chisel. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Stroke thickness lives on the Width profile above.",
+    body: "Rotation turns the mark. Blade pinches it from a circle into a chisel. Every starter has a baked-in pair. Imported stamps set theirs on the way in. Stroke thickness lives on the circles of Width · Color.",
   },
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the large Brush Color diamond. Turn the cast on under Width — Distance and Angle sit there.",
+    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the large diamond on Width · Color. Turn the cast on under Paint — Distance and Angle sit there.",
   },
   {
     id: "texture",
     title: "Texture",
-    body: "Surface sits under Presets and uses the same four-row chip well. Tap a grain to lay it on the fluid. Upload sits in that window. Invert and crop stay underneath.",
+    body: "Surface sits under Presets and uses the same four-row chip well. Tap a grain to lay it on the fluid. Upload and Random sit in the bottom-right of that window. Random paints a unique grain, stored like an upload — Save as keeps it with the mix. Invert and crop stay underneath.",
   },
   {
     id: "gradient",
     title: "Brush Color",
-    body: "The ramp is the brush itself — same length and silhouette as Width, from start on the left through the belly to the tail on the right. Each diamond is a color along that stroke: the mark picks up the left color as it begins and the right color as it finishes. Click the silhouette to drop a stop, drag to slide it, tap it to set hue and opacity. Flip reverses start and tail. The larger diamond is brush-shadow color and opacity; distance and angle for the cast live under Width. There are no crop circles — the whole stroke is the gradient.",
+    body: "Width and color share one graphic under Paint. Circles on top are start, belly, and tail width. Diamonds along the bottom are colors along that same stroke — the mark picks up the left color as it begins and the right color as it finishes. Click the body to drop a stop, drag a diamond to slide it, tap it to set hue and opacity. Flip reverses start and tail. The larger diamond is brush-shadow color and opacity; distance and angle for the cast live under Brush shadow.",
   },
   {
     id: "viscosity",
@@ -114,12 +114,12 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "live",
     title: "LIVE session",
-    body: "Title and a short description live under Session. Turn Watchable on to list the mix — others then see that name and description and can watch only. A popup gives the watch link to copy or share. Private painting is never listed. If the paired phone drops and does not come back, the listing closes so the next person can start.",
+    body: "Title and a short description live under Session. Turn Watchable on to list the mix — others then see that name and description and can watch only. A popup gives the watch link to copy or share. Private painting is never listed. Leave and come back to the same mix unless someone else listed theirs while you were away.",
   },
   {
     id: "camera",
     title: "Camera",
-    body: "Top-left. Tap to cycle off → front (faces you) → rear. A single camera just turns on and off. The feed stays on this device and can stain the bed through Layer FX.",
+    body: "Top-left. Tap to cycle off → front (faces you) → rear. Once the camera is on, drag the same button along the bar — opaque at the home end, transparent at the far end. The bar follows the long side of the screen when you rotate. Presets that mix the camera will ask for permission.",
   },
   {
     id: "mic",
@@ -134,7 +134,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "feedback",
     title: "Feature & bugs",
-    body: "Bottom of the menu. Pick Feature or Bug, write at least a sentence, then send. It is saved here and opened on the public GitHub list. First line becomes the title. Stay in the studio — the issue number is shown in the menu.",
+    body: "A bug icon sits at the bottom-left of the canvas and opens this form. Feature & bugs is also at the bottom of the menu. Pick Feature or Bug, write at least a sentence, then send. It is saved here and opened on the public GitHub list. First line becomes the title. Stay in the studio — the issue number is shown on the form.",
   },
   {
     id: "rec",

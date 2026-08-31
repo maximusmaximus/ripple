@@ -177,7 +177,7 @@ export function PairOverlay({
               <div className="flex w-full flex-col items-center gap-1.5">
                 <p className="font-mono text-2xl tracking-[0.35em] text-fg">{host.code || "------"}</p>
                 <p className="text-center text-[11px] text-subtle">Same site on your phone, this code</p>
-                <VoidrideListen drop={drop} className="mt-1" />
+                {drop ? <VoidrideListen drop={drop} className="mt-1" /> : null}
               </div>
 
               {host.lastError && (

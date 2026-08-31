@@ -65,6 +65,7 @@ const snapshotSchema = z
     textureInvert: z.boolean().optional(),
     gradientFlip: z.boolean().optional(),
     cameraInteract: z.number(),
+    cameraOpacity: z.number().optional(),
     micSensitivity: z.number(),
     gyroSensitivity: z.number(),
     gyroZoom: z.number().optional(),
@@ -128,7 +129,8 @@ const lastMediaSig = new Map<string, string>();
 function mediaSig(snap: StudioSnapshot): string {
   const t = snap.customTexture;
   const brushes = snap.customBrushes ?? [];
-  return `${t?.dataUrl?.length ?? 0}:${t?.width ?? 0}:${t?.path ?? ""}:${brushes.map((b) => `${b.id}:${b.dataUrl?.length ?? 0}:${b.path ?? ""}`).join(",")}`;
+  const tail = t?.dataUrl ? t.dataUrl.slice(-48) : "";
+  return `${t?.dataUrl?.length ?? 0}:${tail}:${t?.width ?? 0}:${t?.path ?? ""}:${brushes.map((b) => `${b.id}:${b.dataUrl?.length ?? 0}:${b.path ?? ""}`).join(",")}`;
 }
 
 export async function persistSnapshotMedia(snap: StudioSnapshot, idHint: string): Promise<StudioSnapshot> {
@@ -140,18 +142,28 @@ export async function persistSnapshotMedia(snap: StudioSnapshot, idHint: string)
   if (customTexture && hasDataUrl(customTexture.dataUrl)) {
     const ext = extFromMime(customTexture.mime || "image/jpeg");
     const fileName = `${safe}_tex.${ext}`;
-    const expected = `/studio/media/${fileName}`;
-    if (!already) await writeDataUrlFile(fileName, customTexture.dataUrl);
-    customTexture = { ...customTexture, path: customTexture.path || expected };
+    let path = customTexture.path;
+    if (!already) {
+      const written = await writeDataUrlFile(fileName, customTexture.dataUrl);
+      if (written) path = written;
+    } else if (!path) {
+      path = `/studio/media/${fileName}`;
+    }
+    customTexture = path ? { ...customTexture, path } : customTexture;
   }
 
   const customBrushes: CustomBrush[] = [];
   for (const b of snap.customBrushes ?? []) {
     if (hasDataUrl(b.dataUrl)) {
       const fileName = `${safe}_${b.id}.png`;
-      const expected = `/studio/media/${fileName}`;
-      if (!already) await writeDataUrlFile(fileName, b.dataUrl);
-      customBrushes.push({ ...b, path: b.path || expected });
+      let path = b.path;
+      if (!already) {
+        const written = await writeDataUrlFile(fileName, b.dataUrl);
+        if (written) path = written;
+      } else if (!path) {
+        path = `/studio/media/${fileName}`;
+      }
+      customBrushes.push(path ? { ...b, path } : b);
     } else {
       customBrushes.push(b);
     }
@@ -261,7 +273,9 @@ export const putStudioSession = createServerFn({ method: "POST" })
     const forDb: StudioSnapshot = {
       ...stored,
       customTexture:
-        stored.customTexture && (stored.customTexture.dataUrl?.length ?? 0) > 1_500_000
+        stored.customTexture &&
+        (stored.customTexture.dataUrl?.length ?? 0) > 1_500_000 &&
+        stored.customTexture.path
           ? stripDataUrl(stored.customTexture)
           : stored.customTexture,
     };

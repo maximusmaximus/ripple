@@ -286,7 +286,7 @@ export function WallViewport({ preferredCode }: Props) {
             <p className="text-center text-[11px] text-subtle">
               or open the same site on your phone with this code
             </p>
-            <VoidrideListen drop={drop} />
+            {drop ? <VoidrideListen drop={drop} /> : null}
           </div>
 
           {host.lastError && (

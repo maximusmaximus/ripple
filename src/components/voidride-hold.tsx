@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { VOIDRIDE_HOLD_MS, VOIDRIDE_LATEST, VOIDRIDE_PROFILE, type VoidrideRelease } from "@/lib/voidride";
+import { readCachedVoidride, writeCachedVoidride } from "@/lib/ripple/session-resume";
 
 export function useVoidrideLatest() {
-  const [drop, setDrop] = useState<VoidrideRelease>(VOIDRIDE_LATEST);
+  const [drop, setDrop] = useState<VoidrideRelease | null>(() => readCachedVoidride());
   useEffect(() => {
     let live = true;
     void fetch("/api/voidride", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((body: VoidrideRelease | null) => {
-        if (live && body?.title && body?.url) setDrop(body);
+        if (!live || !body?.title || !body?.url) return;
+        setDrop(body);
+        writeCachedVoidride(body);
       })
       .catch(() => {});
     return () => {
@@ -89,6 +92,8 @@ export function VoidrideHold({
   quiet?: boolean;
 }) {
   const drop = useVoidrideLatest();
+  const shown = drop ?? VOIDRIDE_LATEST;
+  const ready = drop != null;
   const fill = Math.max(0.04, Math.min(1, progress ?? (quiet ? 1 : 0.04)));
   const pct = Math.round(fill * 100);
 
@@ -99,10 +104,12 @@ export function VoidrideHold({
           ? "voidride-hold relative size-full min-h-dvh overflow-hidden bg-ink"
           : "voidride-hold relative min-h-[22rem] w-full overflow-hidden rounded-2xl bg-ink"
       }
+      data-voidride-ready={ready ? "1" : "0"}
+      data-voidride-title={ready ? shown.title : ""}
     >
       <img
-        src={drop.art}
-        alt={`${drop.album} — ${drop.title}`}
+        src={shown.art}
+        alt={ready ? `${shown.album} — ${shown.title}` : "VOIDRIDE"}
         className="absolute inset-0 size-full object-cover"
         decoding="async"
         fetchPriority="high"
@@ -136,17 +143,23 @@ export function VoidrideHold({
             VOIDRIDE
           </a>
         </p>
-        <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">Latest album</p>
-        <a
-          href={drop.albumUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] uppercase tracking-[0.18em] text-white/80 hover:text-white"
-        >
-          {drop.album}
-        </a>
-        <p className="text-lg font-semibold tracking-wide text-white">{drop.title}</p>
-        <VoidrideListen drop={drop} className="mt-1" />
+        {ready ? (
+          <>
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-white/55">Latest</p>
+            <p className="text-lg font-semibold tracking-wide text-white">{shown.title}</p>
+            {shown.album && shown.album !== shown.title ? (
+              <a
+                href={shown.albumUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] uppercase tracking-[0.18em] text-white/70 hover:text-white"
+              >
+                {shown.album}
+              </a>
+            ) : null}
+            <VoidrideListen drop={shown} className="mt-1" />
+          </>
+        ) : null}
       </div>
     </div>
   );

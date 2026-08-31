@@ -1,7 +1,7 @@
 import { VOIDRIDE_LATEST, type VoidrideRelease } from "@/lib/voidride";
 
 const PROFILE = "https://soundcloud.com/ridethevoid";
-const SETS = `${PROFILE}/sets`;
+const TRACKS = `${PROFILE}/tracks`;
 const UA = "Mozilla/5.0 RippleStudio/1.0";
 const TTL_MS = 120_000;
 
@@ -25,29 +25,6 @@ async function get(url: string): Promise<string> {
   const r = await fetch(url, { headers: { "user-agent": UA }, cache: "no-store" });
   if (!r.ok) throw new Error(`voidride ${r.status}`);
   return r.text();
-}
-
-function playlistNames(html: string): { href: string; title: string }[] {
-  const out: { href: string; title: string }[] = [];
-  const seen = new Set<string>();
-  const re =
-    /<h2 itemprop="name">\s*<a itemprop="url" href="(\/ridethevoid\/sets\/[^"]+)">([^<]+)<\/a>/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    const href = m[1]!;
-    if (seen.has(href)) continue;
-    seen.add(href);
-    out.push({ href, title: decode(m[2]!).trim() });
-  }
-  if (out.length) return out;
-  const loose = /href="(\/ridethevoid\/sets\/[^"]+)"[^>]*>([^<]+)</g;
-  while ((m = loose.exec(html))) {
-    const href = m[1]!;
-    if (seen.has(href)) continue;
-    seen.add(href);
-    out.push({ href, title: decode(m[2]!).trim() });
-  }
-  return out;
 }
 
 function trackNames(html: string): { href: string; title: string }[] {
@@ -76,6 +53,16 @@ function trackNames(html: string): { href: string; title: string }[] {
   return out;
 }
 
+function albumOf(html: string): { href: string; title: string } | null {
+  const item =
+    /itemprop="inAlbum"[\s\S]{0,400}?href="(\/ridethevoid\/sets\/[^"]+)"[^>]*>([^<]+)/i.exec(html) ||
+    /href="(\/ridethevoid\/sets\/[^"]+)"[^>]*itemprop="url"[^>]*>([^<]+)/i.exec(html);
+  if (item) return { href: item[1]!, title: decode(item[2]!).trim() };
+  const loose = /href="(\/ridethevoid\/sets\/[^"]+)"[^>]*>([^<]{2,80})</i.exec(html);
+  if (!loose) return null;
+  return { href: loose[1]!, title: decode(loose[2]!).trim() };
+}
+
 async function oembed(url: string): Promise<{ title?: string; thumbnail_url?: string } | null> {
   try {
     const r = await fetch(`https://soundcloud.com/oembed?format=json&url=${encodeURIComponent(url)}`, {
@@ -89,29 +76,36 @@ async function oembed(url: string): Promise<{ title?: string; thumbnail_url?: st
   }
 }
 
-/** Latest VOIDRIDE album + a song from it. Scrapes SoundCloud; falls back to the baked drop. */
+/** Newest published VOIDRIDE track only — never a playlist's first song or a stale fallback flash. */
 export async function fetchVoidrideLatest(): Promise<VoidrideRelease> {
   const now = Date.now();
   if (cache && now - cache.at < TTL_MS) return cache.drop;
   try {
-    const setsHtml = await get(SETS);
-    const playlists = playlistNames(setsHtml);
-    const album = playlists[0];
-    if (!album) throw new Error("no album");
-    const albumUrl = `https://soundcloud.com${album.href}`;
-    const albumPage = await get(albumUrl);
-    const tracks = trackNames(albumPage);
+    const tracksHtml = await get(TRACKS);
+    const tracks = trackNames(tracksHtml);
     const song = tracks[0];
-    const songUrl = song ? `https://soundcloud.com${song.href}` : albumUrl;
-    const songTitle = song?.title || album.title;
-    const meta = (await oembed(albumUrl)) ?? (await oembed(songUrl));
-    const art = meta?.thumbnail_url || VOIDRIDE_LATEST.art;
+    if (!song) throw new Error("no track");
+    const songUrl = `https://soundcloud.com${song.href}`;
+    const songTitle = song.title;
+    let album = songTitle;
+    let albumUrl = songUrl;
+    try {
+      const page = await get(songUrl);
+      const set = albumOf(page);
+      if (set?.href) {
+        albumUrl = `https://soundcloud.com${set.href}`;
+        album = set.title || album;
+      }
+    } catch {
+      /* single */
+    }
+    const meta = await oembed(songUrl);
     const drop: VoidrideRelease = {
-      album: album.title,
+      album,
       albumUrl,
       title: songTitle,
       url: songUrl,
-      art,
+      art: meta?.thumbnail_url || VOIDRIDE_LATEST.art,
     };
     cache = { at: now, drop };
     return drop;

@@ -103,6 +103,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
   const customTexture = useRippleStore((s) => s.customTexture);
   const customLiveUrl = useRippleStore((s) => s.customLiveUrl);
   const cameraInteract = useRippleStore((s) => s.cameraInteract);
+  const cameraOpacity = useRippleStore((s) => s.cameraOpacity);
   const micSensitivity = useRippleStore((s) => s.micSensitivity);
   const micSensRef = useRef(micSensitivity);
   micSensRef.current = micSensitivity;
@@ -339,8 +340,8 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       stops: useRippleStore.getState().getActiveStops(),
       rangeStart,
       rangeEnd,
-      cameraMix: sensors.cameraOn || cameraSource ? 1 : 0,
-      cameraInteract: sensors.cameraOn || cameraSource ? Math.max(0.95, cameraInteract) : cameraInteract,
+      cameraMix: sensors.cameraOn || cameraSource ? cameraOpacity : 0,
+      cameraInteract,
       brushFx: fxMask(asFxList(useRippleStore.getState().getActiveBrushFx())),
       fxOpacity: brushFxOpacity,
       fxLayers: fxLayerMask(asFxLayers(useRippleStore.getState().getActiveFxLayers())),
@@ -366,6 +367,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     sensors.cameraOn,
     cameraSource,
     cameraInteract,
+    cameraOpacity,
     colorPairKey,
     colorStopsSig,
     brushFxSig,
@@ -460,6 +462,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       engine.setCamera(cameraSource, {
         angle: orientationAngle,
         mirror: false,
+        mix: cameraOpacity,
       });
       return;
     }
@@ -494,6 +497,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     engine.setCamera(video, {
       angle: orientationAngle,
       mirror: sensors.facingMode === "user",
+      mix: cameraOpacity,
     });
 
     return () => {
@@ -506,6 +510,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
     worldId,
     orientationAngle,
     cameraSource,
+    cameraOpacity,
   ]);
 
   useEffect(() => {

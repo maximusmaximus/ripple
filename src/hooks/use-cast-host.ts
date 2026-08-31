@@ -15,6 +15,7 @@ import type { Splat } from "@/lib/ripple/pointer";
 import type { PaletteId } from "@/lib/ripple/palettes";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
 import { isLanPeer } from "@/lib/ripple/record";
+import { writeHostCode } from "@/lib/ripple/session-resume";
 
 export type HostConnectionState = "idle" | "waiting" | "connected" | "reconnecting";
 
@@ -95,6 +96,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
     const next = code || makeCastCode();
     if (!code) setCode(next);
     setPairUrl(pairUrlFor(next));
+    if (next) writeHostCode(next);
   }, [code]);
 
   useEffect(() => {

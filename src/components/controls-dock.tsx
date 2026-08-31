@@ -3,7 +3,6 @@ import { ChevronDown, ChevronUp, Smartphone } from "lucide-react";
 import { ColorRangeSlider } from "./color-range-slider";
 import { TexturePicker } from "./texture-picker";
 import { BrushPicker } from "./brush-picker";
-import { BrushSpanSlider } from "./brush-span-slider";
 import { BrushShadowPanel } from "./brush-shadow";
 import { LayerFxPicker } from "./brush-fx";
 import { PresetStrip } from "./preset-strip";
@@ -124,7 +123,8 @@ export function ControlsDock({
             if (!e.target.closest("[data-dock-section]")) setFocus(null);
           }}
         >
-          <div className="flex flex-col gap-3 px-4 pb-4 pr-9 pt-4">
+          <div className="flex flex-col gap-3 pt-4">
+          <div className="dock-body flex flex-col gap-3 px-4">
           <DockSection id="presets" focus={focus} onFocus={setSectionFocus}>
             <h3 className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">
               Presets
@@ -140,7 +140,6 @@ export function ControlsDock({
               <TipMark id="texture" />
             </h3>
             <TexturePicker />
-            <ColorRangeSlider />
             <label className="flex flex-col gap-2">
               <div className="flex justify-between text-[12px] text-muted">
                 <span className="inline-flex items-center gap-1.5">
@@ -187,7 +186,7 @@ export function ControlsDock({
               <TipMark id="paint" />
             </h3>
             <BrushPicker />
-            <BrushSpanSlider />
+            <ColorRangeSlider />
             <BrushShadowPanel />
             <LayerFxPicker />
           </DockSection>
@@ -353,6 +352,7 @@ export function ControlsDock({
             )}
             <FeedbackFooter />
           </DockSection>
+          </div>
           <StudioCredit />
           </div>
         </div>

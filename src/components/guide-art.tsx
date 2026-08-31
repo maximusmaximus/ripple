@@ -67,7 +67,7 @@ function ArtFrame({ children }: { children: ReactNode }) {
 function GradientArt() {
   return (
     <ArtFrame>
-      <svg viewBox="0 0 160 32" className="h-8 w-[85%]" aria-hidden>
+      <svg viewBox="0 0 160 36" className="h-9 w-[85%]" aria-hidden>
         <defs>
           <linearGradient id="ga" x1="0" x2="1">
             <stop offset="0%" stopColor="#07141f" />
@@ -76,24 +76,21 @@ function GradientArt() {
             <stop offset="100%" stopColor="#d7f6ff" />
           </linearGradient>
         </defs>
-        <path d="M4 16 L 40 6 L 80 4 L 120 10 L 156 22 L 156 26 L 120 22 L 80 20 L 40 22 L 4 20 Z" fill="url(#ga)" />
-        <rect x="10" y="20" width="5" height="5" transform="rotate(45 12.5 22.5)" fill="#07141f" stroke="#fff" strokeWidth="0.8" />
-        <rect x="58" y="18" width="4" height="4" transform="rotate(45 60 20)" fill="#1a4a5c" stroke="#fff" strokeWidth="0.7" />
-        <rect x="98" y="18" width="4" height="4" transform="rotate(45 100 20)" fill="#7ec8d8" stroke="#fff" strokeWidth="0.7" />
-        <rect x="138" y="22" width="4" height="4" transform="rotate(45 140 24)" fill="#d7f6ff" stroke="#fff" strokeWidth="0.7" />
+        <circle cx="12" cy="6" r="3.2" fill="#07141f" stroke="#fff" strokeWidth="1.1" />
+        <circle cx="80" cy="5" r="3.6" fill="#1a4a5c" stroke="#fff" strokeWidth="1.1" />
+        <circle cx="148" cy="7" r="3.2" fill="#7ec8d8" stroke="#fff" strokeWidth="1.1" />
+        <path d="M8 18 L 44 12 L 80 10 L 120 14 L 152 20 L 152 24 L 120 22 L 80 22 L 44 24 L 8 22 Z" fill="url(#ga)" />
+        <rect x="10" y="27" width="5" height="5" transform="rotate(45 12.5 29.5)" fill="#07141f" stroke="#fff" strokeWidth="0.8" />
+        <rect x="58" y="26" width="4" height="4" transform="rotate(45 60 28)" fill="#1a4a5c" stroke="#fff" strokeWidth="0.7" />
+        <rect x="98" y="26" width="4" height="4" transform="rotate(45 100 28)" fill="#7ec8d8" stroke="#fff" strokeWidth="0.7" />
+        <rect x="138" y="27" width="4" height="4" transform="rotate(45 140 29)" fill="#d7f6ff" stroke="#fff" strokeWidth="0.7" />
       </svg>
     </ArtFrame>
   );
 }
 
 function WidthArt() {
-  return (
-    <ArtFrame>
-      <svg viewBox="0 0 160 32" className="h-8 w-[85%] text-fg/70" aria-hidden>
-        <path d="M4 16 L 40 6 L 80 4 L 120 10 L 156 22 L 156 26 L 120 22 L 80 20 L 40 22 L 4 20 Z" fill="currentColor" />
-      </svg>
-    </ArtFrame>
-  );
+  return <GradientArt />;
 }
 
 function PairArt() {

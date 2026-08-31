@@ -88,6 +88,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.85,
+        "cameraOpacity": 0.58,
         "micSensitivity": 0.4,
         "gyroSensitivity": 0.125,
         "gyroZoom": 0.55,
@@ -174,7 +175,8 @@
         },
         "brushFxOpacity": 0.72,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -193,6 +195,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.96,
+        "cameraOpacity": 0.92,
         "micSensitivity": 0.22,
         "gyroSensitivity": 0.7,
         "gyroZoom": 0.55,
@@ -258,6 +261,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.36,
+        "cameraOpacity": 0.36,
         "micSensitivity": 1.42,
         "gyroSensitivity": 0.5894736842105263,
         "gyroZoom": 0.55,
@@ -323,6 +327,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.24,
+        "cameraOpacity": 0.2,
         "micSensitivity": 0.28,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -370,7 +375,8 @@
         },
         "brushFxOpacity": 0.82,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -389,6 +395,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.9,
+        "cameraOpacity": 0.84,
         "micSensitivity": 0.2,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -455,6 +462,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.58,
+        "cameraOpacity": 0.5,
         "micSensitivity": 0.88,
         "gyroSensitivity": 0.9578947368421052,
         "gyroZoom": 0.55,
@@ -501,7 +509,8 @@
         },
         "brushFxOpacity": 0.92,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -520,6 +529,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.54,
+        "cameraOpacity": 0.62,
         "micSensitivity": 0.12,
         "gyroSensitivity": 0.29473684210526313,
         "gyroZoom": 0.55,
@@ -585,6 +595,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.48,
+        "cameraOpacity": 0.34,
         "micSensitivity": 1.18,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -651,6 +662,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.16,
+        "cameraOpacity": 0.14,
         "micSensitivity": 0.52,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -749,6 +761,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 1,
+        "cameraOpacity": 0.22,
         "micSensitivity": 0.26,
         "gyroSensitivity": 0.4052631578947368,
         "gyroZoom": 0.55,
@@ -796,7 +809,8 @@
         },
         "brushFxOpacity": 0.94,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -815,6 +829,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.8,
+        "cameraOpacity": 0.7,
         "micSensitivity": 1.42,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -862,7 +877,8 @@
         },
         "brushFxOpacity": 0.8,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -881,6 +897,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.93,
+        "cameraOpacity": 0.88,
         "micSensitivity": 0.42,
         "gyroSensitivity": 0.8473684210526315,
         "gyroZoom": 0.55,
@@ -979,6 +996,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.74,
+        "cameraOpacity": 0.54,
         "micSensitivity": 0.3,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1045,6 +1063,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.78,
+        "cameraOpacity": 0.16,
         "micSensitivity": 0.14,
         "gyroSensitivity": 0.7368421052631579,
         "gyroZoom": 0.55,
@@ -1092,7 +1111,8 @@
         },
         "brushFxOpacity": 0.78,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -1111,6 +1131,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.84,
+        "cameraOpacity": 1,
         "micSensitivity": 0.46,
         "gyroSensitivity": 0.5157894736842106,
         "gyroZoom": 0.55,
@@ -1177,6 +1198,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.4,
+        "cameraOpacity": 0.4,
         "micSensitivity": 1.16,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1242,6 +1264,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.44,
+        "cameraOpacity": 0.1,
         "micSensitivity": 0.18,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1289,7 +1312,8 @@
         },
         "brushFxOpacity": 0.86,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -1308,6 +1332,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.62,
+        "cameraOpacity": 0.66,
         "micSensitivity": 1.32,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1374,6 +1399,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.5,
+        "cameraOpacity": 0.28,
         "micSensitivity": 0.26,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1421,7 +1447,8 @@
         },
         "brushFxOpacity": 0.76,
         "fxLayers": [
-          "brush"
+          "brush",
+          "camera"
         ],
         "shadowOn": false,
         "shadowColor": "#0a0810",
@@ -1440,6 +1467,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.7,
+        "cameraOpacity": 0.78,
         "micSensitivity": 0.74,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1545,6 +1573,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.9,
+        "cameraOpacity": 0.32,
         "micSensitivity": 0.58,
         "gyroSensitivity": 0.9210526315789473,
         "gyroZoom": 0.55,
@@ -1646,6 +1675,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.78,
+        "cameraOpacity": 0.2,
         "micSensitivity": 0.14,
         "gyroSensitivity": 0.7368421052631579,
         "gyroZoom": 0.55,
@@ -1746,6 +1776,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.44,
+        "cameraOpacity": 0.12,
         "micSensitivity": 0.18,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -1846,6 +1877,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.78,
+        "cameraOpacity": 0.18,
         "micSensitivity": 0.14,
         "gyroSensitivity": 0.7368421052631579,
         "gyroZoom": 0.55,
@@ -1947,6 +1979,7 @@
         "textureInvert": false,
         "gradientFlip": true,
         "cameraInteract": 0.58,
+        "cameraOpacity": 0.46,
         "micSensitivity": 0.88,
         "gyroSensitivity": 0.9578947368421052,
         "gyroZoom": 0.55,
@@ -2048,6 +2081,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.9,
+        "cameraOpacity": 0.3,
         "micSensitivity": 0.58,
         "gyroSensitivity": 0.9210526315789473,
         "gyroZoom": 0.55,
@@ -2141,6 +2175,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.74,
+        "cameraOpacity": 0.52,
         "micSensitivity": 0.3,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -2241,6 +2276,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.9,
+        "cameraOpacity": 0.26,
         "micSensitivity": 0.58,
         "gyroSensitivity": 0.9210526315789473,
         "gyroZoom": 0.55,
@@ -2335,6 +2371,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.84,
+        "cameraOpacity": 0.95,
         "micSensitivity": 0.46,
         "gyroSensitivity": 0.5157894736842106,
         "gyroZoom": 0.55,
@@ -2428,6 +2465,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.36,
+        "cameraOpacity": 0.4,
         "micSensitivity": 1.42,
         "gyroSensitivity": 0.5894736842105263,
         "gyroZoom": 0.55,
@@ -2521,6 +2559,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.24,
+        "cameraOpacity": 0.22,
         "micSensitivity": 0.28,
         "gyroSensitivity": 0.7,
         "gyroZoom": 1.15,
@@ -2615,6 +2654,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 1,
+        "cameraOpacity": 0.72,
         "micSensitivity": 0.22,
         "gyroSensitivity": 0.7,
         "gyroZoom": 0.55,
@@ -2710,6 +2750,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.9,
+        "cameraOpacity": 0.86,
         "micSensitivity": 0.74,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -2804,6 +2845,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.16,
+        "cameraOpacity": 0.15,
         "micSensitivity": 0.52,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -2898,6 +2940,7 @@
         "textureInvert": true,
         "gradientFlip": false,
         "cameraInteract": 0.7,
+        "cameraOpacity": 0.28,
         "micSensitivity": 0.26,
         "gyroSensitivity": 0.4052631578947368,
         "gyroZoom": 0.55,
@@ -2997,6 +3040,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.93,
+        "cameraOpacity": 0.8,
         "micSensitivity": 0.42,
         "gyroSensitivity": 0.8473684210526315,
         "gyroZoom": 0.55,
@@ -3083,6 +3127,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.78,
+        "cameraOpacity": 0.08,
         "micSensitivity": 0.14,
         "gyroSensitivity": 0.7368421052631579,
         "gyroZoom": 0.55,
@@ -3177,6 +3222,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.62,
+        "cameraOpacity": 0.64,
         "micSensitivity": 1.32,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -3270,6 +3316,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.74,
+        "cameraOpacity": 0.48,
         "micSensitivity": 0.3,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -3365,6 +3412,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.4,
+        "cameraOpacity": 0.42,
         "micSensitivity": 1.05,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -3467,6 +3515,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.74,
+        "cameraOpacity": 0.5,
         "micSensitivity": 0.3,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -3560,6 +3609,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.8,
+        "cameraOpacity": 0.74,
         "micSensitivity": 1.1,
         "gyroSensitivity": 1,
         "gyroZoom": 0.55,
@@ -3647,6 +3697,7 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 1,
+        "cameraOpacity": 1,
         "micSensitivity": 0.46,
         "gyroSensitivity": 0.5157894736842106,
         "gyroZoom": 0.55,
@@ -3740,11 +3791,118 @@
         "textureInvert": false,
         "gradientFlip": false,
         "cameraInteract": 0.48,
+        "cameraOpacity": 0.6,
         "micSensitivity": 1.18,
         "gyroSensitivity": 0.35,
         "gyroZoom": 0.55,
         "customBrushes": []
       }
+    },
+    {
+      "id": "p_mtgntxbm_2jowxm",
+      "name": "fucky",
+      "createdAt": "2026-08-31T03:09:44.799Z",
+      "snapshot": {
+        "worldId": "prism",
+        "colorRanges": {
+          "prism": {
+            "start": 0,
+            "end": 1
+          }
+        },
+        "colorPairs": {},
+        "colorStops": {
+          "prism": [
+            {
+              "id": "prism_0",
+              "t": 0,
+              "color": "#3a10a0",
+              "alpha": 1
+            },
+            {
+              "id": "prism_1",
+              "t": 0.28,
+              "color": "#2080ff",
+              "alpha": 1
+            },
+            {
+              "id": "prism_2",
+              "t": 0.55,
+              "color": "#20e090",
+              "alpha": 1
+            },
+            {
+              "id": "prism_3",
+              "t": 0.78,
+              "color": "#f0d020",
+              "alpha": 1
+            },
+            {
+              "id": "prism_4",
+              "t": 1,
+              "color": "#f04080",
+              "alpha": 1
+            }
+          ]
+        },
+        "viscosity": 0.98,
+        "waveStrength": 0.6,
+        "brushDiameter": 0.074,
+        "brushSpan": {
+          "ribbon": {
+            "start": 0.074,
+            "mid": 0.046,
+            "end": 0.02
+          }
+        },
+        "brushShape": {
+          "ribbon": {
+            "angle": 28,
+            "width": 0.32,
+            "spin": 0
+          }
+        },
+        "brushId": "ribbon",
+        "brushFx": {
+          "ribbon": [
+            "component"
+          ]
+        },
+        "brushFxOpacity": 0.85,
+        "fxLayers": [
+          "brush",
+          "texture"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "shadowDist": 0.35,
+        "shadowSpan": {
+          "start": 0.072,
+          "mid": 0.048,
+          "end": 0.022
+        },
+        "textureId": "custom",
+        "textureFit": "stretch",
+        "customTexture": {
+          "mime": "image/jpeg",
+          "dataUrl": "",
+          "width": 384,
+          "height": 384,
+          "path": "/studio/media/p_mtgntxbm_2jowxm_tex.jpg"
+        },
+        "textureLevels": 0.91,
+        "textureInvert": false,
+        "gradientFlip": false,
+        "cameraInteract": 0.93,
+        "cameraOpacity": 0.8,
+        "micSensitivity": 0.42,
+        "gyroSensitivity": 0.8473684210526315,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
     }
   ]
 }
