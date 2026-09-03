@@ -21,6 +21,11 @@ export type PinMeta = {
   format: (v: number) => string;
 };
 
+export type PinPatch = {
+  pins: PinId[];
+  active: PinId | null;
+};
+
 function pct(v: number) {
   return `${Math.round(v * 100)}%`;
 }
@@ -104,12 +109,27 @@ export function asPinnedSliders(raw: unknown): PinId[] {
   return out;
 }
 
+/** Active slot is the last used pin, else the last in the list. */
+export function resolvePinnedActive(raw: unknown, pins: readonly PinId[]): PinId | null {
+  if (isPinId(raw) && pins.includes(raw)) return raw;
+  return pins[pins.length - 1] ?? null;
+}
+
 /**
- * Toggle if already pinned. Otherwise append, or replace the last pin
- * when the two slots are full — the older pin stays.
+ * Toggle if already pinned. Otherwise append, or replace the active slot
+ * when both slots are full. The new pin becomes active.
  */
-export function nextPinnedSliders(current: readonly PinId[], id: PinId): PinId[] {
-  if (current.includes(id)) return current.filter((x) => x !== id);
-  if (current.length < MAX_PINS) return [...current, id];
-  return [current[0]!, id];
+export function nextPinnedSliders(current: readonly PinId[], id: PinId, active: PinId | null): PinPatch {
+  if (current.includes(id)) {
+    const pins = current.filter((x) => x !== id);
+    return { pins, active: resolvePinnedActive(active, pins) };
+  }
+  if (current.length < MAX_PINS) {
+    const pins = [...current, id];
+    return { pins, active: id };
+  }
+  const target = resolvePinnedActive(active, current);
+  if (!target) return { pins: [id], active: id };
+  const pins = current.map((x) => (x === target ? id : x));
+  return { pins, active: id };
 }

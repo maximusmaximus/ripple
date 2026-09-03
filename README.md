@@ -63,7 +63,7 @@ Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix bo
 
 **Viscosity** is how long ripples linger. **Wave strength** is how hard a stroke disturbs the bed. Width and color for the brush live under Paint.
 
-A **pin** sits to the right of each menu slider (viscosity, wave, sensors, FX opacity). Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even when the viewport rotates. Unpin from the same pin in the menu. Pinning a third swaps the last one you pinned. Pins are layout, not mix — they survive refresh, clear on Clean session, and are not stored in presets.
+A **pin** sits to the right of each menu slider (viscosity, wave, sensors, FX opacity). Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even when the viewport rotates. The last bar you used has a light outline — a new pin lands there. Use the other bar to move the outline. Unpin from the same pin in the menu. Pins are layout, not mix — they survive refresh, clear on Clean session, and are not stored in presets.
 
 ### Sensors
 

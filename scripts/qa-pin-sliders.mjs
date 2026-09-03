@@ -53,26 +53,48 @@ try {
   await page.waitForTimeout(120);
   const one = await page.getAttribute("[data-pinned-sliders]", "data-pin-count");
   const viscPinned = await page.getAttribute("[data-dock-pin='viscosity']", "data-pinned");
-  results.push({ name: "pin viscosity docks one bar", ok: one === "1" && viscPinned === "1", one, viscPinned });
+  const activeOne = await page.getAttribute("[data-pinned-sliders]", "data-pin-active");
+  results.push({ name: "pin viscosity docks one bar", ok: one === "1" && viscPinned === "1" && activeOne === "viscosity", one, viscPinned, activeOne });
 
   await page.locator("[data-dock-pin='wave']").click({ force: true });
   await page.waitForTimeout(120);
   const two = await page.getAttribute("[data-pinned-sliders]", "data-pin-count");
   const idsTwo = await page.locator("[data-pinned-slider]").evaluateAll((els) => els.map((e) => e.getAttribute("data-pinned-slider")));
-  results.push({ name: "pin wave docks two bars", ok: two === "2" && idsTwo.join(",") === "viscosity,wave", two, idsTwo });
+  const activeTwo = await page.getAttribute("[data-pinned-sliders]", "data-pin-active");
+  const waveSlot = await page.getAttribute("[data-pinned-slider='wave']", "data-pin-slot");
+  results.push({ name: "pin wave docks two bars", ok: two === "2" && idsTwo.join(",") === "viscosity,wave" && activeTwo === "wave" && waveSlot === "active", two, idsTwo, activeTwo, waveSlot });
 
   await page.locator("[data-dock-pin='cam-interact']").click({ force: true });
   await page.waitForTimeout(120);
   const swapped = await page.locator("[data-pinned-slider]").evaluateAll((els) => els.map((e) => e.getAttribute("data-pinned-slider")));
   const wavePinned = await page.getAttribute("[data-dock-pin='wave']", "data-pinned");
+  const activeThird = await page.getAttribute("[data-pinned-sliders]", "data-pin-active");
   results.push({
-    name: "third pin replaces last",
-    ok: swapped.join(",") === "viscosity,cam-interact" && wavePinned === "0",
+    name: "third pin replaces active slot",
+    ok: swapped.join(",") === "viscosity,cam-interact" && wavePinned === "0" && activeThird === "cam-interact",
     swapped,
     wavePinned,
+    activeThird,
   });
 
-  await page.locator("[data-dock-pin='viscosity']").click({ force: true });
+  await page.locator("[data-pinned-slider='viscosity'] .pinned-slider-thumb").click({ force: true });
+  await page.waitForTimeout(120);
+  const activeAfterUse = await page.getAttribute("[data-pinned-sliders]", "data-pin-active");
+  const viscSlot = await page.getAttribute("[data-pinned-slider='viscosity']", "data-pin-slot");
+  results.push({ name: "using other bar moves the outline", ok: activeAfterUse === "viscosity" && viscSlot === "active", activeAfterUse, viscSlot });
+
+  await page.locator("[data-dock-pin='gyro-zoom']").click({ force: true });
+  await page.waitForTimeout(120);
+  const landed = await page.locator("[data-pinned-slider]").evaluateAll((els) => els.map((e) => e.getAttribute("data-pinned-slider")));
+  const activeLanded = await page.getAttribute("[data-pinned-sliders]", "data-pin-active");
+  results.push({
+    name: "new pin lands on outlined slot",
+    ok: landed.join(",") === "gyro-zoom,cam-interact" && activeLanded === "gyro-zoom",
+    landed,
+    activeLanded,
+  });
+
+  await page.locator("[data-dock-pin='gyro-zoom']").click({ force: true });
   await page.waitForTimeout(120);
   const afterUnpin = await page.locator("[data-pinned-slider]").evaluateAll((els) => els.map((e) => e.getAttribute("data-pinned-slider")));
   results.push({ name: "unpin from menu", ok: afterUnpin.join(",") === "cam-interact", afterUnpin });

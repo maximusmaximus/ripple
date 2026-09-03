@@ -1,27 +1,30 @@
 import { useCallback, useRef } from "react";
-import { PIN_META, type PinId } from "@/lib/ripple/pins";
+import { PIN_META, resolvePinnedActive, type PinId } from "@/lib/ripple/pins";
 import { useRippleStore } from "@/store/ripple";
 
 export function PinnedSliders() {
   const ids = useRippleStore((s) => s.pinnedSliders);
+  const rawActive = useRippleStore((s) => s.pinnedActive);
+  const active = resolvePinnedActive(rawActive, ids);
   if (ids.length === 0) return null;
   return (
     <div
       data-ui-chrome
       data-pinned-sliders="true"
       data-pin-count={ids.length}
+      data-pin-active={active ?? ""}
       className="pinned-sliders"
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {ids.map((id) => (
-        <PinnedSlider key={id} id={id} />
+        <PinnedSlider key={id} id={id} active={id === active} />
       ))}
     </div>
   );
 }
 
-function PinnedSlider({ id }: { id: PinId }) {
+function PinnedSlider({ id, active }: { id: PinId; active: boolean }) {
   const meta = PIN_META[id];
   const value = useRippleStore((s) => {
     switch (id) {
@@ -48,6 +51,7 @@ function PinnedSlider({ id }: { id: PinId }) {
   const setGyroSensitivity = useRippleStore((s) => s.setGyroSensitivity);
   const setGyroZoom = useRippleStore((s) => s.setGyroZoom);
   const setBrushFxOpacity = useRippleStore((s) => s.setBrushFxOpacity);
+  const setPinnedActive = useRippleStore((s) => s.setPinnedActive);
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -99,6 +103,7 @@ function PinnedSlider({ id }: { id: PinId }) {
     e.preventDefault();
     e.stopPropagation();
     dragging.current = true;
+    setPinnedActive(id);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {
@@ -130,8 +135,9 @@ function PinnedSlider({ id }: { id: PinId }) {
     <div
       data-pinned-slider={id}
       data-pin-axis="v"
-      className="pinned-slider"
-      title={`${meta.label} ${meta.format(value)}`}
+      data-pin-slot={active ? "active" : "idle"}
+      className={"pinned-slider" + (active ? " is-active" : "")}
+      title={`${meta.label} ${meta.format(value)}${active ? " · next pin lands here" : ""}`}
     >
       <div ref={trackRef} className="pinned-slider-track" aria-hidden />
       <button
@@ -142,7 +148,7 @@ function PinnedSlider({ id }: { id: PinId }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        aria-label={`${meta.label}, ${meta.format(value)}`}
+        aria-label={`${meta.label}, ${meta.format(value)}${active ? ", next pin lands here" : ""}`}
         aria-valuemin={meta.min}
         aria-valuemax={meta.max}
         aria-valuenow={value}

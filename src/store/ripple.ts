@@ -23,7 +23,7 @@ import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaul
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 import { hasMediaPayload, upsertCustomSurface, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
-import { asPinnedSliders, nextPinnedSliders, type PinId } from "@/lib/ripple/pins";
+import { asPinnedSliders, nextPinnedSliders, resolvePinnedActive, type PinId } from "@/lib/ripple/pins";
 
 export type WorldId = PaletteId;
 
@@ -95,6 +95,8 @@ interface RippleState {
   hiddenBrushIds: string[];
   /** Up to two menu sliders docked on the canvas. Chrome, not mix. */
   pinnedSliders: PinId[];
+  /** Which docked bar a new pin replaces. Last used, until the other is used. */
+  pinnedActive: PinId | null;
 
   setWorld: (id: WorldId) => void;
   nextWorld: () => void;
@@ -158,6 +160,7 @@ interface RippleState {
   hideBrush: (id: string) => void;
   pinSlider: (id: PinId) => void;
   unpinSlider: (id: PinId) => void;
+  setPinnedActive: (id: PinId) => void;
 
   getActiveRange: () => ColorRange;
   getActivePair: () => ColorPair;
@@ -310,6 +313,7 @@ export const useRippleStore = create<RippleState>()(
       hiddenPresetIds: [],
       hiddenBrushIds: [],
       pinnedSliders: [],
+      pinnedActive: null,
 
       setWorld: (id) =>
         set((s) => {
@@ -825,6 +829,7 @@ export const useRippleStore = create<RippleState>()(
           gyroZoom: 0.55,
           dockOpen: false,
           pinnedSliders: [],
+          pinnedActive: null,
           clearToken: get().clearToken + 1,
         });
       },
@@ -854,8 +859,18 @@ export const useRippleStore = create<RippleState>()(
           const brushId = s.brushId === id ? getBrush(undefined).id : s.brushId;
           return { hiddenBrushIds, brushId };
         }),
-      pinSlider: (id) => set((s) => ({ pinnedSliders: nextPinnedSliders(s.pinnedSliders, id) })),
-      unpinSlider: (id) => set((s) => ({ pinnedSliders: s.pinnedSliders.filter((x) => x !== id) })),
+      pinSlider: (id) =>
+        set((s) => {
+          const next = nextPinnedSliders(s.pinnedSliders, id, s.pinnedActive);
+          return { pinnedSliders: next.pins, pinnedActive: next.active };
+        }),
+      unpinSlider: (id) =>
+        set((s) => {
+          const pins = s.pinnedSliders.filter((x) => x !== id);
+          return { pinnedSliders: pins, pinnedActive: resolvePinnedActive(s.pinnedActive, pins) };
+        }),
+      setPinnedActive: (id) =>
+        set((s) => (s.pinnedSliders.includes(id) ? { pinnedActive: id } : {})),
 
       getActiveRange: () => {
         const { worldId, colorRanges } = get();
@@ -926,6 +941,7 @@ export const useRippleStore = create<RippleState>()(
         hiddenPresetIds: s.hiddenPresetIds,
         hiddenBrushIds: s.hiddenBrushIds,
         pinnedSliders: s.pinnedSliders,
+        pinnedActive: s.pinnedActive,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean; gyroQuietV2?: boolean };
@@ -948,6 +964,7 @@ export const useRippleStore = create<RippleState>()(
         if (customSurfaces.length === 0 && p.customTexture && hasMediaPayload(p.customTexture)) {
           customSurfaces = upsertCustomSurface([], p.customTexture);
         }
+        const pinnedSliders = asPinnedSliders((p as { pinnedSliders?: unknown }).pinnedSliders ?? current.pinnedSliders);
         return {
           ...current,
           ...p,
@@ -969,7 +986,8 @@ export const useRippleStore = create<RippleState>()(
           hiddenBrushIds: Array.isArray((p as { hiddenBrushIds?: string[] }).hiddenBrushIds)
             ? (p as { hiddenBrushIds: string[] }).hiddenBrushIds
             : current.hiddenBrushIds,
-          pinnedSliders: asPinnedSliders((p as { pinnedSliders?: unknown }).pinnedSliders ?? current.pinnedSliders),
+          pinnedSliders,
+          pinnedActive: resolvePinnedActive((p as { pinnedActive?: unknown }).pinnedActive, pinnedSliders),
         };
       },
     },

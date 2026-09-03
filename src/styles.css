@@ -637,6 +637,17 @@ html[data-pointer="fine"] .well-corner-fab {
     repeating-conic-gradient(rgb(255 255 255 / 0.14) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px;
 }
 
+.pinned-slider.is-active .pinned-slider-track {
+  border-color: rgb(255 255 255 / 0.55);
+  box-shadow:
+    0 0 0 1.5px rgb(255 255 255 / 0.38),
+    0 0 10px rgb(126 200 227 / 0.22);
+}
+
+.pinned-slider.is-active .pinned-slider-thumb {
+  border-color: rgb(255 255 255 / 0.55);
+}
+
 .pinned-slider-thumb {
   position: absolute;
   top: 0;

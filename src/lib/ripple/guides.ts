@@ -99,7 +99,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "pin",
     title: "Pin to canvas",
-    body: "A pin sits to the right of each menu slider. Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even if you rotate. Unpin from the same pin in the menu. Pinning a third swaps the last one you pinned.",
+    body: "A pin sits to the right of each menu slider. Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even if you rotate. The last one you used has a light outline — that is where a new pin lands. Use the other bar to move the outline. Unpin from the same pin in the menu.",
   },
   {
     id: "clear",
