@@ -10,6 +10,7 @@ import { FeedbackFooter } from "./feedback-form";
 import { StudioCredit } from "./studio-credit";
 import { TipMark, TipCopy } from "./tip-mark";
 import { SessionShare, type SessionShareValue } from "./session-share";
+import { DockSlider } from "./dock-slider";
 import { useRippleStore } from "@/store/ripple";
 
 function DockSection({
@@ -140,44 +141,8 @@ export function ControlsDock({
               <TipMark id="texture" />
             </h3>
             <TexturePicker />
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Viscosity
-                  <TipMark id="viscosity" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{viscosity.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min={0.85}
-                max={0.999}
-                step={0.001}
-                value={viscosity}
-                onChange={(e) => setViscosity(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Wave strength
-                  <TipMark id="wave" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{waveStrength.toFixed(2)}</span>
-              </div>
-              <input
-                type="range"
-                min={0.1}
-                max={1.5}
-                step={0.01}
-                value={waveStrength}
-                onChange={(e) => setWaveStrength(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
+            <DockSlider pinId="viscosity" tipId="viscosity" pinTip value={viscosity} onChange={setViscosity} />
+            <DockSlider pinId="wave" tipId="wave" value={waveStrength} onChange={setWaveStrength} />
           </DockSection>
 
           <DockSection id="paint" focus={focus} onFocus={setSectionFocus}>
@@ -193,82 +158,10 @@ export function ControlsDock({
 
           <DockSection id="sensors" focus={focus} onFocus={setSectionFocus}>
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-subtle">Sensors</h3>
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Camera interact
-                  <TipMark id="cam-interact" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{Math.round(cameraInteract * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={cameraInteract}
-                onChange={(e) => setCameraInteract(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Mic sensitivity
-                  <TipMark id="mic-sens" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{Math.round(micSensitivity * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1.5}
-                step={0.01}
-                value={micSensitivity}
-                onChange={(e) => setMicSensitivity(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Gyro sensitivity
-                  <TipMark id="gyro-sens" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{Math.round(gyroSensitivity * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.01}
-                value={gyroSensitivity}
-                onChange={(e) => setGyroSensitivity(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
-            <label className="flex flex-col gap-2">
-              <div className="flex justify-between text-[12px] text-muted">
-                <span className="inline-flex items-center gap-1.5">
-                  Gyro zoom
-                  <TipMark id="gyro-zoom" />
-                </span>
-                <span className="font-mono tabular-nums text-fg">{Math.round(gyroZoom * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={1.5}
-                step={0.01}
-                value={gyroZoom}
-                onChange={(e) => setGyroZoom(parseFloat(e.target.value))}
-                className="w-full"
-                suppressHydrationWarning
-              />
-            </label>
+            <DockSlider pinId="cam-interact" tipId="cam-interact" value={cameraInteract} onChange={setCameraInteract} />
+            <DockSlider pinId="mic-sens" tipId="mic-sens" value={micSensitivity} onChange={setMicSensitivity} />
+            <DockSlider pinId="gyro-sens" tipId="gyro-sens" value={gyroSensitivity} onChange={setGyroSensitivity} />
+            <DockSlider pinId="gyro-zoom" tipId="gyro-zoom" value={gyroZoom} onChange={setGyroZoom} />
           </DockSection>
 
           <DockSection id="session" focus={focus} onFocus={setSectionFocus}>

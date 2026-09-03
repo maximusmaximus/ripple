@@ -1,5 +1,4 @@
 import { useLayoutEffect, useRef } from "react";
-import { encode } from "uqr";
 
 export function QrMark({
   value,
@@ -19,22 +18,29 @@ export function QrMark({
   useLayoutEffect(() => {
     const canvas = ref.current;
     if (!canvas || !value) return;
-    const result = encode(value, { ecc: "M", border: 2 });
-    const n = result.size;
-    const scale = 4;
-    canvas.width = n * scale;
-    canvas.height = n * scale;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = light;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = dark;
-    for (let y = 0; y < n; y++) {
-      const row = result.data[y]!;
-      for (let x = 0; x < n; x++) {
-        if (row[x]) ctx.fillRect(x * scale, y * scale, scale, scale);
+    let cancelled = false;
+    void import("uqr").then(({ encode }) => {
+      if (cancelled || !ref.current) return;
+      const result = encode(value, { ecc: "M", border: 2 });
+      const n = result.size;
+      const scale = 4;
+      canvas.width = n * scale;
+      canvas.height = n * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = light;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = dark;
+      for (let y = 0; y < n; y++) {
+        const row = result.data[y]!;
+        for (let x = 0; x < n; x++) {
+          if (row[x]) ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
       }
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [value, dark, light]);
 
   return (

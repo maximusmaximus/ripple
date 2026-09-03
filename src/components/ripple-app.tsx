@@ -5,6 +5,7 @@ import { WallViewport } from "./wall-viewport";
 import { PadGate } from "./pad-gate";
 import { ControlsDock } from "./controls-dock";
 import { SensorsBar } from "./sensors-bar";
+import { PinnedSliders } from "./pinned-sliders";
 import { RippleCanvas } from "./ripple-canvas";
 import { EMPTY_SHARE, type SessionShareValue } from "./session-share";
 import { LanHdToast } from "./lan-hd-toast";
@@ -35,6 +36,13 @@ import { compactCastSnapshot, hydrateSnapshotMedia, type StudioSnapshot } from "
 import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
 
 const PRIVATE_KEY = "ripple-private-session";
+
+function clickKeepsDock(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("[data-emoji-suggest],[data-color-wheel],[data-watch-share],[data-pinned-sliders]"))
+  );
+}
 
 function MobileVoidrideIntro({ onDone }: { onDone: () => void }) {
   const { locked, progress } = useVoidrideGate();
@@ -363,7 +371,7 @@ export function RippleApp() {
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (panel.contains(target)) return;
-      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel],[data-watch-share]")) return;
+      if (clickKeepsDock(target)) return;
       setDockOpen(false);
       if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
       e.preventDefault();
@@ -551,6 +559,7 @@ export function RippleApp() {
           lanHd={host.lanHd}
         />
       )}
+      {showChrome && <PinnedSliders />}
 
       {!showChrome && (liveViewers > 0 || host.lanHd) && (
         <div
@@ -814,7 +823,7 @@ function PadSurface({
       const target = e.target;
       if (!(target instanceof Node)) return;
       if (panel.contains(target)) return;
-      if (target instanceof Element && target.closest("[data-emoji-suggest],[data-color-wheel],[data-watch-share]")) return;
+      if (clickKeepsDock(target)) return;
       setDockOpen(false);
       if (target instanceof Element && target.closest("[data-ui-chrome]")) return;
       e.preventDefault();
@@ -848,6 +857,7 @@ function PadSurface({
         lanHd={lanHd}
         linkState="live"
       />
+      <PinnedSliders />
       <LanHdToast on={lanHd} />
 
       <div

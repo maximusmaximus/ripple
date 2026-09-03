@@ -97,6 +97,11 @@ export const GUIDE_TIPS: GuideTip[] = [
     body: "How hard tilt punches the camera in, independent of slosh. Use it as a lean-in, not a wave.",
   },
   {
+    id: "pin",
+    title: "Pin to canvas",
+    body: "A pin sits to the right of each menu slider. Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even if you rotate. Unpin from the same pin in the menu. Pinning a third swaps the last one you pinned.",
+  },
+  {
     id: "clear",
     title: "Clear surface",
     body: "Wipes the painted fluid. Brushes and presets stay put.",

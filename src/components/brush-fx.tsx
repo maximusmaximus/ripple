@@ -10,6 +10,7 @@ import {
 } from "@/lib/ripple/blend";
 import { useRippleStore } from "@/store/ripple";
 import { TipMark, TipCopy } from "./tip-mark";
+import { DockSlider } from "./dock-slider";
 
 export function LayerFxPicker() {
   const fxSig = useRippleStore((s) => asFxList(s.brushFx[s.brushId]).join(","));
@@ -89,22 +90,7 @@ export function LayerFxPicker() {
               );
             })}
           </div>
-          <label className="flex flex-col gap-1.5">
-            <div className="flex justify-between text-[12px] text-muted">
-              <span>FX opacity</span>
-              <span className="font-mono tabular-nums text-fg">{Math.round(fxOpacity * 100)}%</span>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={fxOpacity}
-              onChange={(e) => setBrushFxOpacity(parseFloat(e.target.value))}
-              className="w-full"
-              suppressHydrationWarning
-            />
-          </label>
+          <DockSlider pinId="fx-opacity" value={fxOpacity} onChange={setBrushFxOpacity} />
         </>
       )}
     </div>

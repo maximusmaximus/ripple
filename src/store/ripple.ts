@@ -23,6 +23,7 @@ import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaul
 import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
 import { hasMediaPayload, upsertCustomSurface, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
+import { asPinnedSliders, nextPinnedSliders, type PinId } from "@/lib/ripple/pins";
 
 export type WorldId = PaletteId;
 
@@ -92,6 +93,8 @@ interface RippleState {
   openTipId: string | null;
   hiddenPresetIds: string[];
   hiddenBrushIds: string[];
+  /** Up to two menu sliders docked on the canvas. Chrome, not mix. */
+  pinnedSliders: PinId[];
 
   setWorld: (id: WorldId) => void;
   nextWorld: () => void;
@@ -153,6 +156,8 @@ interface RippleState {
   setOpenTip: (id: string | null) => void;
   hidePreset: (id: string) => void;
   hideBrush: (id: string) => void;
+  pinSlider: (id: PinId) => void;
+  unpinSlider: (id: PinId) => void;
 
   getActiveRange: () => ColorRange;
   getActivePair: () => ColorPair;
@@ -304,6 +309,7 @@ export const useRippleStore = create<RippleState>()(
       openTipId: null,
       hiddenPresetIds: [],
       hiddenBrushIds: [],
+      pinnedSliders: [],
 
       setWorld: (id) =>
         set((s) => {
@@ -818,6 +824,7 @@ export const useRippleStore = create<RippleState>()(
           gyroSensitivity: p.gyroDrive,
           gyroZoom: 0.55,
           dockOpen: false,
+          pinnedSliders: [],
           clearToken: get().clearToken + 1,
         });
       },
@@ -847,6 +854,8 @@ export const useRippleStore = create<RippleState>()(
           const brushId = s.brushId === id ? getBrush(undefined).id : s.brushId;
           return { hiddenBrushIds, brushId };
         }),
+      pinSlider: (id) => set((s) => ({ pinnedSliders: nextPinnedSliders(s.pinnedSliders, id) })),
+      unpinSlider: (id) => set((s) => ({ pinnedSliders: s.pinnedSliders.filter((x) => x !== id) })),
 
       getActiveRange: () => {
         const { worldId, colorRanges } = get();
@@ -916,6 +925,7 @@ export const useRippleStore = create<RippleState>()(
         customBrushes: s.customBrushes,
         hiddenPresetIds: s.hiddenPresetIds,
         hiddenBrushIds: s.hiddenBrushIds,
+        pinnedSliders: s.pinnedSliders,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean; gyroQuietV2?: boolean };
@@ -959,6 +969,7 @@ export const useRippleStore = create<RippleState>()(
           hiddenBrushIds: Array.isArray((p as { hiddenBrushIds?: string[] }).hiddenBrushIds)
             ? (p as { hiddenBrushIds: string[] }).hiddenBrushIds
             : current.hiddenBrushIds,
+          pinnedSliders: asPinnedSliders((p as { pinnedSliders?: unknown }).pinnedSliders ?? current.pinnedSliders),
         };
       },
     },
