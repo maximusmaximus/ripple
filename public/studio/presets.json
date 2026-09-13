@@ -3799,6 +3799,127 @@
       }
     },
     {
+      "id": "p_mtl36hos_9p7rlo",
+      "name": "slimer",
+      "createdAt": "2026-09-03T05:30:30.606Z",
+      "snapshot": {
+        "worldId": "volt",
+        "colorRanges": {
+          "volt": {
+            "start": 0,
+            "end": 1
+          }
+        },
+        "colorPairs": {},
+        "colorStops": {
+          "volt": [
+            {
+              "id": "volt-0",
+              "t": 0,
+              "color": "#010a04"
+            },
+            {
+              "id": "brush-shadow",
+              "t": 0.08,
+              "color": "#0a0810",
+              "alpha": 0.45,
+              "role": "shadow"
+            },
+            {
+              "id": "volt-1",
+              "t": 0.33636363636363636,
+              "color": "#031a08"
+            },
+            {
+              "id": "volt-2",
+              "t": 0.396969696969697,
+              "color": "#0a5a12"
+            },
+            {
+              "id": "volt-3",
+              "t": 0.46060606060606063,
+              "color": "#3dff3d"
+            },
+            {
+              "id": "volt-4",
+              "t": 0.5242424242424243,
+              "color": "#c8ff3a"
+            },
+            {
+              "id": "smtl35699_1",
+              "t": 0.5601980198019803,
+              "color": "#ecffc1"
+            },
+            {
+              "id": "volt-5",
+              "t": 0.6394059405940594,
+              "color": "#f4ffe0",
+              "alpha": 0.47
+            }
+          ]
+        },
+        "viscosity": 0.999,
+        "waveStrength": 1.1,
+        "brushDiameter": 0.12,
+        "brushSpan": {
+          "spark": {
+            "start": 0.12,
+            "mid": 0.12,
+            "end": 0.01008
+          }
+        },
+        "brushShape": {
+          "spark": {
+            "angle": 250,
+            "width": 0.96,
+            "spin": 0
+          }
+        },
+        "brushId": "spark",
+        "brushFx": {
+          "spark": [
+            "screen"
+          ]
+        },
+        "brushFxOpacity": 0.20673076923076927,
+        "fxLayers": [
+          "brush"
+        ],
+        "shadowOn": false,
+        "shadowColor": "#0a0810",
+        "shadowAngle": 135,
+        "shadowOpacity": 0.45,
+        "shadowDist": 0.35,
+        "shadowSpan": {
+          "start": 0.072,
+          "mid": 0.048,
+          "end": 0.022
+        },
+        "textureId": "custom",
+        "textureFit": "cover",
+        "customTexture": {
+          "mime": "image/jpeg",
+          "dataUrl": "",
+          "width": 320,
+          "height": 320,
+          "id": "cs_mtl34n1i_ztmrh7",
+          "name": "Dust",
+          "kind": "random",
+          "path": "/studio/media/p_mtl36hos_9p7rlo_tex.jpg"
+        },
+        "textureLevels": 0.81,
+        "textureInvert": false,
+        "gradientFlip": false,
+        "cameraInteract": 0.48,
+        "cameraOpacity": 0.34,
+        "micSensitivity": 1.18,
+        "gyroSensitivity": 1,
+        "gyroZoom": 0.55,
+        "customBrushes": []
+      },
+      "source": "studio"
+    },
+    {
       "id": "p_mtgntxbm_2jowxm",
       "name": "fucky",
       "createdAt": "2026-08-31T03:09:44.799Z",

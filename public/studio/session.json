@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "updatedAt": "2026-09-13T09:48:45.706Z",
+  "snapshot": {
+    "worldId": "voice",
+    "colorRanges": {
+      "voice": {
+        "end": 1,
+        "start": 0
+      }
+    },
+    "colorPairs": {},
+    "colorStops": {
+      "voice": [
+        {
+          "t": 0,
+          "id": "voice_0",
+          "alpha": 1,
+          "color": "#1a0524"
+        },
+        {
+          "t": 0.4,
+          "id": "voice_1",
+          "alpha": 1,
+          "color": "#c43adf"
+        },
+        {
+          "t": 0.72,
+          "id": "voice_2",
+          "alpha": 1,
+          "color": "#ff4fd8"
+        },
+        {
+          "t": 1,
+          "id": "voice_3",
+          "alpha": 1,
+          "color": "#ffe8ff"
+        }
+      ]
+    },
+    "viscosity": 0.96,
+    "waveStrength": 0.9,
+    "brushDiameter": 0.04,
+    "brushSpan": {
+      "pulse": {
+        "start": 0.04,
+        "mid": 0.07,
+        "end": 0.03
+      }
+    },
+    "brushShape": {
+      "pulse": {
+        "angle": 0,
+        "width": 0.7,
+        "spin": 1.2
+      }
+    },
+    "brushId": "pulse",
+    "brushFx": {
+      "pulse": [
+        "overlay"
+      ]
+    },
+    "brushFxOpacity": 0.9,
+    "fxLayers": [
+      "brush",
+      "mic"
+    ],
+    "shadowOn": false,
+    "shadowColor": "#0a0810",
+    "shadowAngle": 135,
+    "shadowOpacity": 0.45,
+    "shadowDist": 0.35,
+    "shadowSpan": {
+      "start": 0.072,
+      "mid": 0.048,
+      "end": 0.022
+    },
+    "textureId": "none",
+    "textureFit": "cover",
+    "customTexture": null,
+    "textureLevels": 0,
+    "textureInvert": false,
+    "gradientFlip": false,
+    "cameraInteract": 0.36,
+    "cameraOpacity": 0.4,
+    "micSensitivity": 1.42,
+    "gyroSensitivity": 0.5894736842105263,
+    "gyroZoom": 0.55,
+    "customBrushes": []
+  }
+}
