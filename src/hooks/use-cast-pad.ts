@@ -3,7 +3,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { P2PRoom } from "@/lib/multiplayer";
-import { encodeCamB64, parseCastMsg, roomIdFor, type CastMsg } from "@/lib/ripple/cast";
+import { encodeCamB64, isWallName, parseCastMsg, roomIdFor, PAD_CONNECT_MS, type CastMsg } from "@/lib/ripple/cast";
 import { createRecInbox, offerDownload, isLanPeer, type PendingClip } from "@/lib/ripple/record";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
@@ -55,6 +55,9 @@ export function useCastPad(opts: UseCastPadOptions) {
   const [recNote, setRecNote] = useState<string | null>(null);
   const [lanHd, setLanHd] = useState(false);
   const padIdRef = useRef(padIdentity());
+  const connectTimer = useRef(0);
+  const helloAtRef = useRef(0);
+  const lookingRef = useRef(false);
 
   const sendJson = useCallback((msg: CastMsg, reliable = true) => {
     const p2p = p2pRef.current;
@@ -84,6 +87,10 @@ export function useCastPad(opts: UseCastPadOptions) {
     stopOwnedStream();
     p2pRef.current?.close();
     p2pRef.current = null;
+    if (connectTimer.current) {
+      window.clearTimeout(connectTimer.current);
+      connectTimer.current = 0;
+    }
     setLanHd(false);
   }, [stopMedia, stopOwnedStream]);
 
@@ -147,27 +154,42 @@ export function useCastPad(opts: UseCastPadOptions) {
   const connect = useCallback(async () => {
     setState("connecting");
     setError(null);
+    lookingRef.current = true;
     cleanup();
     const selfId = makePeerId("p");
     const p2p = new P2PRoom({
       room: roomIdFor(code),
       selfId,
       name: "pad",
+      eagerPoll: true,
       onPeersChanged: (peers) => {
-        const live = peers.some((p) => p.connectionState === "connected");
-        const wall = peers.find((p) => p.name === "wall" && p.connectionState === "connected");
-        setLanHd(Boolean(wall && isLanPeer(wall)));
-        const failed = peers.every((p) => p.connectionState === "failed") && peers.length > 0;
-        if (live) {
-          setState("connected");
-          try {
-            p2p.send({ t: "hello", role: "pad", code, padId: padIdRef.current } satisfies CastMsg);
-          } catch {
-            /* channel may not be ready yet */
+        const wall = peers.find((p) => isWallName(p.name));
+        const live = Boolean(wall);
+        const wallLive = wall;
+        setLanHd(Boolean(wallLive && (wallLive.connectionState === "connected" || wallLive.relayed) && isLanPeer(wallLive)));
+        const failed = peers.every((p) => p.connectionState === "failed" && !p.relayed) && peers.length > 0 && !wall;
+        if (wall) {
+          const now = Date.now();
+          if (now - helloAtRef.current > 1200) {
+            helloAtRef.current = now;
+            try {
+              p2p.send({ t: "hello", role: "pad", code, padId: padIdRef.current } satisfies CastMsg);
+            } catch {
+              /* relay or channel */
+            }
           }
+        }
+        if (live) {
+          lookingRef.current = false;
+          if (connectTimer.current) {
+            window.clearTimeout(connectTimer.current);
+            connectTimer.current = 0;
+          }
+          setState("connected");
+          setError(null);
         } else if (failed) {
           setState("error");
-          setError("Could not reach the display — same Wi-Fi helps");
+          setError("Could not reach the display — keep the wall on this same studio");
         } else if (p2pRef.current) {
           setState((prev) => {
             if (prev === "connected") {
@@ -228,6 +250,11 @@ export function useCastPad(opts: UseCastPadOptions) {
           );
         }
       },
+      onPollError: () => {
+        lookingRef.current = false;
+        setState("error");
+        setError("The studio link is blocked. Stay on this same site.");
+      },
       onConnected: () => {
         try {
           p2p.send({ t: "hello", role: "pad", code, padId: padIdRef.current } satisfies CastMsg);
@@ -238,6 +265,14 @@ export function useCastPad(opts: UseCastPadOptions) {
     });
     p2pRef.current = p2p;
     await p2p.join();
+    if (connectTimer.current) window.clearTimeout(connectTimer.current);
+    connectTimer.current = window.setTimeout(() => {
+      connectTimer.current = 0;
+      if (!lookingRef.current) return;
+      lookingRef.current = false;
+      setState("error");
+      setError("No display in this studio. Keep the wall on the pair card, then retry.");
+    }, PAD_CONNECT_MS);
   }, [cleanup, code]);
 
   const sendSplats = useCallback(

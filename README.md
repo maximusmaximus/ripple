@@ -89,7 +89,7 @@ On a desktop-width studio the pairing card can open automatically or from the li
 
 On a phone the light is also top-right. It does **not** auto-open. Tap it after you are in the studio for instructions to scan the desktop / primary screen, or type that screen’s six-character code.
 
-Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. If the phone drops, the pairing card comes back on the wall so you can scan again. Same-network pairs light the bulb **HD**; extra watchers do not turn that off.
+Once the phone is linked, the wall hides its menu, sensors, tips, and remaining buttons — the phone becomes the controller, with the full studio menu. A **tablet** pad keeps that menu as a floating card on the left (not docked to the bottom) so the canvas, REC, and pinned sliders stay in view. Minus on the card tucks it into the menu circle at that spot; drag the top bar to move it. Painting does not hide the floating card. If the phone drops, the pairing card comes back on the wall so you can scan again. Same-network pairs light the bulb **HD**; extra watchers do not turn that off.
 
 The pairing card opens with the **latest VOIDRIDE track from SoundCloud** for a few seconds so you can tap **Listen** on that song. Launch never shows a stored older cover — it waits for the live drop. Clicking outside during that hold flashes the card instead of closing it. Then the QR appears. The same latest track sits at the bottom of the menu, **under** “Made with ♥ in SF with support from VOIDRIDE”, as a full-width cover so Listen is always on hand.
 
@@ -117,7 +117,7 @@ Last three seconds pulse faster so you know the cap is close.
 
 ### Menu scroll
 
-On a phone the **Menu** button sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. The open card is one connected scroll — presets, surface, and credit travel together. It always opens at the **top** (Presets). Tap a section to focus it (it expands, the rest dim); tap another section or the canvas to leave. On a phone, swipe the card — inner rails stay hidden. A mouse gets a jump rail on the right of the menu and the chip wells.
+On a phone the **Menu** button sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. The open card is one connected scroll — presets, surface, and credit travel together. It always opens at the **top** (Presets). Extra space below the last section lets you roll it up into view. **Up** and **Down** buttons sit outside the card and jump between Presets, Surface, Paint, Sensors, and Session. Tap a section to focus it (it expands, the rest dim); tap another section or the canvas to leave. In landscape the sheet hangs off the bottom of the screen so the short side still has room to scroll. Chip wells keep a small inner rail on a mouse.
 
 ## URL modes
 
@@ -125,7 +125,7 @@ On a phone the **Menu** button sits a quarter of the way up from the bottom so t
 |-----|------|
 | `/` | Local interactive surface |
 | `/?mode=wall` | Wall / second display (QR pairing, claims the public LIVE slot) |
-| `/?mode=pad&c=CODE` | Phone pad (from QR) |
+| `/?mode=pad&c=CODE` | Phone or tablet pad (from QR) |
 | `/?mode=watch&c=CODE` | Watch-only live stream |
 
 ## Keyboard
@@ -148,5 +148,5 @@ Cast signaling uses Postgres when `DATABASE_URL` is set, and an in-memory roster
 
 ## Notes
 
-- Same Wi-Fi is the reliable path for phone-to-wall. Strict NATs can still fail without a TURN relay.
+- Same studio on both screens, then the six-character code (or QR when the wall is on a public URL). Same Wi-Fi helps the direct link; if that path is blocked the menu still rides the studio relay.
 - Last live mix, custom stamps, and textures are restored for the next visitor of this studio.

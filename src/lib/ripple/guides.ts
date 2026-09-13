@@ -9,12 +9,12 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "paint",
     title: "Paint",
-    body: "Drag on the surface to push waves and lay color. Fast strokes still leave a continuous mark. Tap the canvas to hide the menu.",
+    body: "Drag on the surface to push waves and lay color. Fast strokes still leave a continuous mark. On a phone, tap the canvas to hide the menu. A tablet pad linked to a wall keeps its floating menu open while you paint.",
   },
   {
     id: "menu",
     title: "Menu",
-    body: "The large circle sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. It pulses the first time you see it. The card is one connected scroll that always opens at the top. On a phone, swipe the card — there is no inner rail. A mouse gets a jump rail on the right. Tap a section to focus it — it expands while the rest dims. Tap another section, or tap the canvas, to leave.",
+    body: "The large circle sits a quarter of the way up from the bottom so the browser bar and full-screen message cannot cover it. It pulses the first time you see it. The card is one connected scroll that always opens at the top. Swipe the card to move through it — extra space at the bottom lets the last sections roll up into view. Up and down buttons sit outside the card and jump between Presets, Surface, Paint, Sensors, and Session. Tap a section to focus it — it expands while the rest dims. Tap another section, or tap the canvas, to leave. On a phone in landscape the sheet hangs off the bottom of the screen so there is more room to scroll. On a tablet pad linked to a wall, the menu floats on the left instead of docking to the bottom — minus minimizes it to the circle, and you can drag it by the top bar. Painting does not hide that floating card. Sliders in the card have a pin on the right — pin up to two onto the canvas.",
   },
   {
     id: "presets",
@@ -54,7 +54,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "layerfx",
     title: "Layer FX",
-    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the large diamond on Width · Color. Turn the cast on under Paint — Distance and Angle sit there.",
+    body: "Pick which incoming layer gets the mix (camera, mic, brush, texture, shadow), then tap modes. Darken and Lighten families replace each other. Opacity is the stack strength — pin it to the canvas like the other sliders. FX only hits the next mark or live tool — paint already on the bed keeps its look, so you can see the new mix over those colors. Shadow’s color and opacity live on the large diamond on Width · Color. Turn the cast on under Paint — Distance and Angle sit there.",
   },
   {
     id: "texture",
@@ -69,37 +69,37 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "viscosity",
     title: "Viscosity",
-    body: "How long ripples linger. High is syrup; low is water that settles fast.",
+    body: "How long ripples linger. High is syrup; low is water that settles fast. The pin on the right docks this slider as a vertical bar on the far right of the canvas.",
   },
   {
     id: "wave",
     title: "Wave strength",
-    body: "How hard a stroke disturbs the height field. Turn it up for splashy marks, down for a quieter bed.",
-  },
-  {
-    id: "cam-interact",
-    title: "Camera interact",
-    body: "How much painted waves warp and pull the live camera through the surface. Needs the camera on.",
-  },
-  {
-    id: "mic-sens",
-    title: "Mic sensitivity",
-    body: "How hard incoming sound throbs the painted marks. Pair with Mic in Layer FX to mix volume into the bed.",
-  },
-  {
-    id: "gyro-sens",
-    title: "Gyro sensitivity",
-    body: "How much device tilt sloshes the fluid. The default sits at 70% and is 90% quieter than the old mix. Raise it only if you want a heavier pour.",
-  },
-  {
-    id: "gyro-zoom",
-    title: "Gyro zoom",
-    body: "How hard tilt punches the camera in, independent of slosh. Use it as a lean-in, not a wave.",
+    body: "How hard a stroke disturbs the height field. Turn it up for splashy marks, down for a quieter bed. Pin it to keep the bar on the canvas while you paint.",
   },
   {
     id: "pin",
     title: "Pin to canvas",
-    body: "A pin sits to the right of each menu slider. Pin up to two — they dock as vertical bars on the far right of the canvas, under REC and the light, always vertical even if you rotate. The last one you used has a light outline — that is where a new pin lands. Use the other bar to move the outline. Unpin from the same pin in the menu.",
+    body: "A pin sits to the right of each menu slider. Pin up to two — they dock next to each other as vertical bars on the far right of the canvas, under REC and the light, always vertical even if you rotate. The last bar you used has a light outline — that is where a new pin lands. Use the other bar to move the outline. Unpin from the same pin in the menu. Pins remember on this studio and clear with Clean session — they are not stored in a mix.",
+  },
+  {
+    id: "cam-interact",
+    title: "Camera interact",
+    body: "How much painted waves warp and pull the live camera through the surface. Needs the camera on. Pin it to the canvas like viscosity and wave.",
+  },
+  {
+    id: "mic-sens",
+    title: "Mic sensitivity",
+    body: "How hard incoming sound throbs the painted marks. Pair with Mic in Layer FX to mix volume into the bed. Pin it to keep the bar on the canvas.",
+  },
+  {
+    id: "gyro-sens",
+    title: "Gyro sensitivity",
+    body: "How much device tilt sloshes the fluid. The default sits at 70% and is 90% quieter than the old mix. Raise it only if you want a heavier pour. Pin it to the canvas if you want it while you paint.",
+  },
+  {
+    id: "gyro-zoom",
+    title: "Gyro zoom",
+    body: "How hard tilt punches the camera in, independent of slosh. Use it as a lean-in, not a wave. Pin it the same way as the other sliders.",
   },
   {
     id: "clear",
@@ -109,12 +109,12 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "clean",
     title: "Clean session",
-    body: "Resets the live mix for the next person. Saved presets and uploads stay.",
+    body: "Resets the live mix for the next person. Saved presets and uploads stay. Pinned canvas sliders come off too.",
   },
   {
     id: "pair",
     title: "Secondary device",
-    body: "The light next to REC opens pairing. On a desktop it shows a QR for your phone. On a phone it tells you to scan the desktop or primary screen — or type that screen’s six-character code. The menu then lives on the phone and the large display becomes a clean wall. When both devices are on the same network the light reads HD — saves stay on the wall at higher quality so extra watchers do not slow the mix.",
+    body: "The light next to REC opens pairing. On a public studio it shows a QR. If this computer is private, the card shows a six-character code instead — open the same studio on your phone, tap the light, type that code. The menu then lives on the phone and the large display becomes a clean wall. A tablet pad keeps the menu floating so the canvas stays usable — minus tucks it into the circle, and you can drag the card. When both devices are on the same network the light reads HD — saves stay on the wall at higher quality so extra watchers do not slow the mix.",
   },
   {
     id: "live",
@@ -144,7 +144,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "rec",
     title: "Record",
-    body: "Top-right REC captures the wall canvas. Off-network clips last 30 seconds and copy to both screens. Same-network pairs raise that to HD on the wall (up to 60 seconds, higher bitrate) — the phone is told the file landed there instead of sending a huge blob over the paint channel. Extra watchers stay on the cheap live view and do not change the encode. Last three seconds pulse faster.",
+    body: "Top-right REC captures the wall canvas. Off-network clips last 30 seconds and copy to both screens. Same-network pairs raise that to HD on the wall (up to 60 seconds, higher bitrate) — the phone is told the file landed there instead of sending a huge blob over the paint channel. Extra watchers stay on the cheap live view and do not change the encode. Last three seconds pulse faster. Pinned sliders sit under REC and the light, vertically centered on the far right.",
   },
 ];
 

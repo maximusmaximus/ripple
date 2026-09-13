@@ -184,6 +184,7 @@ export function WallViewport({ preferredCode }: Props) {
       className="relative h-dvh w-dvw overflow-hidden bg-ink"
       data-wall="true"
       data-cast-state={host.state}
+      data-cast-code={host.code || ""}
       data-lan-hd={host.lanHd ? "1" : "0"}
     >
       <RippleCanvas
@@ -258,16 +259,14 @@ export function WallViewport({ preferredCode }: Props) {
               Second display
             </p>
             <h2 className="mt-1 text-lg font-semibold text-fg">
-              {host.state === "waiting"
-                ? "Connecting…"
-                : host.state === "reconnecting"
-                  ? "Phone dropped"
-                  : "Scan to cast"}
+              {host.state === "reconnecting" ? "Phone dropped" : "Scan to cast"}
             </h2>
             <p className="mt-1 text-sm text-muted">
               {host.state === "reconnecting"
                 ? "Scan again. The menu moves to the phone; this wall stays clean."
-                : "Open this on your phone to paint the wall in real time"}
+                : host.pairLocal
+                  ? "This wall is only on this computer. Open the same studio on your phone, tap the light, and type the code."
+                  : "Open this on your phone to paint the wall in real time"}
             </p>
           </div>
 
@@ -275,12 +274,21 @@ export function WallViewport({ preferredCode }: Props) {
             <div className="w-full overflow-hidden rounded-2xl">
               <VoidrideHold progress={progress} />
             </div>
+          ) : host.pairLocal ? (
+            <div
+              data-pair-local="true"
+              className="flex w-full flex-col items-center gap-2 rounded-2xl border border-line bg-fg/5 px-4 py-5"
+            >
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-subtle">Phone code</p>
+              <p className="font-mono text-3xl tracking-[0.35em] text-fg">{host.code}</p>
+            </div>
           ) : (
             <div className="rounded-2xl bg-fg p-3 shadow-inner">
               <QrMark value={host.pairUrl} size={280} />
             </div>
           )}
 
+          {!host.pairLocal && (
           <div className="flex w-full flex-col items-center gap-2">
             <p className="font-mono text-2xl tracking-[0.35em] text-fg">{host.code}</p>
             <p className="text-center text-[11px] text-subtle">
@@ -288,6 +296,8 @@ export function WallViewport({ preferredCode }: Props) {
             </p>
             {drop ? <VoidrideListen drop={drop} /> : null}
           </div>
+          )}
+          {host.pairLocal && drop ? <VoidrideListen drop={drop} /> : null}
 
           {host.lastError && (
             <p className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-center text-xs text-rose-300">

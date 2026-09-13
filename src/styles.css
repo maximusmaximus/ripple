@@ -418,12 +418,19 @@ html[data-pointer="fine"] .well-corner-fab {
   --studio-lift: 25dvh;
 }
 
+.is-tablet-pad {
+  --studio-lift: 0px;
+}
+
 .studio-lift {
   padding-bottom: max(1.25rem, calc(var(--studio-lift) + env(safe-area-inset-bottom)));
 }
 
 .studio-lift-dock {
   padding-bottom: max(1.5rem, calc(var(--studio-lift) + env(safe-area-inset-bottom)));
+  transition:
+    opacity 300ms ease-out,
+    transform 300ms ease-out;
 }
 
 .tips-guide {
@@ -444,6 +451,65 @@ html[data-pointer="fine"] .well-corner-fab {
 .is-phone-studio .controls-dock {
   height: min(56dvh, calc(100dvh - var(--studio-lift) - 2.25rem));
   max-height: min(56dvh, calc(100dvh - var(--studio-lift) - 2.25rem));
+}
+
+.dock-cluster {
+  position: relative;
+  width: min(24rem, calc(100vw - 6rem));
+  min-width: 12.5rem;
+  margin-inline: auto;
+}
+
+.dock-cluster .controls-dock {
+  width: 100%;
+  max-width: none;
+}
+
+.dock-stepper {
+  position: absolute;
+  left: calc(100% + 0.4rem);
+  top: 50%;
+  z-index: 5;
+  display: flex;
+  width: 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  transform: translateY(-50%);
+}
+
+.dock-step {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: color-mix(in oklab, var(--color-ink) 55%, transparent);
+  color: var(--color-fg);
+  box-shadow:
+    0 8px 20px rgb(0 0 0 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.dock-step:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-ink) 38%, transparent);
+}
+
+.dock-step:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.dock-step:disabled {
+  opacity: 0.34;
+}
+
+.dock-scroll-end {
+  height: 5.5rem;
+  flex-shrink: 0;
 }
 
 .chip-well-scroll {
@@ -478,6 +544,9 @@ html[data-pointer="fine"] .well-corner-fab {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .studio-lift-dock {
+    transition: none;
+  }
   .dock-section {
     transition: none;
   }
@@ -509,6 +578,94 @@ html[data-pointer="fine"] .well-corner-fab {
 
 .menu-fab:active {
   transform: scale(0.96);
+}
+
+.float-dock {
+  position: absolute;
+  z-index: 40;
+  display: flex;
+  width: min(calc(22rem + 3.25rem), calc(100vw - 5.5rem));
+  height: min(70dvh, calc(100dvh - 8rem));
+  max-height: min(70dvh, calc(100dvh - 8rem));
+  flex-direction: column;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.float-dock-handle {
+  display: flex;
+  height: 2.75rem;
+  width: calc(100% - 3.25rem);
+  flex-shrink: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  align-items: center;
+  border: 1px solid var(--color-line);
+  border-bottom: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: color-mix(in oklab, var(--color-ink) 85%, transparent);
+  padding-left: 0.75rem;
+  padding-right: 0.2rem;
+  backdrop-filter: blur(20px);
+}
+
+.float-dock-handle:active {
+  cursor: grabbing;
+}
+
+.float-dock-grip {
+  display: flex;
+  flex: 1;
+  pointer-events: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-subtle);
+}
+
+.float-dock-min {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-fg);
+}
+
+.float-dock-min:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.float-dock-min:active {
+  transform: scale(0.96);
+}
+
+.float-dock-body {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: visible;
+}
+
+.float-dock .dock-cluster {
+  height: 100%;
+  width: calc(100% - 3.25rem);
+  max-width: none;
+}
+
+.float-dock .controls-dock {
+  width: auto;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  border-top: 0;
 }
 
 .menu-fab-ring {
@@ -686,6 +843,39 @@ html[data-pointer="fine"] .well-corner-fab {
   .pinned-slider {
     width: 2.75rem;
     height: min(38dvh, 13rem);
+  }
+
+  .is-phone-studio .studio-lift-dock {
+    padding-bottom: max(0.35rem, env(safe-area-inset-bottom));
+    overflow: visible;
+  }
+
+  .is-phone-studio .studio-lift-dock .dock-cluster {
+    width: min(24rem, calc(100vw - 6rem));
+    height: auto;
+  }
+
+  .is-phone-studio .studio-lift-dock .controls-dock {
+    height: calc(100dvh - 4.75rem);
+    max-height: calc(100dvh - 4.75rem);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .is-phone-studio .chip-well-scroll {
+    height: 8.25rem;
+  }
+
+  .is-phone-studio .dock-section.is-hot .chip-well-scroll {
+    height: 10.5rem;
+  }
+
+  .is-phone-studio .dock-body {
+    gap: 0.65rem;
+  }
+
+  .is-phone-studio .dock-scroll-end {
+    height: max(34dvh, 7rem);
   }
 }
 

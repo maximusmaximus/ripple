@@ -9,7 +9,7 @@
  * rolls back and accepts, so pairs converge without wedging.
  */
 
-export type SignalKind = "offer" | "answer" | "ice";
+export type SignalKind = "offer" | "answer" | "ice" | "data";
 
 /**
  * Wire contract between this client and the signaling relay the app provides
@@ -39,6 +39,8 @@ export interface PeerInfo {
   candidateType: string | null;
   /** Data-channel ping RTT (ms), measured every 2s once connected. */
   rttMs: number | null;
+  /** True once a signaling-relay payload arrived (fallback when ICE is stuck). */
+  relayed: boolean;
 }
 
 export interface P2PRoomOptions {
@@ -52,6 +54,13 @@ export interface P2PRoomOptions {
   onMessage?: (from: string, data: unknown, channel: "state" | "reliable") => void;
   /** Fires once, on the first successful signaling poll (registration). */
   onConnected?: () => void;
+  /** Fires after several failed signaling polls in a row. */
+  onPollError?: () => void;
+  /**
+   * Keep the 400ms poll while no WebRTC peer is connected — hosts waiting for
+   * a phone, and relay-only links that still need a fast inbox.
+   */
+  eagerPoll?: boolean;
 }
 
 interface PeerSlot {
@@ -72,9 +81,11 @@ interface PeerSlot {
   recreatedForOffer?: boolean;
   info: PeerInfo;
   pingSentAt?: number;
+  /** Last relay-data POST (unreliable path is coalesced). */
+  lastRelayAt?: number;
 }
 
-const FAST_POLL_MS = 400;
+const FAST_POLL_MS = 50;
 const IDLE_POLL_MS = 2000;
 const PING_INTERVAL_MS = 2000;
 const STALL_MS = 10_000;
@@ -82,17 +93,25 @@ const MAX_RECOVERY_ATTEMPTS = 3;
 const SIGNAL_RETRY_DELAYS_MS = [250, 750];
 
 export function defaultIceServers(): RTCIceServer[] {
-  const urls = (import.meta.env.VITE_STUN_URLS as string | undefined)
+  const stun = (import.meta.env.VITE_STUN_URLS as string | undefined)
     ?.split(",")
     .map((u) => u.trim())
     .filter(Boolean);
-  // Two independent providers: ICE queries all of them in parallel during
-  // gathering, so either one being unreachable costs nothing.
-  return [
+  const servers: RTCIceServer[] = [
     {
-      urls: urls?.length ? urls : ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"],
+      urls: stun?.length ? stun : ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"],
     },
   ];
+  const turnUrls = (import.meta.env.VITE_TURN_URLS as string | undefined)
+    ?.split(",")
+    .map((u) => u.trim())
+    .filter(Boolean);
+  const turnUser = (import.meta.env.VITE_TURN_USERNAME as string | undefined)?.trim();
+  const turnCred = (import.meta.env.VITE_TURN_CREDENTIAL as string | undefined)?.trim();
+  if (turnUrls?.length && turnUser && turnCred) {
+    servers.push({ urls: turnUrls, username: turnUser, credential: turnCred });
+  }
+  return servers;
 }
 
 export class P2PRoom {
@@ -105,6 +124,7 @@ export class P2PRoom {
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private closed = false;
   private everPolled = false;
+  private pollFails = 0;
   private lastPeersFingerprint = "";
 
   constructor(opts: P2PRoomOptions) {
@@ -123,7 +143,7 @@ export class P2PRoom {
       // First poll can fail transiently; the scheduled loop below retries.
     }
     if (this.closed) return;
-    this.schedulePoll(this.anyPairConnecting() ? FAST_POLL_MS : IDLE_POLL_MS);
+    this.schedulePoll(this.anyPairConnecting() ? 0 : IDLE_POLL_MS);
     this.pingTimer = setInterval(() => {
       this.pingAll();
       this.watchdog();
@@ -150,7 +170,15 @@ export class P2PRoom {
   broadcast(data: unknown): void {
     const wire = JSON.stringify({ t: "d", d: data });
     for (const slot of this.peers.values()) {
-      if (slot.state?.readyState === "open") slot.state.send(wire);
+      if (slot.state?.readyState === "open") {
+        try {
+          slot.state.send(wire);
+        } catch {
+          /* ignore */
+        }
+      } else {
+        this.relayData(slot, data, true);
+      }
     }
   }
 
@@ -159,7 +187,16 @@ export class P2PRoom {
     const wire = JSON.stringify({ t: "d", d: data });
     const targets = peerId ? [this.peers.get(peerId)] : [...this.peers.values()];
     for (const slot of targets) {
-      if (slot?.reliable?.readyState === "open") slot.reliable.send(wire);
+      if (!slot) continue;
+      if (slot.reliable?.readyState === "open") {
+        try {
+          slot.reliable.send(wire);
+        } catch {
+          this.relayData(slot, data, false);
+        }
+      } else {
+        this.relayData(slot, data, false);
+      }
     }
   }
 
@@ -176,31 +213,38 @@ export class P2PRoom {
   }
 
   private anyPairConnecting(): boolean {
+    if (this.opts.eagerPoll) return true;
     for (const s of this.peers.values()) {
       // Terminal pairs (NAT-blocked after all recovery attempts) must not pin
       // the session at the 400ms fast-poll rate.
-      if (s.terminal) continue;
+      if (s.terminal && !s.info.relayed) continue;
       if (s.info.connectionState !== "connected") return true;
     }
     return false;
   }
 
   private async pollOnce(): Promise<void> {
+    const hold = this.anyPairConnecting();
     const params = new URLSearchParams({
       room: this.opts.room,
       peer: this.opts.selfId,
       name: this.opts.name ?? "",
       since: String(this.cursor),
+      hold: hold ? "1" : "0",
+      seen: [...this.peers.keys()].join(","),
     });
-    const res = await fetch(`/api/rtc?${params}`);
+    const ac = new AbortController();
+    const abortAt = window.setTimeout(() => ac.abort(), hold ? 4500 : 8000);
+    let res: Response;
+    try {
+      res = await fetch(`/api/rtc?${params}`, { cache: "no-store", signal: ac.signal });
+    } finally {
+      window.clearTimeout(abortAt);
+    }
     if (this.closed) return;
     if (!res.ok) throw new Error(`signaling poll failed: ${res.status}`);
     const body = (await res.json()) as RtcPollResponse;
     if (this.closed) return;
-    if (!this.everPolled) {
-      this.everPolled = true;
-      this.opts.onConnected?.();
-    }
     this.reconcileRoster(body.peers);
     const roster = new Set(body.peers.map((p) => p.id));
     for (const sig of body.signals) {
@@ -208,16 +252,33 @@ export class P2PRoom {
       await this.onSignal(sig.from, sig.kind, sig.payload, roster);
       if (this.closed) return;
     }
+    if (!this.everPolled) {
+      this.everPolled = true;
+      this.opts.onConnected?.();
+    }
   }
 
   private async poll(): Promise<void> {
     if (this.closed) return;
+    const started = Date.now();
     try {
       await this.pollOnce();
+      this.pollFails = 0;
     } catch {
-      // Transient poll failures are expected (tab sleep, deploy roll); retry.
+      this.pollFails += 1;
+      if (this.pollFails === 3) this.opts.onPollError?.();
+      this.schedulePoll(400);
+      return;
     }
-    this.schedulePoll(this.anyPairConnecting() ? FAST_POLL_MS : IDLE_POLL_MS);
+    if (this.closed) return;
+    if (!this.anyPairConnecting()) {
+      this.schedulePoll(IDLE_POLL_MS);
+      return;
+    }
+    // Long-poll already waited; a near-instant return must not tight-loop.
+    const wait = Math.max(0, 40 - (Date.now() - started));
+    if (wait > 0) this.schedulePoll(wait);
+    else void this.poll();
   }
 
   private reconcileRoster(peers: { id: string; name: string }[]): void {
@@ -247,6 +308,7 @@ export class P2PRoom {
     if (this.closed) return null;
     const pc = new RTCPeerConnection({
       iceServers: this.opts.iceServers ?? defaultIceServers(),
+      iceCandidatePoolSize: 2,
     });
     const slot: PeerSlot = {
       pc,
@@ -261,6 +323,7 @@ export class P2PRoom {
         connectionState: pc.connectionState,
         candidateType: null,
         rttMs: null,
+        relayed: false,
       },
     };
     this.peers.set(peerId, slot);
@@ -291,8 +354,9 @@ export class P2PRoom {
     pc.onnegotiationneeded = async () => {
       try {
         slot.makingOffer = true;
-        await pc.setLocalDescription();
-        await this.sendSignal(peerId, "offer", pc.localDescription!.toJSON());
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await this.sendSignal(peerId, "offer", offer);
       } catch {
         // A failed offer is retried on the next negotiationneeded.
       } finally {
@@ -377,6 +441,13 @@ export class P2PRoom {
     const polite = this.opts.selfId < from;
 
     try {
+      if (kind === "data") {
+        slot.info.relayed = true;
+        slot.lastProgressAt = Date.now();
+        this.emitPeers();
+        this.opts.onMessage?.(from, payload, "reliable");
+        return;
+      }
       if (kind === "offer" || kind === "answer") {
         const description = payload as RTCSessionDescriptionInit;
         const collision =
@@ -434,6 +505,14 @@ export class P2PRoom {
    * Signals are serialized per remote peer (a candidate must never overtake
    * its SDP into the DB) and retried on failure with short backoff.
    */
+  private relayData(slot: PeerSlot, data: unknown, unreliable: boolean): void {
+    if (this.closed) return;
+    const now = Date.now();
+    if (unreliable && slot.lastRelayAt && now - slot.lastRelayAt < 50) return;
+    slot.lastRelayAt = now;
+    void this.sendSignal(slot.info.id, "data", data);
+  }
+
   private sendSignal(to: string, kind: SignalKind, payload: unknown): Promise<void> {
     const prev = this.signalQueues.get(to) ?? Promise.resolve();
     const next = prev.then(() => this.postSignal(to, kind, payload));
@@ -512,6 +591,7 @@ export class P2PRoom {
         this.emitPeers();
       }
       if (slot.terminal || live === "connected") continue;
+      if (slot.info.relayed) continue;
       if (now - slot.lastProgressAt <= STALL_MS) continue;
       if (slot.recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
         slot.terminal = true;
@@ -561,7 +641,7 @@ export class P2PRoom {
     // setters otherwise re-render consumers on every poll/ping.
     const list = this.peerList();
     const fingerprint = JSON.stringify(
-      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs]),
+      list.map((p) => [p.id, p.name, p.connectionState, p.candidateType, p.rttMs, p.relayed]),
     );
     if (fingerprint === this.lastPeersFingerprint) return;
     this.lastPeersFingerprint = fingerprint;

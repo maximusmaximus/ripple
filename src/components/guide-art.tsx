@@ -15,6 +15,7 @@ import {
   Mic,
   Paintbrush,
   Palette,
+  Pin,
   Radio,
   RotateCw,
   Smartphone,
@@ -41,6 +42,7 @@ const ICONS: Record<string, typeof Paintbrush> = {
   gradient: Palette,
   viscosity: Droplets,
   wave: Waves,
+  pin: Pin,
   "cam-interact": Camera,
   "mic-sens": Mic,
   "gyro-sens": Compass,
@@ -93,6 +95,19 @@ function WidthArt() {
   return <GradientArt />;
 }
 
+function MenuArt() {
+  return (
+    <ArtFrame>
+      <div className="relative h-9 w-[4.5rem] rounded-lg border border-white/25 bg-ink/70">
+        <span className="absolute left-1/2 top-1 h-0.5 w-5 -translate-x-1/2 rounded-full bg-white/40" />
+        <span className="absolute right-1 top-0.5 flex size-3 items-center justify-center rounded-full border border-white/35">
+          <span className="block h-px w-1.5 bg-white/70" />
+        </span>
+      </div>
+    </ArtFrame>
+  );
+}
+
 function PairArt() {
   return (
     <ArtFrame>
@@ -115,6 +130,17 @@ function RecArt() {
         <span className="size-2.5 rounded-full bg-red-500" />
         REC 0:30
       </span>
+    </ArtFrame>
+  );
+}
+
+function PinArt() {
+  return (
+    <ArtFrame>
+      <div className="flex items-end gap-2">
+        <span className="h-9 w-2.5 rounded-full border border-white/25 bg-gradient-to-b from-white/70 to-white/5" />
+        <span className="h-9 w-2.5 rounded-full border border-white/70 bg-gradient-to-b from-white/80 to-ripple/30 shadow-[0_0_0_1.5px_rgba(255,255,255,0.4)]" />
+      </div>
     </ArtFrame>
   );
 }
@@ -159,8 +185,10 @@ export function GuideArt({ id }: { id: string }) {
   if (id === "diameter") return <WidthArt />;
   if (id === "shadow") return <ShadowArt />;
   if (id === "texture") return <TextureArt />;
+  if (id === "menu") return <MenuArt />;
   if (id === "pair") return <PairArt />;
   if (id === "rec") return <RecArt />;
+  if (id === "pin") return <PinArt />;
   if (id === "presets" || id === "save" || id === "delete") return <PresetArt />;
   const Icon = ICONS[id] ?? Info;
   return (

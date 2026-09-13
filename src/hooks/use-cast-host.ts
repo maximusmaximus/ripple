@@ -8,9 +8,11 @@ import {
   makeCastCode,
   parseCastMsg,
   roomIdFor,
+  isPadName,
   PAD_ABANDON_MS,
   type CastMsg,
 } from "@/lib/ripple/cast";
+import { pairUrlFor, pairUrlIsLocal } from "@/lib/ripple/pair-url";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { PaletteId } from "@/lib/ripple/palettes";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
@@ -51,15 +53,6 @@ function makePeerId(prefix: string) {
   return `${prefix}${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function pairUrlFor(code: string): string {
-  if (typeof window === "undefined" || !code) return "";
-  const u = new URL(window.location.href);
-  u.search = "";
-  u.searchParams.set("mode", "pad");
-  u.searchParams.set("c", code);
-  return u.toString();
-}
-
 export function useCastHost(opts: UseCastHostOptions = {}) {
   const [code, setCode] = useState(() => (opts.preferredCode || "").toUpperCase());
   const [state, setState] = useState<HostConnectionState>("idle");
@@ -74,6 +67,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   const namesRef = useRef(new Map<string, string>());
   const expectedPadId = useRef<string | null>(null);
   const abandonTimer = useRef(0);
+  const helloAtRef = useRef(0);
 
   const clearAbandon = useCallback(() => {
     if (abandonTimer.current) {
@@ -108,21 +102,28 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
       room: roomIdFor(code),
       selfId,
       name: "wall",
+      eagerPoll: true,
       onPeersChanged: (peers) => {
         namesRef.current = new Map(peers.map((p) => [p.id, p.name]));
         const watches = peers.filter((p) => p.name === "watch" && p.connectionState === "connected");
         setViewerCount(watches.length);
-        const pads = peers.filter(
-          (p) => p.name !== "watch" && p.name !== "wall" && p.connectionState === "connected",
-        );
-        const waiting = peers.some(
-          (p) =>
-            p.name !== "watch" &&
-            (p.connectionState === "connecting" || p.connectionState === "new"),
-        );
+        const pads = peers.filter((p) => isPadName(p.name));
         const live = pads.length > 0;
         const nextLan = live && pads.some((p) => isLanPeer(p));
         setLanHd(nextLan);
+        if (live) {
+          const now = Date.now();
+          if (now - helloAtRef.current > 1200) {
+            helloAtRef.current = now;
+            for (const pad of pads) {
+              try {
+                p2p.send({ t: "hello", role: "host", code } satisfies CastMsg, pad.id);
+              } catch {
+                /* relay */
+              }
+            }
+          }
+        }
         if (nextLan !== lastLanSent) {
           lastLanSent = nextLan;
           try {
@@ -140,8 +141,6 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
           setState("reconnecting");
           setLastError("Phone dropped — scan again to take over");
           armAbandon();
-        } else if (waiting) {
-          setState((prev) => (prev === "reconnecting" ? prev : "waiting"));
         } else {
           setState((prev) => (prev === "reconnecting" ? prev : "idle"));
         }
@@ -156,6 +155,11 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
           else if (expectedPadId.current !== id && wasLive.current) {
             /* a different phone took over — keep the link, drop the old listing later via live-meta */
             expectedPadId.current = id;
+          }
+          try {
+            p2p.send({ t: "hello", role: "host", code } satisfies CastMsg, from);
+          } catch {
+            /* ignore */
           }
         }
         if (msg.t === "bye") {
@@ -232,6 +236,7 @@ export function useCastHost(opts: UseCastHostOptions = {}) {
   return {
     code,
     pairUrl,
+    pairLocal: pairUrlIsLocal(pairUrl),
     state,
     isLive: state === "connected",
     showPairUI: state === "idle" || state === "reconnecting" || state === "waiting",

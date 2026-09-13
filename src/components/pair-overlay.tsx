@@ -20,13 +20,11 @@ export function PairOverlay({
   layout?: "phone" | "wall";
 }) {
   const heading =
-    host.state === "waiting"
-      ? "Connecting…"
-      : host.state === "reconnecting"
-        ? "Phone dropped"
-        : host.isLive
-          ? "Phone is live"
-          : "Connect Secondary Device";
+    host.state === "reconnecting"
+      ? "Phone dropped"
+      : host.isLive
+        ? "Phone is live"
+        : "Connect Secondary Device";
 
   const ready = Boolean(host.pairUrl && host.code);
   const [gaveUp, setGaveUp] = useState(false);
@@ -60,8 +58,15 @@ export function PairOverlay({
   const showHold = wall && !skipHold && (locked || (!ready && !gaveUp));
   const joinCode = codeIn.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
 
+  const [selfCodeHint, setSelfCodeHint] = useState(false);
+
   const joinDesktop = () => {
     if (joinCode.length < 4) return;
+    const wallCode = (host.code || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    if (wallCode && joinCode === wallCode) {
+      setSelfCodeHint(true);
+      return;
+    }
     void navigate({ search: { mode: "pad", c: joinCode } });
   };
 
@@ -124,10 +129,19 @@ export function PairOverlay({
               spellCheck={false}
               maxLength={8}
               value={codeIn}
-              onChange={(e) => setCodeIn(e.target.value.toUpperCase())}
+              onChange={(e) => {
+                setSelfCodeHint(false);
+                setCodeIn(e.target.value.toUpperCase());
+              }}
               placeholder="A2B3C4"
               className="h-12 rounded-2xl border border-line bg-fg/5 px-4 text-center font-mono text-lg tracking-[0.28em] text-fg outline-none placeholder:text-subtle/70 focus:border-fg/40"
             />
+            {selfCodeHint && (
+              <p className="rounded-lg bg-fg/8 px-3 py-2 text-xs leading-relaxed text-muted">
+                This screen is already the wall. Type the code on a second device — the phone keeps
+                the menu.
+              </p>
+            )}
             <button
               type="submit"
               disabled={joinCode.length < 4}
@@ -162,23 +176,41 @@ export function PairOverlay({
                 <p className="mt-1 text-sm text-muted">
                   {host.state === "reconnecting"
                     ? "Scan again to take over. The menu will move back to the phone."
-                    : "Scan to take the menu onto your phone. This screen becomes a clean wall. Click outside to close."}
+                    : host.pairLocal
+                      ? "This screen is only on this computer. On your phone, open the same studio, tap the light, and type the code."
+                      : "Scan to take the menu onto your phone. This screen becomes a clean wall. Click outside to close."}
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-fg p-3 shadow-inner">
-                {host.pairUrl ? (
-                  <QrMark value={host.pairUrl} size={220} />
-                ) : (
-                  <div className="flex size-[220px] items-center justify-center text-ink/50">Getting a code…</div>
-                )}
-              </div>
+              {host.pairLocal ? (
+                <div
+                  data-pair-local="true"
+                  className="flex w-full flex-col items-center gap-2 rounded-2xl border border-line bg-fg/5 px-4 py-5"
+                >
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-subtle">Phone code</p>
+                  <p className="font-mono text-3xl tracking-[0.35em] text-fg">{host.code || "------"}</p>
+                  <p className="max-w-[16rem] text-center text-[11px] leading-relaxed text-subtle">
+                    QR stays off here — a phone cannot open this computer. Same studio on the phone, this code.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-fg p-3 shadow-inner">
+                  {host.pairUrl ? (
+                    <QrMark value={host.pairUrl} size={220} />
+                  ) : (
+                    <div className="flex size-[220px] items-center justify-center text-ink/50">Getting a code…</div>
+                  )}
+                </div>
+              )}
 
+              {!host.pairLocal && (
               <div className="flex w-full flex-col items-center gap-1.5">
                 <p className="font-mono text-2xl tracking-[0.35em] text-fg">{host.code || "------"}</p>
                 <p className="text-center text-[11px] text-subtle">Same site on your phone, this code</p>
                 {drop ? <VoidrideListen drop={drop} className="mt-1" /> : null}
               </div>
+              )}
+              {host.pairLocal && drop ? <VoidrideListen drop={drop} className="-mt-1" /> : null}
 
               {host.lastError && (
                 <p className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-center text-xs text-rose-300">{host.lastError}</p>

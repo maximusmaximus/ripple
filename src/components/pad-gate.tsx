@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { useCastPad } from "@/hooks/use-cast-pad";
 import { useLivePresence } from "@/hooks/use-live-presence";
 import type { Splat } from "@/lib/ripple/pointer";
@@ -47,7 +47,7 @@ export function PadGate({ code, children }: Props) {
     void startCameraLoop();
   }, [connect, startCameraLoop]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (autoStarted.current) return;
     autoStarted.current = true;
     void handleConnect();
@@ -88,11 +88,19 @@ export function PadGate({ code, children }: Props) {
   }
 
   return (
-    <div className="flex h-dvh w-dvw flex-col items-center justify-center gap-6 bg-ink px-6 text-center text-fg">
+    <div
+      className="flex h-dvh w-dvw flex-col items-center justify-center gap-6 bg-ink px-6 text-center text-fg"
+      data-pad-gate="true"
+      data-pad-state={pad.state}
+    >
       <div className="max-w-sm space-y-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">Phone pad</p>
+        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-subtle">Pad</p>
         <h1 className="text-2xl font-semibold tracking-tight text-balance">
-          {pad.error && pad.state === "idle" ? "Display lost" : "Control the studio"}
+          {pad.state === "error"
+            ? "Display not found"
+            : pad.error && pad.state === "idle"
+              ? "Display lost"
+              : "Looking for the wall"}
         </h1>
         <p className="text-sm text-muted">
           Code <span className="font-mono tracking-widest text-fg/80">{code}</span>
@@ -103,18 +111,23 @@ export function PadGate({ code, children }: Props) {
         <p className="rounded-lg bg-rose-500/15 px-4 py-2 text-sm text-rose-300">{pad.error}</p>
       )}
 
+      {pad.state === "connecting" && (
+        <p className="text-sm text-muted">Keep the large screen on this same studio.</p>
+      )}
+
       <button
         type="button"
         onClick={handleConnect}
         disabled={pad.state === "connecting"}
         className="rounded-full bg-fg px-8 py-3.5 text-sm font-semibold text-ink transition active:scale-95 disabled:opacity-50"
       >
-        {pad.state === "connecting" ? "Connecting…" : pad.error ? "Reconnect" : "Take control"}
+        {pad.state === "connecting" ? "Looking…" : pad.error ? "Retry" : "Take control"}
       </button>
 
       <p className="max-w-xs text-xs text-pretty text-subtle">
-        The menu lives on this phone. The wall hides its chrome while you are linked. If the link
-        drops, the pairing card comes back on the display.
+        The menu lives on this device. A tablet keeps it floating so the canvas stays open. The wall
+        hides its chrome while you are linked. If the link drops, the pairing card comes back on the
+        display.
       </p>
     </div>
   );

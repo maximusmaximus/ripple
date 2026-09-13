@@ -2,16 +2,43 @@ import { useEffect, useState } from "react";
 import { Menu } from "lucide-react";
 import { TipMark } from "./tip-mark";
 import { markMenuSeen, menuSeenBefore } from "@/lib/ripple/session-resume";
+import { clampFloatPos, FLOAT_FAB_SIZE, type DockPoint } from "@/lib/ripple/float-dock";
 
-export function MenuFab({ onOpen }: { onOpen: () => void }) {
+export function MenuFab({
+  onOpen,
+  anchor = null,
+}: {
+  onOpen: () => void;
+  anchor?: DockPoint | null;
+}) {
   const [pulse, setPulse] = useState(false);
 
   useEffect(() => {
     setPulse(!menuSeenBefore());
   }, []);
 
+  const placed = Boolean(anchor);
+  const point = anchor
+    ? typeof window === "undefined"
+      ? anchor
+      : clampFloatPos(anchor, {
+          vw: window.innerWidth,
+          vh: window.innerHeight,
+          width: FLOAT_FAB_SIZE,
+          height: FLOAT_FAB_SIZE,
+        })
+    : null;
+
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift">
+    <div
+      className={
+        placed
+          ? "pointer-events-none absolute z-40"
+          : "pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center studio-lift"
+      }
+      style={point ? { left: point.x, top: point.y } : undefined}
+      data-menu-fab-anchor={placed ? "float" : "dock"}
+    >
       <button
         type="button"
         data-ui-chrome

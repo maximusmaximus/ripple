@@ -14,6 +14,7 @@ import { SessionGate } from "./session-gate";
 import { WatchViewport } from "./watch-viewport";
 import { VoidrideHold, useVoidrideGate } from "./voidride-hold";
 import { MenuFab } from "./menu-fab";
+import { FloatDock, useFloatDockAnchor } from "./float-dock";
 import type { SensorsState } from "@/lib/ripple/media";
 import { emptySensorsState, createMicMonitor } from "@/lib/ripple/media";
 import { releaseSensors } from "./sensors-gate";
@@ -480,6 +481,7 @@ export function RippleApp() {
       style={{ touchAction: "none", overscrollBehavior: "none" }}
       data-cast-state={host.state}
       data-cast-live={host.isLive ? "true" : "false"}
+      data-cast-code={host.code || ""}
       data-session-choice={choice}
       data-live-viewers={liveViewers}
       data-live-ready={presence.ready ? "1" : "0"}
@@ -590,17 +592,18 @@ export function RippleApp() {
 
       {showChrome && (
         <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] transition-all duration-300 ease-out"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]"
           style={{
             opacity: dockOpen ? 1 : 0,
             transform: dockOpen ? "translateY(0)" : "translateY(110%)",
           }}
           aria-hidden={!dockOpen}
+          data-dock-open={dockOpen ? "1" : "0"}
         >
           <div
             ref={dockPanelRef}
             data-ui-chrome
-            className="w-full max-w-sm"
+            className="relative"
             style={{ pointerEvents: dockOpen ? "auto" : "none" }}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -727,6 +730,9 @@ function PadSurface({
   const lastClear = useRef(clearToken);
   const [share, setShare] = useState<SessionShareValue>(EMPTY_SHARE);
   const shareTimer = useRef(0);
+  const { isTablet, ready: viewportReady } = useViewport();
+  const floatMenu = viewportReady && isTablet;
+  const { pos, moveTo } = useFloatDockAnchor();
 
   const applyShare = useCallback(
     (next: SessionShareValue) => {
@@ -816,7 +822,7 @@ function PadSurface({
   }, [sensors.micOn, sensors.micStream, sendMic]);
 
   useEffect(() => {
-    if (!dockOpen) return;
+    if (!dockOpen || floatMenu) return;
     const onPointerDown = (e: PointerEvent) => {
       const panel = dockPanelRef.current;
       if (!panel) return;
@@ -831,15 +837,29 @@ function PadSurface({
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [dockOpen, setDockOpen]);
+  }, [dockOpen, floatMenu, setDockOpen]);
+
+  const handlePaintStart = useCallback(() => {
+    if (floatMenu) return;
+    onPaintStart();
+  }, [floatMenu, onPaintStart]);
 
   return (
-    <div className="relative h-dvh w-dvw overflow-hidden bg-ink is-phone-studio" style={{ touchAction: "none" }} data-pad="true" data-lan-hd={lanHd ? "1" : "0"}>
+    <div
+      className={
+        "relative h-dvh w-dvw overflow-hidden bg-ink" + (floatMenu ? " is-tablet-pad" : " is-phone-studio")
+      }
+      style={{ touchAction: "none" }}
+      data-pad="true"
+      data-pad-menu={floatMenu ? "float" : "dock"}
+      data-viewport={floatMenu ? "tablet" : "phone"}
+      data-lan-hd={lanHd ? "1" : "0"}
+    >
       <StudioSync />
       <RippleCanvas
         sensors={sensors}
         orientationAngle={angle}
-        onPaintStart={onPaintStart}
+        onPaintStart={handlePaintStart}
         onSplats={sendSplats}
       />
       <SensorsBar
@@ -860,31 +880,43 @@ function PadSurface({
       <PinnedSliders />
       <LanHdToast on={lanHd} />
 
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock transition-all duration-300 ease-out"
-        style={{
-          opacity: dockOpen ? 1 : 0,
-          transform: dockOpen ? "translateY(0)" : "translateY(110%)",
-        }}
-        aria-hidden={!dockOpen}
-      >
-        <div
-          ref={dockPanelRef}
-          data-ui-chrome
-          className="w-full max-w-sm"
-          style={{ pointerEvents: dockOpen ? "auto" : "none" }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
+      {floatMenu && dockOpen && (
+        <FloatDock pos={pos} onPos={moveTo} onMinimize={() => setDockOpen(false)}>
           <ControlsDock
             showPairButton={false}
             sessionShare={{ code, value: share, onChange: applyShare }}
           />
-        </div>
-      </div>
+        </FloatDock>
+      )}
 
-      {!dockOpen && <MenuFab onOpen={() => setDockOpen(true)} />}
+      {!floatMenu && (
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center p-3 studio-lift-dock"
+          style={{
+            opacity: dockOpen ? 1 : 0,
+            transform: dockOpen ? "translateY(0)" : "translateY(110%)",
+          }}
+          aria-hidden={!dockOpen}
+          data-dock-open={dockOpen ? "1" : "0"}
+        >
+          <div
+            ref={dockPanelRef}
+            data-ui-chrome
+            className="relative"
+            style={{ pointerEvents: dockOpen ? "auto" : "none" }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
+            <ControlsDock
+              showPairButton={false}
+              sessionShare={{ code, value: share, onChange: applyShare }}
+            />
+          </div>
+        </div>
+      )}
+
+      {!dockOpen && <MenuFab onOpen={() => setDockOpen(true)} anchor={floatMenu ? pos : null} />}
 
       <TipsGuide />
       <BugFab />

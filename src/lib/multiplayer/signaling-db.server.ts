@@ -13,7 +13,7 @@ const signalSchema = z.object({
   room: ID,
   from: ID,
   to: ID,
-  kind: z.enum(["offer", "answer", "ice"]),
+  kind: z.enum(["offer", "answer", "ice", "data"]),
   payload: z.unknown().refine((v) => v !== undefined && JSON.stringify(v).length <= 32_768, {
     message: "payload too large",
   }),
@@ -128,7 +128,8 @@ async function handleGet(url: URL): Promise<Response> {
   }>(
     `SELECT id, from_peer, kind, payload FROM webrtc_signals
      WHERE room = $1 AND to_peer = $2 AND id > $3
-     ORDER BY id LIMIT 200`,
+     ORDER BY CASE WHEN kind = 'data' THEN 1 ELSE 0 END, id
+     LIMIT 280`,
     [room, peer, since],
   );
   const body: RtcPollResponse = {

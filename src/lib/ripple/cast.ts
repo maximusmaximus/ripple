@@ -40,6 +40,17 @@ export const CAST_CHANNEL = "ripple-cast";
 /** How long the wall waits for the same pad to reconnect before closing the session. */
 export const PAD_ABANDON_MS = 45_000;
 
+/** Pad gives up looking for the wall. */
+export const PAD_CONNECT_MS = 6_000;
+
+export function isPadName(name: string) {
+  return name === "pad";
+}
+
+export function isWallName(name: string) {
+  return name === "wall";
+}
+
 /** 6-char room code shown in QR / typed on pad */
 export function makeCastCode(): string {
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";

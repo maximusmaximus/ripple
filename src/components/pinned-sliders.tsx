@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { PIN_META, resolvePinnedActive, type PinId } from "@/lib/ripple/pins";
 import { useRippleStore } from "@/store/ripple";
+import { TipMark } from "./tip-mark";
 
 export function PinnedSliders() {
   const ids = useRippleStore((s) => s.pinnedSliders);
@@ -20,6 +21,7 @@ export function PinnedSliders() {
       {ids.map((id) => (
         <PinnedSlider key={id} id={id} active={id === active} />
       ))}
+      <TipMark id="pin" className="pointer-events-auto absolute -left-1 -top-1 z-20" />
     </div>
   );
 }
