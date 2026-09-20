@@ -81,6 +81,8 @@ export const TEXTURE_FITS: { id: TextureFit; name: string; hint: string }[] = [
   { id: "stretch", name: "Stretch", hint: "Warp to the canvas." },
 ];
 
+export const DEFAULT_CAMERA_OPACITY = 0.9;
+
 export function easySnapshot(): StudioSnapshot {
   return {
     worldId: "lens",
@@ -94,7 +96,7 @@ export function easySnapshot(): StudioSnapshot {
     brushId: "ink",
     brushFx: { ink: ["normal"] },
     brushFxOpacity: 0.7,
-    fxLayers: ["brush"],
+    fxLayers: ["camera", "brush"],
     shadowOn: false,
     shadowColor: "#0a0810",
     shadowAngle: 135,
@@ -108,7 +110,7 @@ export function easySnapshot(): StudioSnapshot {
     textureInvert: false,
     gradientFlip: false,
     cameraInteract: 0.85,
-    cameraOpacity: 0.58,
+    cameraOpacity: DEFAULT_CAMERA_OPACITY,
     micSensitivity: 0.4,
     gyroSensitivity: 0.7,
     gyroZoom: 0.55,

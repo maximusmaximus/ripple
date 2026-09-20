@@ -2,6 +2,7 @@ import { VERT, SIM_FRAG, SPLAT_FRAG, INK_SPLAT_FRAG, INK_FLOW_FRAG, DISPLAY_FRAG
 import type { ScreenAngle } from "./orientation";
 import type { MicFrame } from "./media";
 import { SILENT_MIC } from "./media";
+import { canvasPixelSize, recHdEnabled, recIsBusy } from "./rec-hd";
 import {
   program,
   hexToRgb,
@@ -413,9 +414,8 @@ export class RippleEngineBase {
     const cw = this.canvas.clientWidth;
     const ch = this.canvas.clientHeight;
     if (cw < 8 || ch < 8) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.floor(cw * dpr);
-    const h = Math.floor(ch * dpr);
+    if (recIsBusy()) return;
+    const { w, h } = canvasPixelSize(cw, ch, recHdEnabled(), window.devicePixelRatio || 1);
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;

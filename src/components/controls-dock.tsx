@@ -10,9 +10,12 @@ import { FeedbackFooter } from "./feedback-form";
 import { StudioCredit } from "./studio-credit";
 import { TipMark, TipCopy } from "./tip-mark";
 import { SessionShare, type SessionShareValue } from "./session-share";
+import { ClipReel } from "./clip-takes";
+import { RecHdToggle } from "./rec-hd-toggle";
 import { DockSlider } from "./dock-slider";
 import { DockStepper } from "./dock-stepper";
 import { useRippleStore } from "@/store/ripple";
+import type { PendingClip } from "@/lib/ripple/record";
 import {
   DOCK_SECTIONS,
   nextDockSection,
@@ -52,6 +55,9 @@ export function ControlsDock({
   onShowPair,
   showPairButton = false,
   sessionShare,
+  clips,
+  onPlayClip,
+  standalone = false,
 }: {
   onShowPair?: () => void;
   showPairButton?: boolean;
@@ -61,6 +67,9 @@ export function ControlsDock({
     onChange: (next: SessionShareValue) => void;
     occupied?: boolean;
   };
+  clips?: PendingClip[];
+  onPlayClip?: (clip: PendingClip) => void;
+  standalone?: boolean;
 }) {
   const viscosity = useRippleStore((s) => s.viscosity);
   const waveStrength = useRippleStore((s) => s.waveStrength);
@@ -208,6 +217,8 @@ export function ControlsDock({
                   occupied={sessionShare.occupied}
                 />
               )}
+              {standalone ? <RecHdToggle /> : null}
+              {clips && onPlayClip ? <ClipReel clips={clips} onPlay={onPlayClip} /> : null}
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"

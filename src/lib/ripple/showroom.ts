@@ -1,4 +1,5 @@
-import type { BrushFxId, FxLayerId } from "@/lib/ripple/blend";
+import { EASY_PRESET_ID, DEFAULT_CAMERA_OPACITY, type NamedPreset, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
+import { withCameraFront, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import {
   defaultBrushSpan,
   defaultShapeFor,
@@ -15,7 +16,6 @@ import {
   type PaletteId,
 } from "@/lib/ripple/palettes";
 import type { TextureId } from "@/lib/ripple/textures";
-import { EASY_PRESET_ID, type NamedPreset, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
 
 type Recipe = {
   id: string;
@@ -627,7 +627,7 @@ function paletteRecipe(id: PaletteId): Recipe {
     brush: p.brushId,
     texture: "none",
     fx: p.brushFx,
-    layers: opacity >= 0.55 ? ["brush", "camera"] : ["brush"],
+    layers: ["camera", "brush"],
     vis: p.viscosity,
     wave: p.waveStrength,
     cam: p.cameraMix,
@@ -681,11 +681,8 @@ const MIX_CAM_OPACITY: Record<string, number> = {
   home_brushpen_night: 0.26,
 };
 
-function cameraOpacityFor(r: Recipe): number {
-  if (typeof r.opacity === "number") return Math.max(0, Math.min(1, r.opacity));
-  const mix = MIX_CAM_OPACITY[r.id];
-  if (typeof mix === "number") return mix;
-  return WORLD_CAM_OPACITY[r.world] ?? 0.5;
+function cameraOpacityFor(_r: Recipe): number {
+  return DEFAULT_CAMERA_OPACITY;
 }
 
 function snapshotFrom(r: Recipe): StudioSnapshot {
@@ -709,7 +706,7 @@ function snapshotFrom(r: Recipe): StudioSnapshot {
     brushId: r.brush,
     brushFx: { [r.brush]: r.fx },
     brushFxOpacity: r.fxOp ?? p.brushFxOpacity,
-    fxLayers: layers,
+    fxLayers: withCameraFront(layers),
     shadowOn,
     shadowColor: r.shadowColor ?? shadowStop?.color ?? "#0a0810",
     shadowAngle: r.shadowAngle ?? 135,

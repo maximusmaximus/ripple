@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { P2PRoom } from "@/lib/multiplayer";
 import { encodeCamB64, isWallName, parseCastMsg, roomIdFor, PAD_CONNECT_MS, type CastMsg } from "@/lib/ripple/cast";
-import { createRecInbox, offerDownload, isLanPeer, type PendingClip } from "@/lib/ripple/record";
+import { createRecInbox, makeClip, isLanPeer, prependClip, type PendingClip } from "@/lib/ripple/record";
+import { writeRecAutosave, type RecNotice } from "@/lib/ripple/rec-save";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
 
@@ -51,7 +52,10 @@ export function useCastPad(opts: UseCastPadOptions) {
   const [recLimitMs, setRecLimitMs] = useState(30_000);
   const [recRemainingMs, setRecRemainingMs] = useState(0);
   const [recSaving, setRecSaving] = useState(false);
-  const [pendingClip, setPendingClip] = useState<PendingClip | null>(null);
+  const [notice, setNotice] = useState<RecNotice | null>(null);
+  const noticeRef = useRef<RecNotice | null>(null);
+  noticeRef.current = notice;
+  const [clips, setClips] = useState<PendingClip[]>([]);
   const [recNote, setRecNote] = useState<string | null>(null);
   const [lanHd, setLanHd] = useState(false);
   const padIdRef = useRef(padIdentity());
@@ -218,7 +222,9 @@ export function useCastPad(opts: UseCastPadOptions) {
           setRecLimitMs(msg.limitMs);
           setRecRemainingMs(msg.on ? msg.limitMs : 0);
           setRecSaving(false);
-          if (msg.on) setRecNote(null);
+          if (msg.on) {
+            setRecNote(null);
+          }
           return;
         }
         if (msg.t === "rec-meta") {
@@ -235,8 +241,10 @@ export function useCastPad(opts: UseCastPadOptions) {
           setRecSaving(false);
           setRecOn(false);
           if (file) {
-            setPendingClip(offerDownload(file.blob, file.name));
-            setRecNote("Clip ready on this phone and the wall");
+            const clip = makeClip(file.blob, file.name);
+            setClips((prev) => prependClip(prev, clip));
+            setNotice(null);
+            setRecNote("Take is on the wall — play from Takes");
           }
           return;
         }
@@ -373,10 +381,20 @@ export function useCastPad(opts: UseCastPadOptions) {
     recLimitMs,
     recRemainingMs,
     recSaving,
-    pendingClip,
+    notice,
+    clips,
     recNote,
     lanHd,
-    clearPendingClip: () => setPendingClip(null),
+    playClip: (clip: PendingClip) => setNotice({ clip, mode: "play" }),
+    acceptAutosave: () => {
+      writeRecAutosave("on");
+      setNotice(null);
+    },
+    declineAutosave: () => {
+      writeRecAutosave("off");
+      setNotice(null);
+    },
+    clearNotice: () => setNotice(null),
     startCameraLoop,
     bindCameraStream,
     stopMedia,

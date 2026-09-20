@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { SensorsState } from "@/lib/ripple/media";
 import { mediaErrorMessage, openCamera, stopMediaStream } from "@/lib/ripple/media";
+import { asFxLayers } from "@/lib/ripple/blend";
 import { useRippleStore } from "@/store/ripple";
 
-/** Presets that mix the camera ask for permission from the same tap that loaded them. */
+/** Presets that mix the camera ask for permission from the same tap that loaded them. Front camera first. */
 export function useCameraWanted(sensors: SensorsState, onChange: (s: SensorsState) => void) {
   const wanted = useRippleStore((s) => s.cameraWanted);
   const setWanted = useRippleStore((s) => s.setCameraWanted);
@@ -11,6 +12,11 @@ export function useCameraWanted(sensors: SensorsState, onChange: (s: SensorsStat
   sensorsRef.current = sensors;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+
+  useEffect(() => {
+    const layers = asFxLayers(useRippleStore.getState().fxLayers);
+    if (layers.includes("camera")) setWanted(true);
+  }, [setWanted]);
 
   useEffect(() => {
     if (!wanted) return;

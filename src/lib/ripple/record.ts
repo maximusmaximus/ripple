@@ -1,10 +1,21 @@
 import { decodeCamB64, encodeCamB64, type CastMsg } from "./cast";
+import { makeClip, type PendingClip } from "./clips";
 
 export const REC_MAX_SHARE_BYTES = 8 * 1024 * 1024;
 const CHUNK = 10_000;
 
-/** Share = today's portable clip. lanHd = wall-local, same-network only. */
-export type RecordProfile = "share" | "lanHd";
+export {
+  MAX_SESSION_CLIPS,
+  clearClips,
+  dropClip,
+  makeClip,
+  prependClip,
+  revokeClip,
+  type PendingClip,
+} from "./clips";
+
+/** Share = portable clip. hd = native pixels, highest bitrate this device can take. */
+export type RecordProfile = "share" | "hd";
 
 const LAN_HOST_RTT_MS = 40;
 const LAN_PRFLX_RTT_MS = 20;
@@ -22,17 +33,16 @@ export function isLanPeer(p: {
   return false;
 }
 
-export function recordProfileFor(lanHd: boolean): RecordProfile {
-  if (!lanHd || typeof navigator === "undefined") return "share";
-  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-  if (mem <= 2) return "share";
-  return "lanHd";
+export function recordProfileFor(wantHd: boolean): RecordProfile {
+  return wantHd ? "hd" : "share";
 }
 
 export function pickRecordMime(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   const types = [
     "video/webm;codecs=vp9",
+    "video/webm;codecs=av1",
+    "video/mp4;codecs=h264",
     "video/webm;codecs=vp8",
     "video/webm",
     "video/mp4",
@@ -41,10 +51,10 @@ export function pickRecordMime(): string | undefined {
 }
 
 export function recordFps(profile: RecordProfile = "share"): number {
-  if (typeof window === "undefined") return 15;
-  if (profile === "lanHd") {
+  if (typeof window === "undefined") return profile === "hd" ? 30 : 15;
+  if (profile === "hd") {
     const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
-    return mem >= 8 ? 30 : 24;
+    return mem >= 4 ? 30 : 24;
   }
   const coarse = window.matchMedia("(pointer: coarse)").matches;
   const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 4;
@@ -54,21 +64,22 @@ export function recordFps(profile: RecordProfile = "share"): number {
 }
 
 export function recordBitrate(profile: RecordProfile, canvas?: HTMLCanvasElement | null): number {
-  if (profile !== "lanHd") return 1_200_000;
-  const w = canvas?.width ?? 1280;
-  const h = canvas?.height ?? 720;
-  const bits = Math.round(w * h * 30 * 0.14);
-  return Math.min(12_000_000, Math.max(6_000_000, bits));
+  if (profile !== "hd") return 1_200_000;
+  const w = canvas?.width ?? 1920;
+  const h = canvas?.height ?? 1080;
+  const fps = recordFps("hd");
+  const bits = Math.round(w * h * fps * 0.22);
+  return Math.min(24_000_000, Math.max(8_000_000, bits));
 }
 
 export function recordLimitMs(profile: RecordProfile = "share"): number {
-  return profile === "lanHd" ? 60_000 : 30_000;
+  return profile === "hd" ? 60_000 : 30_000;
 }
 
 export function recFileName(mime: string, profile: RecordProfile = "share"): string {
   const ext = mime.includes("mp4") ? "mp4" : "webm";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-  const tag = profile === "lanHd" ? "hd-" : "";
+  const tag = profile === "hd" ? "hd-" : "";
   return `ripple-${tag}${stamp}.${ext}`;
 }
 
@@ -79,25 +90,23 @@ export function formatCountdown(ms: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export type PendingClip = { url: string; name: string };
-
 export function offerDownload(blob: Blob, name: string): PendingClip {
-  const url = URL.createObjectURL(blob);
+  const clip = makeClip(blob, name);
   const coarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
-  if (!coarse) {
+  if (!coarse && clip.url) {
     const a = document.createElement("a");
-    a.href = url;
+    a.href = clip.url;
     a.download = name;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
     a.remove();
   }
-  window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
-  return { url, name };
+  return clip;
 }
 
 export function savePendingClip(clip: PendingClip) {
+  if (!clip.url) return;
   const a = document.createElement("a");
   a.href = clip.url;
   a.download = clip.name;

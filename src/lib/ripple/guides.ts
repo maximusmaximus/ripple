@@ -124,7 +124,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "camera",
     title: "Camera",
-    body: "Top-left. Tap to cycle off → front (faces you) → rear. Once the camera is on, drag the same button along the bar — opaque at the home end, transparent at the far end. The bar follows the long side of the screen when you rotate. Presets that mix the camera will ask for permission.",
+    body: "Top-left. Starts facing you, in front of the mix, at 90% opaque. Tap to cycle off → front → rear. Drag the same button along the bar — opaque at the home end, transparent at the far end. The bar follows the long side of the screen when you rotate. Every preset turns the camera layer on; Layer FX color modes mix the feed with the paint underneath.",
   },
   {
     id: "mic",
@@ -144,7 +144,7 @@ export const GUIDE_TIPS: GuideTip[] = [
   {
     id: "rec",
     title: "Record",
-    body: "Top-right REC captures the wall canvas. Off-network clips last 30 seconds and copy to both screens. Same-network pairs raise that to HD on the wall (up to 60 seconds, higher bitrate) — the phone is told the file landed there instead of sending a huge blob over the paint channel. Extra watchers stay on the cheap live view and do not change the encode. Last three seconds pulse faster. Pinned sliders sit under REC and the light, vertically centered on the far right.",
+    body: "Top-right REC captures the wall canvas. Off-network clips last 30 seconds and copy to both screens. Same-network pairs raise that to HD on the wall (up to 60 seconds, higher bitrate) — the phone is told the file landed there instead of sending a huge blob over the paint channel. Extra watchers stay on the cheap live view and do not change the encode. Last three seconds pulse faster. On a phone or desktop by itself, Session has HD record — native pixels, highest quality this screen can take. Turn it on and every take is HD until you turn it off. The first REC asks once, as a small card on the right of the display, whether to save takes to this computer. After that they save on their own — no second prompt. A paired phone stopping REC does not get a save sheet; the wall shows that small notice. Tap play on the card to watch. Session keeps the last eight takes as a reel. Pinned sliders sit under REC and the light, vertically centered on the far right.",
   },
 ];
 

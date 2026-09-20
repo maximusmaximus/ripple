@@ -149,14 +149,14 @@ export function fxConflictsWith(active: BrushFxId[], id: BrushFxId): boolean {
 export type FxLayerId = "camera" | "mic" | "brush" | "texture" | "shadow";
 
 export const FX_LAYERS: { id: FxLayerId; name: string; hint: string; bit: number }[] = [
-  { id: "camera", name: "Camera", hint: "Mix the live feed over what’s already on the surface.", bit: 1 },
+  { id: "camera", name: "Camera", hint: "Live feed in front of the mix. Color modes tint it over the paint.", bit: 1 },
   { id: "mic", name: "Mic", hint: "Mix incoming sound into the live mark — not paint that’s already down.", bit: 2 },
   { id: "brush", name: "Brush", hint: "Mix the next stroke over existing color. Settled paint stays put.", bit: 4 },
   { id: "texture", name: "Texture", hint: "Mix grain into the live mark, over colors already on the bed.", bit: 8 },
   { id: "shadow", name: "Brush Shadow", hint: "Mix the live cast over the surface. Turn the shadow on under Width.", bit: 16 },
 ];
 
-export const DEFAULT_FX_LAYERS: FxLayerId[] = ["brush"];
+export const DEFAULT_FX_LAYERS: FxLayerId[] = ["camera", "brush"];
 
 function isLayerId(id: string): id is FxLayerId {
   return FX_LAYERS.some((l) => l.id === id);
@@ -172,6 +172,12 @@ export function asFxLayers(v: FxLayerId[] | string[] | undefined | null): FxLaye
     seen.add(id);
     return true;
   });
+}
+
+/** Camera stays the front layer when it is on — first in the stack, last on the surface. */
+export function withCameraFront(ids: FxLayerId[] | string[] | undefined | null): FxLayerId[] {
+  const rest = asFxLayers(ids ?? DEFAULT_FX_LAYERS).filter((id) => id !== "camera");
+  return ["camera", ...rest];
 }
 
 export function toggleFxLayer(current: FxLayerId[], id: FxLayerId): FxLayerId[] {

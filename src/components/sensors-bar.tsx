@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Mic,
   Smartphone,
@@ -19,7 +18,7 @@ import {
   openCamera,
   stopMediaStream,
 } from "@/lib/ripple/media";
-import { formatCountdown, savePendingClip, type PendingClip } from "@/lib/ripple/record";
+import { formatCountdown } from "@/lib/ripple/record";
 import { TipMark } from "./tip-mark";
 import { CameraOpacitySlider } from "./camera-opacity-slider";
 
@@ -32,8 +31,6 @@ type Props = {
   recordLimitMs?: number;
   recordRemainingMs?: number;
   recordSaving?: boolean;
-  pendingClip?: PendingClip | null;
-  onSaveClip?: () => void;
   recNote?: string | null;
   recordError?: string | null;
   linkState?: "off" | "waiting" | "live";
@@ -41,6 +38,7 @@ type Props = {
   viewers?: number;
   showViewers?: boolean;
   lanHd?: boolean;
+  recHd?: boolean;
 };
 
 export function SensorsBar({
@@ -52,8 +50,6 @@ export function SensorsBar({
   recordLimitMs = 30_000,
   recordRemainingMs,
   recordSaving = false,
-  pendingClip,
-  onSaveClip,
   recNote,
   recordError,
   linkState,
@@ -61,6 +57,7 @@ export function SensorsBar({
   viewers = 0,
   showViewers = false,
   lanHd = false,
+  recHd = false,
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -400,6 +397,7 @@ export function SensorsBar({
         <span className="relative">
         <button
           type="button"
+          data-rec-hd={recHd || lanHd ? "on" : "off"}
           className={
             "pointer-events-auto relative flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border backdrop-blur-md transition active:scale-95 " +
             (recording
@@ -425,8 +423,10 @@ export function SensorsBar({
           }
           title={
             recording
-              ? `${formatCountdown(remaining)} left · tap to stop. Auto-saves to this device and the linked one.`
-              : "Record the canvas. Same-network pairs save HD on the wall."
+              ? `${formatCountdown(remaining)} left · tap to stop.`
+              : recHd || lanHd
+                ? "Record the canvas in HD at this screen’s native size."
+                : "Record the canvas. Turn on HD record in Session for native quality."
           }
         >
           {recording ? (
@@ -440,99 +440,23 @@ export function SensorsBar({
               (recording || recordSaving ? "text-white" : "text-fg/80")
             }
           >
-            {recording ? formatCountdown(remaining) : recordSaving ? "SAVE" : "REC"}
+            {recording ? formatCountdown(remaining) : recordSaving ? "SAVE" : recHd || lanHd ? "HD" : "REC"}
           </span>
         </button>
           <TipMark id="rec" className="pointer-events-auto absolute -right-0.5 -top-0.5 z-20" />
         </span>
-      )}
-      {pendingClip && (
-        <RecSavePopup
-          clip={pendingClip}
-          note={recNote}
-          onSave={() => {
-            savePendingClip(pendingClip);
-            onSaveClip?.();
-          }}
-          onDismiss={() => onSaveClip?.()}
-        />
       )}
       {recordError && (
         <span className="pointer-events-none max-w-[9rem] truncate rounded-full bg-rose-600/80 px-2 py-1 text-[10px] text-white">
           {recordError}
         </span>
       )}
-      {recNote && !pendingClip && (
+      {recNote && (
         <span className="pointer-events-none max-w-[10rem] truncate rounded-full bg-ink/70 px-2 py-1 text-[10px] text-fg/85">
           {recNote}
         </span>
       )}
       </div>
     </div>
-  );
-}
-
-function RecSavePopup({
-  clip,
-  note,
-  onSave,
-  onDismiss,
-}: {
-  clip: PendingClip;
-  note?: string | null;
-  onSave: () => void;
-  onDismiss: () => void;
-}) {
-  if (typeof document === "undefined") return null;
-  return createPortal(
-    <div
-      data-ui-chrome
-      className="fixed inset-0 z-[95] flex items-end justify-center p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:items-center"
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <div
-        className="absolute inset-0 bg-ink/80 backdrop-blur-sm"
-        aria-hidden
-        onPointerDown={onDismiss}
-      />
-      <div
-        role="dialog"
-        aria-labelledby="rec-save-title"
-        className="relative z-10 w-full max-w-sm rounded-3xl border border-line bg-ink p-5 shadow-2xl"
-      >
-        <h2 id="rec-save-title" className="text-lg font-semibold text-fg">
-          Recording ready
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          {note || "Your clip is ready. On a phone, tap Save — the browser will not download it on its own."}
-        </p>
-        <p className="mt-3 break-all rounded-xl bg-fg/8 px-3 py-2 font-mono text-[12px] leading-snug text-fg/85">
-          {clip.name}
-        </p>
-        <button
-          type="button"
-          className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-fg px-4 text-[15px] font-semibold text-ink"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onSave();
-          }}
-        >
-          Save to this device
-        </button>
-        <button
-          type="button"
-          className="mt-2 flex min-h-11 w-full items-center justify-center rounded-full px-4 text-sm text-muted hover:text-fg"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onDismiss();
-          }}
-        >
-          Not now
-        </button>
-      </div>
-    </div>,
-    document.body,
   );
 }

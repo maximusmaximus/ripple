@@ -19,6 +19,7 @@ import {
 } from "@/lib/ripple/media";
 import type { ScreenAngle } from "@/lib/ripple/orientation";
 import { mapTiltToScreen, tiltToGravity } from "@/lib/ripple/orientation";
+import { REC_HD_EVENT } from "@/lib/ripple/rec-hd";
 
 type Props = {
   sensors: SensorsState;
@@ -278,6 +279,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
 
     const onResize = () => engineRef.current?.resize();
     window.addEventListener("resize", onResize);
+    window.addEventListener(REC_HD_EVENT, onResize);
     window.visualViewport?.addEventListener("resize", onResize);
     const ro = new ResizeObserver(onResize);
     ro.observe(canvas);
@@ -317,6 +319,7 @@ export const RippleCanvas = forwardRef<HTMLCanvasElement, Props>(function Ripple
       canvas.removeEventListener("webglcontextrestored", onRestored);
       ro.disconnect();
       window.removeEventListener("resize", onResize);
+      window.removeEventListener(REC_HD_EVENT, onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", onHide);

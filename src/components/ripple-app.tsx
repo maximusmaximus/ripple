@@ -34,7 +34,9 @@ import { useCanvasRecord } from "@/hooks/use-canvas-record";
 import type { Splat } from "@/lib/ripple/pointer";
 import { PALETTES, type PaletteId } from "@/lib/ripple/palettes";
 import { compactCastSnapshot, hydrateSnapshotMedia, type StudioSnapshot } from "@/lib/ripple/studio";
+import { recHdEnabled, REC_HD_EVENT } from "@/lib/ripple/rec-hd";
 import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
+import { ClipNotice } from "./clip-notice";
 
 const PRIVATE_KEY = "ripple-private-session";
 
@@ -88,11 +90,17 @@ export function RippleApp() {
   const hostSendRef = useRef<(msg: import("@/lib/ripple/cast").CastMsg) => void>(() => {});
   const hostLiveRef = useRef(false);
   const lanHdRef = useRef(false);
+  const [hdOn, setHdOn] = useState(() => recHdEnabled());
+  useEffect(() => {
+    const sync = () => setHdOn(recHdEnabled());
+    window.addEventListener(REC_HD_EVENT, sync);
+    return () => window.removeEventListener(REC_HD_EVENT, sync);
+  }, []);
   const record = useCanvasRecord(() => canvasRef.current, {
-    profile: () => recordProfileFor(lanHdRef.current),
+    profile: () => recordProfileFor(lanHdRef.current || recHdEnabled()),
     onBlob: async (blob, name, profile) => {
       if (!hostLiveRef.current) return;
-      if (profile === "lanHd") {
+      if (profile === "hd") {
         hostSendRef.current({ t: "rec-skip", reason: "hd-local" });
         return;
       }
@@ -450,10 +458,12 @@ export function RippleApp() {
             recLimitMs={pad.recLimitMs}
             recRemainingMs={pad.recRemainingMs}
             recSaving={pad.recSaving}
-            pendingClip={pad.pendingClip}
+            recNotice={pad.recNotice?.mode === "play" ? pad.recNotice : null}
             recNote={pad.recNote}
             lanHd={pad.lanHd}
-            clearPendingClip={pad.clearPendingClip}
+            onDismissNotice={pad.clearNotice}
+            clips={pad.clips}
+            playClip={pad.playClip}
             worldId={worldId}
             viscosity={viscosity}
             waveStrength={waveStrength}
@@ -524,6 +534,13 @@ export function RippleApp() {
 
       <LanHdToast on={host.lanHd} />
 
+      <ClipNotice
+        notice={record.notice}
+        onSaveAlways={record.acceptAutosave}
+        onSkip={record.declineAutosave}
+        onDismiss={record.clearNotice}
+      />
+
       {hint && showChrome && !(showPairOverlay && isDesktop) && !showBoot && !showGate && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <p className="rounded-full border border-line bg-ink/50 px-4 py-2 text-sm text-fg/80 backdrop-blur-md">
@@ -537,7 +554,13 @@ export function RippleApp() {
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
             <span className="inline-block size-2 rounded-full bg-white" />
             {formatCountdown(record.remainingMs)} left
-            {record.profile === "lanHd" ? " · HD on this wall" : " · both screens save"}
+            {record.profile === "hd"
+              ? host.isLive
+                ? " · HD on this wall"
+                : " · HD native"
+              : host.isLive
+                ? " · both screens save"
+                : ""}
           </div>
         </div>
       )}
@@ -552,13 +575,12 @@ export function RippleApp() {
           recordLimitMs={record.limitMs}
           recordRemainingMs={record.remainingMs}
           recordSaving={record.state === "saving"}
-          pendingClip={record.pendingClip}
-          onSaveClip={record.clearPending}
           recordError={record.error}
           linkState={linkState}
           onToggleLink={openPair}
           viewers={liveViewers}
           lanHd={host.lanHd}
+          recHd={hdOn || record.profile === "hd"}
         />
       )}
       {showChrome && <PinnedSliders />}
@@ -618,6 +640,9 @@ export function RippleApp() {
                 onChange: applyShare,
                 occupied: presence.occupied,
               }}
+              clips={record.clips}
+              onPlayClip={record.playClip}
+              standalone
             />
           </div>
         </div>
@@ -682,10 +707,12 @@ function PadSurface({
   recLimitMs,
   recRemainingMs,
   recSaving,
-  pendingClip,
+  recNotice,
   recNote,
   lanHd,
-  clearPendingClip,
+  onDismissNotice,
+  clips,
+  playClip,
   worldId,
   viscosity,
   waveStrength,
@@ -711,10 +738,12 @@ function PadSurface({
   recLimitMs: number;
   recRemainingMs: number;
   recSaving: boolean;
-  pendingClip: import("@/lib/ripple/record").PendingClip | null;
+  recNotice?: import("@/lib/ripple/rec-save").RecNotice | null;
   recNote: string | null;
   lanHd: boolean;
-  clearPendingClip: () => void;
+  onDismissNotice?: () => void;
+  clips?: import("@/lib/ripple/record").PendingClip[];
+  playClip?: (clip: import("@/lib/ripple/record").PendingClip) => void;
   worldId: string;
   viscosity: number;
   waveStrength: number;
@@ -871,12 +900,13 @@ function PadSurface({
         recordLimitMs={recLimitMs}
         recordRemainingMs={recRemainingMs}
         recordSaving={recSaving}
-        pendingClip={pendingClip}
-        onSaveClip={clearPendingClip}
         recNote={recNote}
         lanHd={lanHd}
         linkState="live"
       />
+      {recNotice?.mode === "play" && recNotice.clip ? (
+        <ClipNotice notice={recNotice} onDismiss={onDismissNotice} />
+      ) : null}
       <PinnedSliders />
       <LanHdToast on={lanHd} />
 
@@ -885,6 +915,8 @@ function PadSurface({
           <ControlsDock
             showPairButton={false}
             sessionShare={{ code, value: share, onChange: applyShare }}
+            clips={clips}
+            onPlayClip={playClip}
           />
         </FloatDock>
       )}
@@ -911,6 +943,8 @@ function PadSurface({
             <ControlsDock
               showPairButton={false}
               sessionShare={{ code, value: share, onChange: applyShare }}
+              clips={clips}
+              onPlayClip={playClip}
             />
           </div>
         </div>

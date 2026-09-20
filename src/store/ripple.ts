@@ -20,9 +20,9 @@ import {
   type ColorStop,
 } from "@/lib/ripple/palettes";
 import { getBrush, isCustomBrushId, MAX_CUSTOM_BRUSHES, defaultBrushSpan, defaultShadowSpan, defaultShapeFor, normalizeBrushShape, normalizeBrushSpan, type BrushShape, type BrushSpan, type CustomBrush } from "@/lib/ripple/brushes";
-import { asFxList, asFxLayers, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
+import { asFxList, asFxLayers, DEFAULT_FX_LAYERS, withCameraFront, toggleBrushFx, toggleFxLayer as toggleFxLayerHelper, type BrushFxId, type FxLayerId } from "@/lib/ripple/blend";
 import { DEFAULT_TEXTURE_ID, getTexture, type TextureId } from "@/lib/ripple/textures";
-import { hasMediaPayload, upsertCustomSurface, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
+import { DEFAULT_CAMERA_OPACITY, hasMediaPayload, upsertCustomSurface, type CustomTexture, type StudioSnapshot, type TextureFit } from "@/lib/ripple/studio";
 import { asPinnedSliders, nextPinnedSliders, resolvePinnedActive, type PinId } from "@/lib/ripple/pins";
 
 export type WorldId = PaletteId;
@@ -283,7 +283,7 @@ export const useRippleStore = create<RippleState>()(
       brushId: PALETTES.lens.brushId,
       brushFx: { [PALETTES.lens.brushId]: PALETTES.lens.brushFx },
       brushFxOpacity: PALETTES.lens.brushFxOpacity,
-      fxLayers: ["brush"],
+      fxLayers: [...DEFAULT_FX_LAYERS],
       shadowOn: false,
       shadowColor: "#0a0810",
       shadowAngle: 135,
@@ -300,8 +300,8 @@ export const useRippleStore = create<RippleState>()(
       textureInvert: false,
       gradientFlip: false,
       cameraInteract: PALETTES.lens.cameraMix,
-      cameraOpacity: 1,
-      cameraWanted: false,
+      cameraOpacity: DEFAULT_CAMERA_OPACITY,
+      cameraWanted: true,
       micSensitivity: PALETTES.lens.micDrive,
       gyroSensitivity: PALETTES.lens.gyroDrive,
       gyroZoom: 0.55,
@@ -758,7 +758,9 @@ export const useRippleStore = create<RippleState>()(
           brushId: keepCustom ? snap.brushId : brush.id,
           brushFx: snap.brushFx ?? { [brush.id]: PALETTES[snap.worldId]?.brushFx ?? ["normal"] },
           brushFxOpacity: snap.brushFxOpacity,
-          fxLayers: asFxLayers(snap.fxLayers),
+          fxLayers: asFxLayers(snap.fxLayers).includes("camera")
+            ? withCameraFront(snap.fxLayers)
+            : asFxLayers(snap.fxLayers),
           shadowOn: Boolean(snap.shadowOn),
           shadowColor: snap.shadowColor,
           shadowAngle: snap.shadowAngle,
@@ -774,8 +776,8 @@ export const useRippleStore = create<RippleState>()(
           textureInvert: Boolean(snap.textureInvert),
           gradientFlip: Boolean(snap.gradientFlip),
           cameraInteract: snap.cameraInteract,
-          cameraOpacity: Math.max(0, Math.min(1, snap.cameraOpacity ?? 1)),
-          cameraWanted: false,
+          cameraOpacity: Math.max(0, Math.min(1, snap.cameraOpacity ?? DEFAULT_CAMERA_OPACITY)),
+          cameraWanted: asFxLayers(snap.fxLayers).includes("camera") || (snap.cameraOpacity ?? 0) > 0.05,
           micSensitivity: snap.micSensitivity,
           gyroSensitivity: Math.max(0, Math.min(1, snap.gyroSensitivity > 1 ? 0.7 : snap.gyroSensitivity)),
           gyroZoom: snap.gyroZoom ?? 0.55,
@@ -806,7 +808,7 @@ export const useRippleStore = create<RippleState>()(
           brushId: brush.id,
           brushFx: { [brush.id]: p.brushFx },
           brushFxOpacity: p.brushFxOpacity,
-          fxLayers: ["brush"],
+          fxLayers: [...DEFAULT_FX_LAYERS],
           shadowOn: false,
           shadowColor: "#0a0810",
           shadowAngle: 135,
@@ -822,8 +824,8 @@ export const useRippleStore = create<RippleState>()(
           textureInvert: false,
           gradientFlip: false,
           cameraInteract: p.cameraMix,
-          cameraOpacity: 1,
-          cameraWanted: false,
+          cameraOpacity: DEFAULT_CAMERA_OPACITY,
+          cameraWanted: true,
           micSensitivity: p.micDrive,
           gyroSensitivity: p.gyroDrive,
           gyroZoom: 0.55,
@@ -936,6 +938,7 @@ export const useRippleStore = create<RippleState>()(
         gyroSensitivity: s.gyroSensitivity,
         gyroCalibrated: true as const,
         gyroQuietV2: true as const,
+        cameraFrontV1: true as const,
         gyroZoom: s.gyroZoom,
         customBrushes: s.customBrushes,
         hiddenPresetIds: s.hiddenPresetIds,
@@ -944,13 +947,25 @@ export const useRippleStore = create<RippleState>()(
         pinnedActive: s.pinnedActive,
       }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<RippleState> & { gyroCalibrated?: boolean; gyroQuietV2?: boolean };
-        const fxLayers = asFxLayers(p.fxLayers ?? current.fxLayers);
+        const p = (persisted ?? {}) as Partial<RippleState> & {
+          gyroCalibrated?: boolean;
+          gyroQuietV2?: boolean;
+          cameraFrontV1?: boolean;
+        };
+        let fxLayers = asFxLayers(p.fxLayers ?? current.fxLayers);
         let gyroSensitivity = typeof p.gyroSensitivity === "number" ? p.gyroSensitivity : current.gyroSensitivity;
         if (!p.gyroQuietV2) {
           gyroSensitivity = 0.7;
         } else {
           gyroSensitivity = Math.max(0, Math.min(1, gyroSensitivity > 1 ? 0.7 : gyroSensitivity));
+        }
+        let cameraOpacity =
+          typeof p.cameraOpacity === "number" ? Math.max(0, Math.min(1, p.cameraOpacity)) : current.cameraOpacity;
+        if (!p.cameraFrontV1) {
+          cameraOpacity = DEFAULT_CAMERA_OPACITY;
+          fxLayers = withCameraFront(fxLayers);
+        } else if (fxLayers.includes("camera")) {
+          fxLayers = withCameraFront(fxLayers);
         }
         const rawBrushes = Array.isArray(p.customBrushes) ? p.customBrushes : current.customBrushes;
         const customBrushes = rawBrushes.map((c) => ({
@@ -970,8 +985,8 @@ export const useRippleStore = create<RippleState>()(
           ...p,
           dockOpen: false,
           gyroSensitivity,
-          cameraOpacity: typeof p.cameraOpacity === "number" ? Math.max(0, Math.min(1, p.cameraOpacity)) : current.cameraOpacity,
-          cameraWanted: false,
+          cameraOpacity,
+          cameraWanted: fxLayers.includes("camera"),
           brushShape: p.brushShape ?? current.brushShape,
           textureInvert: Boolean(p.textureInvert),
           gradientFlip: Boolean(p.gradientFlip),

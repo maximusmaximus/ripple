@@ -206,8 +206,9 @@ void main() {
   float dryInk = inkMark * (1.0 - wet);
   float dryA = dryInk * max(0.4, paintA) * mix(0.58, 0.92, inkMark);
   vec3 preDry = mix(mix(rest, col, 0.35), dye, clamp(dryA, 0.0, 1.0));
+  bool camOn = u_camMix > 0.001;
   vec3 camLit = rest;
-  if (u_camMix > 0.001) {
+  if (camOn) {
     float interact = max(0.75, u_camInteract);
     vec2 warp = vec2(hx, hy) * (0.5 + 5.0 * interact) + inkFlow * 0.008 + slosh * 0.5;
     vec2 cuv = coverOrientCamUv(uv + warp, u_camAngle);
@@ -215,12 +216,8 @@ void main() {
     cuv = clamp(cuv, 0.0, 1.0);
     vec3 cam = texture(u_cam, cuv).rgb;
     camLit = cam * (0.78 + 0.22 * diff) + vec3(spec * 0.2);
-    if ((u_fxLayers & 1) != 0) {
-      vec3 camFx = applyBrushFx(preDry, camLit, u_brushFx);
-      camLit = mix(camLit, camFx, fxAmt);
-    }
   }
-  vec3 surface = mix(mix(rest, col, 0.35), camLit, u_camMix);
+  vec3 surface = mix(rest, col, 0.35);
   if ((u_fxLayers & 2) != 0) {
     vec3 micCol = mix(u_c0, keyCol, highAmt);
     micCol = mix(micCol, u_c3, mid);
@@ -282,6 +279,14 @@ void main() {
       shCol = mix(u_shadowColor, shFx, clamp(u_fxOpacity, 0.0, 1.0));
     }
     col = mix(col, shCol, shW * (1.0 - self * 0.22));
+  }
+  if (camOn) {
+    vec3 camOut = camLit;
+    if ((u_fxLayers & 1) != 0) {
+      vec3 camFx = applyBrushFx(col, camLit, u_brushFx);
+      camOut = mix(camLit, camFx, fxAmt);
+    }
+    col = mix(col, camOut, u_camMix);
   }
   float vig = smoothstep(1.25, 0.28, length(v_uv - 0.5));
   float vigAmt = mix(0.28, 0.12, u_camMix);

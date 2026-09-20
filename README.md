@@ -55,7 +55,7 @@ Stroke color follows the diamonds on **Width · Color** — the gradient laid al
 
 ### Layer FX
 
-Apply-to pills (Camera, Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. **FX only mixes the next stroke or live tool over colors already on the bed** — settled paint is not restyled when you change the mode. The Shadow pill mixes FX into the live cast — turn the cast on under Paint. Color and opacity for that cast live on the large diamond on **Width · Color**.
+Apply-to pills (Camera in front, then Mic, Brush, Texture, Brush Shadow) plus a compact mix board (Normal, Darken, Multiply, Lighten, Screen, Overlay, Contrast, Inversion, Color, Component). Darken and Lighten families replace each other. Opacity is the stack strength. Camera sits over the finished mix so those modes stain the live feed. **FX only mixes the next stroke or live tool over colors already on the bed** — settled paint is not restyled when you change the mode. The Shadow pill mixes FX into the live cast — turn the cast on under Paint. Color and opacity for that cast live on the large diamond on **Width · Color**.
 
 ### Surface
 
@@ -69,7 +69,7 @@ A **pin** sits to the right of each menu slider (viscosity, wave, sensors, FX op
 
 On-device only. Top-left HUD:
 
-- **Camera** — tap to cycle off → front (faces you) → rear. One camera (laptop) is just on / off.
+- **Camera** — starts facing you, in front of the mix, at 90% opaque. Tap to cycle off → front → rear. One camera (laptop) is just on / off. Drag the same control to fade it. Layer FX color modes mix the feed over the paint. Every starter preset turns that layer on.
 - **Mic** — on / off
 - **Gyro** — off → on → horizontal → vertical
 
@@ -114,6 +114,14 @@ When a phone is linked, REC on the phone records the **wall** (the picture on th
 A toast fires once when same-network is detected: “Same network — the wall will save HD.”
 
 Last three seconds pulse faster so you know the cap is close.
+
+The first REC on a computer asks **once**, as a small card on the **right** of the display: save takes to this computer? **Save from now on** writes this take and every later one without asking again. **Not now** keeps them in the session reel only. A paired phone stopping REC never opens a save sheet on the phone — the wall shows that small notice, then later takes save on their own.
+
+On a phone or desktop by itself, **Session → HD record** saves every take at that screen’s native pixels and the highest bitrate the recorder will take (up to 60 seconds). Turn it off to go back to the lighter share clip. Linked same-network pairs still save HD on the wall automatically.
+
+Session keeps the last eight takes as a reel. Tap a thumbnail to play.
+
+A toast fires once when same-network is detected: “Same network — the wall will save HD.”
 
 ### Menu scroll
 

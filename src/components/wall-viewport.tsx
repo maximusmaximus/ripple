@@ -18,6 +18,7 @@ import { useViewStream } from "@/hooks/use-view-stream";
 import { formatCountdown, sendRecBlob, recordProfileFor } from "@/lib/ripple/record";
 import { VOIDRIDE_HOLD_MS } from "@/lib/voidride";
 import type { CastMsg } from "@/lib/ripple/cast";
+import { ClipNotice } from "./clip-notice";
 
 type Props = {
   preferredCode?: string | null;
@@ -146,7 +147,7 @@ export function WallViewport({ preferredCode }: Props) {
     profile: () => recordProfileFor(lanHdRef.current),
     onBlob: async (blob, name, profile) => {
       if (!hostLiveRef.current) return;
-      if (profile === "lanHd") {
+      if (profile === "hd") {
         hostSendRef.current({ t: "rec-skip", reason: "hd-local" });
         return;
       }
@@ -233,7 +234,7 @@ export function WallViewport({ preferredCode }: Props) {
           <div className="rec-live flex items-center gap-2 rounded-full border border-red-400/80 bg-red-700/90 px-3 py-1 text-[11px] font-medium tracking-wide text-white shadow-lg">
             <span className="inline-block size-2 rounded-full bg-white" />
             {formatCountdown(record.remainingMs)} left
-            {record.profile === "lanHd" ? " · HD on this wall" : " · both screens save"}
+            {record.profile === "hd" ? " · HD on this wall" : " · both screens save"}
           </div>
         </div>
       )}
@@ -331,6 +332,15 @@ export function WallViewport({ preferredCode }: Props) {
               : "Waiting for a phone"}
         </div>
       </div>
+
+      {record.notice && (
+        <ClipNotice
+          notice={record.notice}
+          onSaveAlways={record.acceptAutosave}
+          onSkip={record.declineAutosave}
+          onDismiss={record.clearNotice}
+        />
+      )}
 
     </div>
   );

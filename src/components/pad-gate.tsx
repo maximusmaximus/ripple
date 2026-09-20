@@ -4,6 +4,7 @@ import { useLivePresence } from "@/hooks/use-live-presence";
 import type { Splat } from "@/lib/ripple/pointer";
 import type { StudioSnapshot } from "@/lib/ripple/studio";
 import type { PendingClip } from "@/lib/ripple/record";
+import type { RecNotice } from "@/lib/ripple/rec-save";
 
 export type PadHandle = {
   isLive: boolean;
@@ -21,10 +22,14 @@ export type PadHandle = {
   recLimitMs: number;
   recRemainingMs: number;
   recSaving: boolean;
-  pendingClip: PendingClip | null;
+  recNotice: RecNotice | null;
+  clips: PendingClip[];
   recNote: string | null;
   lanHd: boolean;
-  clearPendingClip: () => void;
+  playClip: (clip: PendingClip) => void;
+  acceptAutosave: () => void;
+  declineAutosave: () => void;
+  clearNotice: () => void;
   startCameraLoop: () => Promise<void>;
   bindCameraStream: (stream: MediaStream | null) => void;
 };
@@ -76,10 +81,14 @@ export function PadGate({ code, children }: Props) {
           recLimitMs: pad.recLimitMs,
           recRemainingMs: pad.recRemainingMs,
           recSaving: pad.recSaving,
-          pendingClip: pad.pendingClip,
+          recNotice: pad.notice,
+          clips: pad.clips,
           recNote: pad.recNote,
           lanHd: pad.lanHd,
-          clearPendingClip: pad.clearPendingClip,
+          playClip: pad.playClip,
+          acceptAutosave: pad.acceptAutosave,
+          declineAutosave: pad.declineAutosave,
+          clearNotice: pad.clearNotice,
           startCameraLoop: pad.startCameraLoop,
           bindCameraStream: pad.bindCameraStream,
         })}
